@@ -32,11 +32,7 @@ interface
   {$MODE DELPHI}
 {$ENDIF}
 
-uses
-  Math;
-
 type
-
   TAuComplex = packed record
     Re: single; // Real part
     Im: single; // Imaginary part

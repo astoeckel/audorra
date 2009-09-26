@@ -1,4 +1,4 @@
-del /S *.identcache *.dcu *.local *.cfg *.~* *.ppu *.o *.bak
+del /S *.identcache *.dcu *.local *.cfg *.~* *.ppu *.o *.bak *.rst *.res
 rmdir __history
 rmdir backup
 rmdir dcu\__history

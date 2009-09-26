@@ -42,7 +42,7 @@ interface
 
 uses
   AcPersistent,
-  AdTypes, AuTypes;
+  AuTypes;
 
 type
   {The TAuDevice record contains information about a (logical) sound output device.

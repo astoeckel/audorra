@@ -41,7 +41,7 @@ unit AuAudio;
 interface
 
 uses
-  SysUtils, Classes, SyncObjs,
+  SysUtils, Classes,
   AcPersistent, AcDataStore, AcStrUtils, AcRegUtils,
   AuTypes, AuUtils, AuFilterGraph, AuProtocolClasses, AuDecoderClasses,
   AuDriverClasses, AuAnalyzerClasses, AuSyncUtils, AuMessages;
