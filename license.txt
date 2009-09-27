@@ -1,0 +1,6 @@
+Audorra Digital Audio Library - License
+
+This project is subject to the Mozilla Public License 1.1, which can be found in the file "mpl.txt".
+Due to the incompability of the "MPL" to the commom "Gnu General Public License" you might also use the projects under the following licenses:
+- GPL v. 3 (see "gpl.txt")
+- LGPL v. 3 (see "lgpl.txt")
