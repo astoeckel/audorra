@@ -1,0 +1,388 @@
+<?xml version="1.0"?>
+<CONFIG>
+  <ProjectOptions>
+    <PathDelim Value="\"/>
+    <Version Value="6"/>
+    <General>
+      <MainUnit Value="0"/>
+      <IconPath Value="./"/>
+      <TargetFileExt Value=".exe"/>
+      <UseXPManifest Value="True"/>
+      <ActiveEditorIndexAtStart Value="0"/>
+    </General>
+    <VersionInfo>
+      <ProjectVersion Value=""/>
+    </VersionInfo>
+    <PublishOptions>
+      <Version Value="2"/>
+      <IgnoreBinaries Value="False"/>
+      <IncludeFileFilter Value="*.(pas|pp|inc|lfm|lpr|lrs|lpi|lpk|sh|xml)"/>
+      <ExcludeFileFilter Value="*.(bak|ppu|ppw|o|so);*~;backup"/>
+    </PublishOptions>
+    <RunParams>
+      <local>
+        <FormatVersion Value="1"/>
+        <LaunchingApplication PathPlusParams="/usr/X11R6/bin/xterm -T 'Lazarus Run Output' -e $(LazarusDir)/tools/runwait.sh $(TargetCmdLine)"/>
+      </local>
+    </RunParams>
+    <RequiredPackages Count="1">
+      <Item1>
+        <PackageName Value="LCL"/>
+      </Item1>
+    </RequiredPackages>
+    <Units Count="23">
+      <Unit0>
+        <Filename Value="simple_laz.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="simple_laz"/>
+        <CursorPos X="26" Y="25"/>
+        <TopLine Value="1"/>
+        <EditorIndex Value="10"/>
+        <UsageCount Value="41"/>
+        <Loaded Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="main_laz.pas"/>
+        <ComponentName Value="frmMain"/>
+        <IsPartOfProject Value="True"/>
+        <ResourceBaseClass Value="Form"/>
+        <ResourceFilename Value="main_laz.lrs"/>
+        <UnitName Value="main_laz"/>
+        <CursorPos X="48" Y="296"/>
+        <TopLine Value="271"/>
+        <EditorIndex Value="0"/>
+        <UsageCount Value="41"/>
+        <Loaded Value="True"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="..\..\..\..\..\..\..\..\..\Programme\Lazarus\lcl\include\application.inc"/>
+        <CursorPos X="1" Y="1181"/>
+        <TopLine Value="1160"/>
+        <UsageCount Value="9"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="..\..\src\AuAudio.pas"/>
+        <UnitName Value="AuAudio"/>
+        <CursorPos X="42" Y="45"/>
+        <TopLine Value="24"/>
+        <EditorIndex Value="6"/>
+        <UsageCount Value="20"/>
+        <Loaded Value="True"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="..\..\src\AuDriverClasses.pas"/>
+        <UnitName Value="AuDriverClasses"/>
+        <CursorPos X="3" Y="45"/>
+        <TopLine Value="24"/>
+        <EditorIndex Value="9"/>
+        <UsageCount Value="20"/>
+        <Loaded Value="True"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="..\..\src\AuSyncUtils.pas"/>
+        <UnitName Value="AuSyncUtils"/>
+        <CursorPos X="46" Y="83"/>
+        <TopLine Value="55"/>
+        <EditorIndex Value="3"/>
+        <UsageCount Value="20"/>
+        <Loaded Value="True"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="..\..\src\AuAnalyzerClasses.pas"/>
+        <UnitName Value="AuAnalyzerClasses"/>
+        <CursorPos X="1" Y="1"/>
+        <TopLine Value="19"/>
+        <EditorIndex Value="4"/>
+        <UsageCount Value="20"/>
+        <Loaded Value="True"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="..\..\src\decoders\AuAcinerella.pas"/>
+        <UnitName Value="AuAcinerella"/>
+        <CursorPos X="36" Y="25"/>
+        <TopLine Value="1"/>
+        <EditorIndex Value="5"/>
+        <UsageCount Value="20"/>
+        <Loaded Value="True"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="..\..\..\..\..\..\..\..\..\Programme\Lazarus\lcl\comctrls.pp"/>
+        <UnitName Value="ComCtrls"/>
+        <CursorPos X="3" Y="1059"/>
+        <TopLine Value="1014"/>
+        <UsageCount Value="9"/>
+      </Unit8>
+      <Unit9>
+        <Filename Value="..\..\src\AuFilterGraph.pas"/>
+        <UnitName Value="AuFilterGraph"/>
+        <CursorPos X="28" Y="713"/>
+        <TopLine Value="1"/>
+        <EditorIndex Value="2"/>
+        <UsageCount Value="20"/>
+        <Loaded Value="True"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="..\..\src\AuAnalyzers.pas"/>
+        <UnitName Value="AuAnalyzers"/>
+        <CursorPos X="30" Y="46"/>
+        <TopLine Value="82"/>
+        <EditorIndex Value="1"/>
+        <UsageCount Value="19"/>
+        <Loaded Value="True"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="..\..\..\..\..\..\..\..\..\Programme\Lazarus\lcl\include\winapih.inc"/>
+        <CursorPos X="10" Y="45"/>
+        <TopLine Value="267"/>
+        <UsageCount Value="9"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="..\..\..\..\..\..\..\..\..\Programme\Lazarus\lcl\lclintf.pas"/>
+        <UnitName Value="LCLIntf"/>
+        <CursorPos X="93" Y="70"/>
+        <TopLine Value="13"/>
+        <UsageCount Value="9"/>
+      </Unit12>
+      <Unit13>
+        <Filename Value="..\..\..\..\..\..\..\..\..\Programme\Lazarus\lcl\customtimer.pas"/>
+        <UnitName Value="CustomTimer"/>
+        <CursorPos X="1" Y="183"/>
+        <TopLine Value="162"/>
+        <UsageCount Value="9"/>
+      </Unit13>
+      <Unit14>
+        <Filename Value="..\..\src\decoders\AuWAV.pas"/>
+        <UnitName Value="AuWAV"/>
+        <CursorPos X="16" Y="66"/>
+        <TopLine Value="42"/>
+        <EditorIndex Value="11"/>
+        <UsageCount Value="16"/>
+        <Loaded Value="True"/>
+      </Unit14>
+      <Unit15>
+        <Filename Value="..\..\..\andorra\src\common\AcPersistent.pas"/>
+        <UnitName Value="AcPersistent"/>
+        <CursorPos X="26" Y="487"/>
+        <TopLine Value="471"/>
+        <UsageCount Value="10"/>
+      </Unit15>
+      <Unit16>
+        <Filename Value="..\..\..\..\..\..\..\..\..\Programme\Lazarus\fpc\2.2.2\source\rtl\inc\heaph.inc"/>
+        <CursorPos X="3" Y="39"/>
+        <TopLine Value="18"/>
+        <UsageCount Value="9"/>
+      </Unit16>
+      <Unit17>
+        <Filename Value="..\..\..\andorra\src\common\AcContainers.pas"/>
+        <UnitName Value="AcContainers"/>
+        <CursorPos X="34" Y="503"/>
+        <TopLine Value="481"/>
+        <UsageCount Value="10"/>
+      </Unit17>
+      <Unit18>
+        <Filename Value="..\..\..\andorra\src\common\AcStream.pas"/>
+        <UnitName Value="AcStream"/>
+        <CursorPos X="28" Y="83"/>
+        <TopLine Value="62"/>
+        <UsageCount Value="10"/>
+      </Unit18>
+      <Unit19>
+        <Filename Value="..\..\..\andorra\src\common\AcDataStore.pas"/>
+        <UnitName Value="AcDataStore"/>
+        <CursorPos X="24" Y="1361"/>
+        <TopLine Value="1340"/>
+        <UsageCount Value="10"/>
+      </Unit19>
+      <Unit20>
+        <Filename Value="..\..\..\andorra\src\common\AcSysUtils.pas"/>
+        <UnitName Value="AcSysUtils"/>
+        <CursorPos X="32" Y="107"/>
+        <TopLine Value="86"/>
+        <UsageCount Value="10"/>
+      </Unit20>
+      <Unit21>
+        <Filename Value="..\..\src\AuFFT.pas"/>
+        <UnitName Value="AuFFT"/>
+        <CursorPos X="18" Y="230"/>
+        <TopLine Value="209"/>
+        <EditorIndex Value="7"/>
+        <UsageCount Value="16"/>
+        <Loaded Value="True"/>
+      </Unit21>
+      <Unit22>
+        <Filename Value="..\..\src\AuComplex.pas"/>
+        <UnitName Value="AuComplex"/>
+        <CursorPos X="19" Y="42"/>
+        <TopLine Value="11"/>
+        <EditorIndex Value="8"/>
+        <UsageCount Value="16"/>
+        <Loaded Value="True"/>
+      </Unit22>
+    </Units>
+    <JumpHistory Count="30" HistoryIndex="29">
+      <Position1>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="47" Column="27" TopLine="46"/>
+      </Position1>
+      <Position2>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="80" Column="13" TopLine="151"/>
+      </Position2>
+      <Position3>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="91" Column="67" TopLine="90"/>
+      </Position3>
+      <Position4>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="92" Column="27" TopLine="90"/>
+      </Position4>
+      <Position5>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="229" Column="43" TopLine="203"/>
+      </Position5>
+      <Position6>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="231" Column="17" TopLine="207"/>
+      </Position6>
+      <Position7>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="243" Column="36" TopLine="216"/>
+      </Position7>
+      <Position8>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="395" Column="5" TopLine="354"/>
+      </Position8>
+      <Position9>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="96" Column="50" TopLine="95"/>
+      </Position9>
+      <Position10>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="275" Column="14" TopLine="257"/>
+      </Position10>
+      <Position11>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="84" Column="59" TopLine="83"/>
+      </Position11>
+      <Position12>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="60" Column="18" TopLine="50"/>
+      </Position12>
+      <Position13>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="71" Column="28" TopLine="50"/>
+      </Position13>
+      <Position14>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="39" Column="20" TopLine="38"/>
+      </Position14>
+      <Position15>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="38" Column="25" TopLine="38"/>
+      </Position15>
+      <Position16>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="77" Column="30" TopLine="38"/>
+      </Position16>
+      <Position17>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="61" Column="20" TopLine="38"/>
+      </Position17>
+      <Position18>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="39" Column="20" TopLine="38"/>
+      </Position18>
+      <Position19>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="38" Column="25" TopLine="38"/>
+      </Position19>
+      <Position20>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="62" Column="20" TopLine="38"/>
+      </Position20>
+      <Position21>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="403" Column="15" TopLine="385"/>
+      </Position21>
+      <Position22>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="100" Column="50" TopLine="99"/>
+      </Position22>
+      <Position23>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="291" Column="54" TopLine="271"/>
+      </Position23>
+      <Position24>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="289" Column="51" TopLine="277"/>
+      </Position24>
+      <Position25>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="115" Column="12" TopLine="82"/>
+      </Position25>
+      <Position26>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="436" Column="12" TopLine="418"/>
+      </Position26>
+      <Position27>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="437" Column="33" TopLine="413"/>
+      </Position27>
+      <Position28>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="444" Column="43" TopLine="161"/>
+      </Position28>
+      <Position29>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="440" Column="77" TopLine="418"/>
+      </Position29>
+      <Position30>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="288" Column="66" TopLine="264"/>
+      </Position30>
+    </JumpHistory>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="8"/>
+    <PathDelim Value="\"/>
+    <Target>
+      <Filename Value="..\..\bin\simple.exe"/>
+    </Target>
+    <SearchPaths>
+      <OtherUnitFiles Value="..\..\src\;..\..\lib\;..\..\src\drivers\;..\..\src\decoders\;..\..\..\andorra\src\common\;..\..\..\andorra\src\"/>
+      <UnitOutputDirectory Value="..\..\src\dcu"/>
+    </SearchPaths>
+    <Parsing>
+      <SyntaxOptions>
+        <CStyleOperator Value="False"/>
+      </SyntaxOptions>
+    </Parsing>
+    <Linking>
+      <Debugging>
+        <StripSymbols Value="True"/>
+      </Debugging>
+      <LinkSmart Value="True"/>
+      <Options>
+        <Win32>
+          <GraphicApplication Value="True"/>
+        </Win32>
+      </Options>
+    </Linking>
+    <Other>
+      <Verbosity>
+        <ShowNotes Value="False"/>
+      </Verbosity>
+      <CompilerPath Value="$(CompPath)"/>
+    </Other>
+  </CompilerOptions>
+  <Debugging>
+    <Exceptions Count="2">
+      <Item1>
+        <Name Value="ECodetoolError"/>
+      </Item1>
+      <Item2>
+        <Name Value="EFOpenError"/>
+      </Item2>
+    </Exceptions>
+  </Debugging>
+</CONFIG>
