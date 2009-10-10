@@ -308,9 +308,6 @@ type
 
 implementation
 
-uses
-  Windows;
-
 { TAuAudio }
 
 constructor TAuAudio.Create;

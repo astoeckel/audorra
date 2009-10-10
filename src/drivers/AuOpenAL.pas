@@ -44,7 +44,7 @@ uses
   SysUtils, Classes, SyncObjs,
   openal,
   AcPersistent,
-  AuTypes, AuDriverClasses, AuUtils, AdTypes;
+  AuTypes, AuDriverClasses, AuUtils;
 
 type
   TAuOpenALDevice = class
@@ -809,7 +809,7 @@ begin
 end;
 
 initialization
-  if {$IFDEF WIN32}InitOpenAL('soft_oal.dll'){$ENDIF} or InitOpenAL then
+  if {$IFDEF WIN32}InitOpenAL('soft_oal.dll') or {$ENDIF} InitOpenAL then
     AcRegSrv.RegisterClass(TAuOpenALDriver, @CreateOpenALDriver);
 
   OALCritSect := TCriticalSection.Create;

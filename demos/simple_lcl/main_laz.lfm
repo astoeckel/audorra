@@ -1,24 +1,25 @@
 object frmMain: TfrmMain
-  Left = 489
-  Height = 325
-  Top = 450
-  Width = 541
+  Left = 719
+  Height = 298
+  Top = 162
+  Width = 520
   Caption = 'Audorra Simple Player Demo'
-  ClientHeight = 305
-  ClientWidth = 541
+  ClientHeight = 271
+  ClientWidth = 520
   Menu = MainMenu1
   OnActivate = FormActivate
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  ParentFont = False
-  LCLVersion = '0.9.26'
+  LCLVersion = '0.9.26.2'
   object lstPlaylist: TListView
-    Height = 216
+    Left = 0
+    Height = 182
     Top = 66
-    Width = 541
+    Width = 520
     Align = alClient
     Columns = <    
       item
+        AutoSize = False
         Caption = 'Filename'
         MinWidth = 500
         Width = 500
@@ -27,25 +28,30 @@ object frmMain: TfrmMain
     MultiSelect = True
     RowSelect = True
     SmallImages = imgl_state
+    SortColumn = 0
+    SortType = stNone
     TabOrder = 0
     ViewStyle = vsReport
     OnDblClick = lstPlaylistDblClick
     OnKeyDown = lstPlaylistKeyDown
   end
   object StatusBar1: TStatusBar
+    Left = 0
     Height = 23
-    Top = 282
-    Width = 541
+    Top = 248
+    Width = 520
     Panels = <>
   end
   object Panel1: TPanel
+    Left = 0
     Height = 34
-    Width = 541
+    Top = 0
+    Width = 520
     Align = alTop
     BevelOuter = bvNone
     BorderWidth = 2
     ClientHeight = 34
-    ClientWidth = 541
+    ClientWidth = 520
     TabOrder = 2
     object ToolBar1: TToolBar
       Left = 2
@@ -56,79 +62,83 @@ object frmMain: TfrmMain
       ButtonHeight = 30
       ButtonWidth = 32
       Caption = 'ToolBar1'
+      Ctl3D = False
       EdgeBorders = []
-      Flat = True
       Images = imgl_24
       TabOrder = 0
       object ToolButton1: TToolButton
         Left = 1
-        Hint = 'Opens a media file on the harddisk'
+        Top = 0
         Action = act_open
         DropdownMenu = PopupMenu1
         Style = tbsDropDown
       end
       object ToolButton3: TToolButton
-        Left = 36
-        Hint = 'Resumes playback'
+        Left = 44
+        Top = 0
         Action = act_play
       end
       object ToolButton4: TToolButton
-        Left = 68
-        Hint = 'Pauses playback'
+        Left = 76
+        Top = 0
         Action = act_pause
       end
       object ToolButton5: TToolButton
-        Left = 100
-        Hint = 'Stops playback'
+        Left = 108
+        Top = 0
         Action = act_stop
       end
       object ToolButton2: TToolButton
-        Left = 33
+        Left = 41
+        Top = 0
         Width = 3
         Caption = 'ToolButton2'
         Style = tbsDivider
       end
       object ToolButton6: TToolButton
-        Left = 132
+        Left = 140
+        Top = 0
         Width = 3
         Caption = 'ToolButton6'
         Style = tbsDivider
       end
       object ToolButton7: TToolButton
-        Left = 269
-        Hint = 'Mutes/Unmutes the playback'
+        Left = 277
+        Top = 0
         Action = act_mute
       end
       object ToolButton8: TToolButton
-        Left = 266
+        Left = 274
+        Top = 0
         Width = 3
         Caption = 'ToolButton8'
         Style = tbsDivider
       end
       object ToolButton9: TToolButton
-        Left = 135
-        Hint = 'Adds new files to the playlist'
+        Left = 143
+        Top = 0
         Action = act_ply_addfiles
       end
       object ToolButton10: TToolButton
-        Left = 167
-        Hint = 'Removes the selected files from the playlist'
+        Left = 175
+        Top = 0
         Action = act_ply_removefiles
       end
       object ToolButton11: TToolButton
-        Left = 199
+        Left = 207
+        Top = 0
         Width = 3
         Caption = 'ToolButton11'
         Style = tbsDivider
       end
       object ToolButton12: TToolButton
-        Left = 202
-        Hint = 'Goes back to the previous song in the playlist'
+        Left = 210
+        Top = 0
         Action = act_prev
       end
       object ToolButton13: TToolButton
-        Left = 234
-        Hint = 'Switches to the next song in the playlist'
+        Left = 242
+        Top = 0
         Action = act_next
       end
     end
@@ -136,12 +146,12 @@ object frmMain: TfrmMain
       Left = 330
       Height = 30
       Top = 2
-      Width = 209
+      Width = 188
       Align = alClient
       BevelOuter = bvLowered
       BevelWidth = 2
       ClientHeight = 30
-      ClientWidth = 209
+      ClientWidth = 188
       Color = clBlack
       ParentColor = False
       TabOrder = 1
@@ -149,24 +159,27 @@ object frmMain: TfrmMain
         Left = 2
         Height = 26
         Top = 2
-        Width = 205
+        Width = 184
         Align = alClient
         OnResize = PaintBox1Resize
       end
     end
   end
   object Panel3: TPanel
+    Left = 0
     Height = 32
     Top = 34
-    Width = 541
+    Width = 520
     Align = alTop
     BevelOuter = bvNone
     ClientHeight = 32
-    ClientWidth = 541
+    ClientWidth = 520
     TabOrder = 3
     Visible = False
     object pnlTime: TPanel
+      Left = 0
       Height = 32
+      Top = 0
       Width = 88
       Align = alLeft
       BevelOuter = bvNone
@@ -179,17 +192,20 @@ object frmMain: TfrmMain
     object trbPosition: TTrackBar
       Left = 88
       Height = 32
-      Width = 453
+      Top = 0
+      Width = 432
       Max = 0
       OnChange = trbPositionChange
-      ScalePos = trTop
+      Position = 0
       TickStyle = tsNone
       Align = alClient
+      Ctl3D = False
       TabOrder = 1
     end
   end
   object imgl_24: TImageList
     Height = 24
+    Masked = False
     Width = 24
     left = 8
     top = 160
@@ -1384,10 +1400,12 @@ object frmMain: TfrmMain
           FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFF
           FF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00FFFFFF00
         }
+        OnClick = act_ply_removefilesExecute
       end
     end
   end
   object imgl_16: TImageList
+    Masked = False
     left = 40
     top = 120
     Bitmap = {
@@ -1752,6 +1770,7 @@ object frmMain: TfrmMain
     top = 160
   end
   object imgl_state: TImageList
+    Masked = False
     left = 8
     top = 84
     Bitmap = {

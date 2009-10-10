@@ -8,9 +8,9 @@ program simple_laz;
 {$ENDIF}
 
 uses
-  {$IFDEF UNIX}{$IFDEF UseCThreads}
+  {$IFDEF UNIX}
   cthreads,
-  {$ENDIF}{$ENDIF}
+  {$ENDIF}
   Interfaces, // this includes the LCL widgetset
   Forms
   { you can add units after this }, main_laz;
