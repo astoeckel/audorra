@@ -50,11 +50,11 @@ type
       FOutBuf: PByte;
       FOutBufSize: integer;
       FOutBufCount: Cardinal;
-      FPacket: TAuPacket;
       FFrequency: integer;
       FBitDepth: integer;
       FChannels: integer;
-      FHasFrame: boolean;
+      FTimecode: Cardinal;
+      FMustRead: boolean;
     protected
       function GetInfo: TAuAudioParametersEx;override;
     public
@@ -109,28 +109,44 @@ begin
   FOutBuf := nil;
   FOutBufSize := 0;
   FOutBufCount := 0;
+
+  FTimecode := 0;
 end;
 
 function TAuMPG123Decoder.Decode: TAuDecoderState;
 var
-  read: Int64;
+  read: Integer;
+  res: integer;
 begin
+  result := audsEnd;
   if FDec <> nil then
   begin
-    if not FHasFrame then
+    if FMustRead then
     begin
       read := FProtocol.Read(FInBuf, FInBufSize);
-
-      result := audsEnd;
-
-      case mpg123_decode(FDec, FInBuf, read, FOutBuf, FOutBufSize, @FOutBufCount) of
-        MPG123_NEED_MORE : result := audsIncomplete;
-        MPG123_OK: result := audsHasFrame;
+      FMustRead := false; 
+      if read = 0 then
+      begin
+        result := audsEnd;
+        exit;
       end;
     end else
-    begin
-      Result := audsHasFrame;
-      FHasFrame := false;
+      read := 0;  
+
+    FTimecode := mpg123_tell(FDec);
+    res := mpg123_decode(FDec, FInBuf, read, FOutBuf, FOutBufSize, @FOutBufCount);
+
+    case res of
+      MPG123_NEED_MORE:
+      begin
+        if FOutBufCount <= 0 then        
+          result := audsIncomplete
+        else
+          result := audsHasFrame;                    
+        FMustRead := true;
+      end;
+      MPG123_OK:
+        result := audsHasFrame;
     end;
   end;
 end;
@@ -151,7 +167,7 @@ begin
   begin
     Buffer := FOutBuf;
     BufferSize := FOutBufCount;
-    Timecode := 0;
+    Timecode := round(FTimecode / FFrequency * 1000);
   end;
 end;
 
@@ -159,6 +175,8 @@ function TAuMPG123Decoder.OpenDecoder: boolean;
 var
   read: integer;
   enc: integer;
+  res: integer;
+  atend: boolean;
 begin
   CloseDecoder;
 
@@ -180,18 +198,25 @@ begin
     GetMem(FOutBuf, FOutBufSize);
 
     //Read some data from the stream
-    read := FProtocol.Read(FInBuf, FInBufSize);
-    if read <> 0 then
-    begin
-      if mpg123_decode(FDec, FInBuf, FInBufSize, FOutBuf, FOutBufSize, @FOutBufCount) =
-        MPG123_NEW_FORMAT then
+    atend := false;
+    repeat
+      read := FProtocol.Read(FInBuf, FInBufSize);
+      if read <> 0 then
       begin
-        mpg123_getformat(FDec, @FFrequency, @FChannels, @enc);
-        FBitDepth := 16;
-        FHasFrame := true;
-        result := true;
+        atend := true;  
+        res := mpg123_decode(FDec, FInBuf, FInBufSize, nil, 0, nil);
+        case res of
+          MPG123_NEW_FORMAT:
+          begin
+            mpg123_getformat(FDec, @FFrequency, @FChannels, @enc);
+            FBitDepth := 16;
+            result := true;
+          end;
+          MPG123_NEED_MORE:
+            atend := false;
+        end;
       end;
-    end;
+    until atend;
   end;
 end;
 

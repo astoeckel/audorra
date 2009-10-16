@@ -218,6 +218,7 @@ var
     inmemsize: Cardinal; outmemory: PByte; outmemsize: Cardinal; done: PCardinal): Integer; cdecl;
   mpg123_getformat: function(mh: PMPG123Handle;
   	rate: PInteger; channels: PInteger; encoding: PInteger): integer;cdecl;
+  mpg123_tell: function(mh: PMPG123Handle): Cardinal;cdecl;   	    
 
 function InitMPG123: boolean;
 procedure FinalizeMPG123;
@@ -253,6 +254,7 @@ begin
     mpg123_open_feed := AcGetProcAddress(lib_handle, 'mpg123_open_feed');
     mpg123_decode := AcGetProcAddress(lib_handle, 'mpg123_decode');
     mpg123_getformat := AcGetProcAddress(lib_handle, 'mpg123_getformat');
+    mpg123_tell := AcGetProcAddress(lib_handle, 'mpg123_tell');
 
     if @mpg123_init <> nil then
     begin

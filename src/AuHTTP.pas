@@ -82,7 +82,7 @@ type
 implementation
 
 const
-  buf = 1024 * 256;
+  buf = 1024 * 64;
 
 { TAuHTTPProtocol }
 
@@ -157,6 +157,7 @@ begin
     finally
       FCritSect.Leave;
     end;
+    Sleep(1);
   until (size > ACount);
 end;
 
@@ -170,6 +171,9 @@ begin
   FAddr := AAddr;
   FHttpSend := THTTPSend.Create;
   FHttpSend.OnReceiveData := ReceiveData;
+  FHttpSend.Headers.Add('Accept: icy-metadata:1');
+  FHttpSend.UserAgent := 'Synapse/Acinerella HTTP Component';
+  FHttpSend.KeepAlive := false;
 
   inherited Create(false);
 end;

@@ -8,7 +8,8 @@ uses
   wnd_OpenURL,
 
   AcPersistent, AcDLLExplorer, AcStrUtils,
-  AuAcinerella, AuOpenAL, AuUtils, AuTypes, AuAudio, AuAnalyzers, AuComplex;
+  AuHTTP,
+  AuMPG123, AuOpenAL, AuUtils, AuTypes, AuAudio, AuAnalyzers, AuComplex;
 
 type
   TForm1 = class(TForm)
@@ -671,6 +672,9 @@ begin
   AuFFT.GetChannelData(0, fftdata);
 
   barcount := vis_bmp.Width div (barwidth + bargap);
+  if barcount = 0 then
+    exit;
+    
   c := Round(Length(fftdata) * 0.3);
   fpb := c / barcount;
   if fpb < 1 then
