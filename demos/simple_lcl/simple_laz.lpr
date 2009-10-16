@@ -8,16 +8,17 @@ program simple_laz;
 {$ENDIF}
 
 uses
-  {$IFDEF UNIX}
+  (*{$IFDEF UNIX}
   cthreads,
-  {$ENDIF}
+  {$ENDIF}*)
   Interfaces, // this includes the LCL widgetset
-  Forms
+  Forms, LResources
   { you can add units after this }, main_laz;
 
-{$IFDEF WINDOWS}{$R manifest.rc}{$ENDIF}
+{$IFDEF WINDOWS}{$R simple_laz.rc}{$ENDIF}
 
 begin
+  {$I simple_laz.lrs}
   Application.Initialize;
   Application.CreateForm(TfrmMain, frmMain);
   Application.Run;

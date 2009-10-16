@@ -37,7 +37,7 @@ program consolebased;
 
 {$IFDEF WIN32}
   {$APPTYPE CONSOLE}
-  {$R ../ICON.RES}
+  
 {$ENDIF}
 
 {$IFDEF FPC}
@@ -47,9 +47,15 @@ program consolebased;
 {$I audorra_conf.inc}
 
 uses
-  SysUtils, Windows,
-
-  AuTypes, AuAudio, AuOpenAL, AuAcinerella, AuAnalyzers;
+  SysUtils,
+  Windows,
+  AuTypes,
+  AuAudio,
+  AuOpenAL,
+  AuAnalyzers,
+  AuWAV,
+  AuMPG123 in '..\..\src\decoders\AuMPG123.pas',
+  mpg123 in '..\..\lib\mpg123.pas';
 
 var
   AuAudio: TAuAudio;
