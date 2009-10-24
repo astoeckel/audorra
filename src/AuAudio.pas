@@ -185,6 +185,7 @@ type
       FBufSize: integer;
       FAnalyzeFilter: TAuAnalyzeFilter;
       FVolume: TAuVolumeFilter;
+      FCompressor: TAuCompressorFilter;
       FMasterVolume: single;
       FSongFinishesEvent: TAuNotifyEvent;
       FAnalyzerList: TAuAnalyzerList;
@@ -520,6 +521,9 @@ begin
     if (FVolume <> nil) then
       FreeAndNil(FVolume);
 
+    if FCompressor <> nil then
+      FreeAndNil(FCompressor);
+
     //Free the target object if it is owned by this instance
     if (FOwnTarget) and (FTarget <> nil) then
     begin
@@ -654,16 +658,20 @@ begin
 
         //Connect the analyzer to the filter
         FAnalyzeFilter.Analyzers.Add(FAnalyzerList[i]);
-      end; 
+      end;
 
       //Create the volume filter
       FVolume := TAuVolumeFilter.Create(params);
       FVolume.Master := FMasterVolume;
 
+      //Create the compressor filter
+      FCompressor := TAuCompressorFilter.Create(params);
+
       //Interconnect all filters
       FSource.Target := FAnalyzeFilter;
       FAnalyzeFilter.Target := FVolume;
-      FVolume.Target := FTarget;
+      FVolume.Target := FCompressor;
+      FCompressor.Target := FTarget;
 
 
       result := true;

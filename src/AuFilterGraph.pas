@@ -213,9 +213,25 @@ type
       function ReadCallback(ABuf: PByte; ASize: Cardinal;
         var ASyncData: TAuSyncData):Cardinal;override;
     public
-      procedure Reset;                                             
+      procedure Reset;
       property Master: Single read FMaster write FMaster;
       property Volume[AChannel: Cardinal]: Single read GetVolume write SetVolume;
+  end;
+
+  TAuCompressorFilter = class(TAuPassthroughFilter)
+    private
+      FCompressionTarget: Single;
+      FReleaseTime: Single;
+      FCurrentCompressionFactor: Single;
+      FFac: Single;
+    protected
+      function ReadCallback(ABuf: PByte; ASize: Cardinal;
+        var ASyncData: TAuSyncData):Cardinal;override;                  
+    public
+      constructor Create(AParameters: TAuAudioParameters);
+      
+      property CompressionTarget: Single read FCompressionTarget write FCompressionTarget;
+      property ReleaseTime: Single read FReleaseTime write FReleaseTime;
   end;
 
   TAuDecoderThread = class(TThread)
@@ -1014,6 +1030,61 @@ end;
 procedure TAuCustomDecoderFilter.SyncDataCallback(var ASyncData: TAuSyncData; AReadBytes: Integer);
 begin
   //
+end;
+
+{ TAuCompressorFilter }
+
+constructor TAuCompressorFilter.Create(AParameters: TAuAudioParameters);
+begin
+  inherited;
+
+  FCompressionTarget := 1;
+  FCurrentCompressionFactor := 1;
+  FReleaseTime := 0.1;
+end;
+
+function TAuCompressorFilter.ReadCallback(ABuf: PByte; ASize: Cardinal;
+  var ASyncData: TAuSyncData): Cardinal;
+var
+  i: integer;
+  smpls: Integer;
+  ps: PSingle;
+  v: Single;
+begin
+  result := 0;
+  if Assigned(Callback) then
+  begin
+    //Read the output data
+    result := Callback(ABuf, ASize, ASyncData);
+
+    ps := PSingle(ABuf);
+
+    smpls := result div AuBytesPerSample(Parameters);
+
+    for i := 0 to (smpls * Parameters.Channels) - 1 do
+    begin
+      if i mod Parameters.Channels = 0 then
+      begin
+        //Try to reach the estimated compression target
+        if FCurrentCompressionFactor < 1 then
+          FCurrentCompressionFactor := FCurrentCompressionFactor + FFac;
+
+        if FCurrentCompressionFactor > 1 then        
+          FCurrentCompressionFactor := 1;
+      end;
+      
+      v := ps^;
+      ps^ := ps^ * FCurrentCompressionFactor;
+      if abs(ps^) > FCompressionTarget then
+      begin
+        FCurrentCompressionFactor := FCompressionTarget / abs(v);
+        ps^ := v * FCurrentCompressionFactor;
+        FFac := (1 - FCurrentCompressionFactor) / (Parameters.Frequency * FReleaseTime);
+      end;
+
+      inc(ps);
+    end;
+  end;
 end;
 
 end.
