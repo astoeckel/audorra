@@ -9,7 +9,7 @@ uses
 
   AcPersistent, AcDLLExplorer, AcStrUtils,
   AuHTTP,
-  AuMPG123, AuOpenAL, AuUtils, AuTypes, AuAudio, AuAnalyzers, AuComplex;
+  AuWAV, AuMPG123, AuOpenAL, AuUtils, AuTypes, AuAudio, AuAnalyzers, AuComplex;
 
 type
   TForm1 = class(TForm)

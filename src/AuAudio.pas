@@ -741,6 +741,9 @@ begin
           //Free all components without destroying the file sources (the protocol)
           FreeComponents(false);
 
+          if Protocol.Seekable then
+            Protocol.Seek(aupsFromBeginning, 0);
+
           //Open the file again
           SetState(aupsLoaded, false);
 

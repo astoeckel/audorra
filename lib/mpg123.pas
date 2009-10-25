@@ -55,6 +55,9 @@ const
 type
   PMPG123Handle = Pointer;
 
+  Tmpg123_readproc = function(fd: integer; buf: PByte; count: integer): integer;cdecl;
+  Tmpg123_seekproc = function(fd: integer; count: integer; offset: integer): integer;cdecl; 
+
 const
   MPG123_VERBOSE = 0;
   MPG123_FLAGS = 1;
@@ -214,11 +217,19 @@ var
   mpg123_getparam: function(mh: PMPG123Handle; param: Integer; value: Integer;
     fvalue: double): integer; cdecl;
   mpg123_open_feed: function(mh: PMPG123Handle): integer; cdecl;
+  mpg123_open_fd: function(mh: PMPG123Handle; fd: integer): integer; cdecl;
   mpg123_decode: function(mh: PMPG123Handle; const inmemory: PByte;
     inmemsize: Cardinal; outmemory: PByte; outmemsize: Cardinal; done: PCardinal): Integer; cdecl;
+  mpg123_read: function(mh: PMPG123Handle; outmemory: PByte;
+    outmemsize: Cardinal; done: PCardinal): Integer; cdecl; 
   mpg123_getformat: function(mh: PMPG123Handle;
   	rate: PInteger; channels: PInteger; encoding: PInteger): integer;cdecl;
-  mpg123_tell: function(mh: PMPG123Handle): Cardinal;cdecl;   	    
+  mpg123_tell: function(mh: PMPG123Handle): Cardinal;cdecl;
+  mpg123_replace_reader: function(mh: PMPG123Handle; readproc: Tmpg123_readproc;
+    seekproc: Tmpg123_seekproc): integer;cdecl;
+  mpg123_scan: function(mh: PMPG123Handle): Cardinal;cdecl;
+  mpg123_length: function(mh: PMPG123Handle): Cardinal;cdecl;
+  mpg123_seek: function(mh: PMPG123Handle; sampleoff: integer; whence: integer): integer;cdecl; 
 
 function InitMPG123: boolean;
 procedure FinalizeMPG123;
@@ -252,9 +263,16 @@ begin
     mpg123_param := AcGetProcAddress(lib_handle, 'mpg123_param');
     mpg123_getparam := AcGetProcAddress(lib_handle, 'mpg123_getparam');
     mpg123_open_feed := AcGetProcAddress(lib_handle, 'mpg123_open_feed');
+    mpg123_open_fd := AcGetProcAddress(lib_handle, 'mpg123_open_fd');
     mpg123_decode := AcGetProcAddress(lib_handle, 'mpg123_decode');
+    mpg123_read := AcGetProcAddress(lib_handle, 'mpg123_read');
     mpg123_getformat := AcGetProcAddress(lib_handle, 'mpg123_getformat');
     mpg123_tell := AcGetProcAddress(lib_handle, 'mpg123_tell');
+    mpg123_replace_reader := AcGetProcAddress(lib_handle, 'mpg123_replace_reader');
+    mpg123_scan := AcGetProcAddress(lib_handle, 'mpg123_scan');
+    mpg123_length := AcGetProcAddress(lib_handle, 'mpg123_length');
+    mpg123_seek := AcGetProcAddress(lib_handle, 'mpg123_seek');
+
 
     if @mpg123_init <> nil then
     begin
