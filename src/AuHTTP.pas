@@ -172,7 +172,7 @@ begin
   FHttpSend := THTTPSend.Create;
   FHttpSend.OnReceiveData := ReceiveData;
   FHttpSend.Headers.Add('Accept: icy-metadata:1');
-  FHttpSend.UserAgent := 'Synapse/Acinerella HTTP Component';
+  FHttpSend.UserAgent := 'Synapse/Audorra HTTP Component';
   FHttpSend.KeepAlive := false;
 
   inherited Create(false);

@@ -58,19 +58,24 @@ type
 
   PWaveHdr = ^TWaveHdr;
 
+  TAuWaveOutProperties = class(TAu3DProperties)
+    private
+      FHWO: HWAVEOUT;
+    protected
+      procedure Update;override;
+    public
+      procedure SetHWO(AHWO: HWAVEOUT);
+  end;
+
   TAuWaveOutDriver = class(TAuDriver)
     public
       procedure EnumDevices(ACallback: TAuEnumDeviceProc);override;
 
       function CreateStaticSoundDriver(ADeviceID: integer;
-        AParameters: TAuAudioParametersEx;
-        AScene: TAu3DScene = nil): TAuStaticSoundDriver;override;
+        AParameters: TAuAudioParametersEx): TAuStaticSoundDriver;override;
 
       function CreateStreamDriver(ADeviceID: integer;
-        AParameters: TAuAudioParametersEx;
-        AScene: TAu3DScene = nil): TAuStreamDriver;override;
-
-      function Create3DScene: TAu3DScene;override;       
+        AParameters: TAuAudioParametersEx): TAuStreamDriver;override;
   end;
 
   TAuWaveOutStaticSoundDriver = class(TAuStaticSoundDriver)
@@ -247,21 +252,15 @@ begin
   end;    
 end;
 
-function TAuWaveOutDriver.Create3DScene: TAu3DScene;
-begin
-  //The wave out driver doesn't support 3D sound at the moment.
-  result := nil;
-end;
-
 function TAuWaveOutDriver.CreateStaticSoundDriver(ADeviceID: integer;
-  AParameters: TAuAudioParametersEx; AScene: TAu3DScene): TAuStaticSoundDriver;
+  AParameters: TAuAudioParametersEx): TAuStaticSoundDriver;
 begin
   result := TAuWaveOutStaticSoundDriver.Create(Cardinal(ADeviceID),
     GetWaveFormatEx(AParameters));
 end;
 
 function TAuWaveOutDriver.CreateStreamDriver(ADeviceID: integer;
-  AParameters: TAuAudioParametersEx; AScene: TAu3DScene): TAuStreamDriver;
+  AParameters: TAuAudioParametersEx): TAuStreamDriver;
 begin
   result := TAuWaveOutStreamDriver.Create(Cardinal(ADeviceID),
     GetWaveFormatEx(AParameters));
@@ -426,12 +425,16 @@ begin
   FParameters.Frequency := AFmt.Format.nSamplesPerSec;
   FParameters.Channels := AFmt.Format.nChannels;
   FParameters.BitDepth := AFmt.Format.wBitsPerSample;
+
+  F3DProperties := TAuWaveOutProperties.Create;
 end;
 
 destructor TAuWaveOutStreamDriver.Destroy;
 begin
   Close;
   DestroyBlocks;
+
+  F3DProperties.Free;
 
   inherited;
 end;
@@ -448,6 +451,8 @@ begin
       if FBlocks[i].dwFlags = WHDR_PREPARED then
         while (waveOutUnprepareHeader(FHWO, @FBlocks[i], SizeOf(FBlocks[i])) = WAVERR_STILLPLAYING) do
           Sleep(1);
+
+    TAuWaveOutProperties(F3DProperties).SetHWO(0);
 
     while waveOutClose(FHWO) = WAVERR_STILLPLAYING do
       Sleep(1);
@@ -501,6 +506,8 @@ begin
   begin
     result := true;
     FState := audsOpened;
+
+    TAuWaveOutProperties(F3DProperties).SetHWO(FHWO);
 
     //Pause the playback
     Pause;
@@ -587,6 +594,70 @@ begin
   
   FBlockCount := 0;
   FBlockSize := 0;
+end;
+
+{ TAuWaveOutProperties }
+
+procedure TAuWaveOutProperties.SetHWO(AHWO: HWAVEOUT);
+begin
+  FHWO := AHWO;
+  Update;
+end;
+
+const
+  REFDIST = 1;
+  MAXDIST = 100;
+  ROLLOFF = 1.0;
+
+procedure TAuWaveOutProperties.Update;
+var
+  angle: Single;
+  dist: Single;
+  lv, rv: Single;
+  dw: Cardinal;
+  pw: PWord;
+  mg: Single;
+begin
+  if FHWO <> 0 then
+  begin
+    lv := 1;
+    rv := 1;
+
+    dist := Sqrt(Sqr(Position.x) + Sqr(Position.y) + Sqr(Position.z));
+
+    if dist > MAXDIST then
+      dist := MAXDIST;
+
+    if dist < REFDIST then
+      dist := REFDIST;
+
+    if dist > 0 then
+    begin
+      if Position.x < 0 then
+      begin
+        lv := 1;
+        rv := 1 + position.x / dist;
+      end
+      else
+      begin
+        rv := 1;
+        lv := 1 - position.x / dist;
+      end;
+    end;
+
+    Writeln(lv:2:2, ' ', rv:2:2); 
+
+    //Calculate the master gain
+    mg := REFDIST / dist * Gain;
+
+    //Write the results
+    pw := PWord(@dw);
+    pw^ := round(lv * mg * High(Word));
+    inc(pw);
+    pw^ := round(rv * mg * High(Word));
+
+    waveOutSetVolume(FHWO, dw);
+  end;
 end;
 
 initialization

@@ -47,6 +47,18 @@ uses
   AuTypes, AuDriverClasses, AuUtils;
 
 type
+  TAuOpenAL3DProperties = class(TAu3DProperties)
+    private
+      FSource: TALuint;
+      FContext: TALCcontext;
+    protected
+      procedure Update;override;
+    public
+      constructor Create(AContext: TALCcontext);
+
+      procedure SetSource(ASource: TALuint);
+  end;
+
   TAuOpenALDevice = class
     private
       FName: string;
@@ -54,7 +66,6 @@ type
       FDevice: TALCdevice;
       FContext: TALCcontext;
     public
-
       constructor Create(AName: string; AID: integer);
       destructor Destroy;override;
 
@@ -85,6 +96,7 @@ type
       FDefaultDevice: string;
       procedure FillDevicesList;
       function GetDeviceFromId(AID: integer): TAuOpenALDevice;
+      function GetContext(ADeviceID: integer): TALCcontext;
     public
       constructor Create;
       destructor Destroy;override;
@@ -92,14 +104,10 @@ type
       procedure EnumDevices(ACallback: TAuEnumDeviceProc);override;
 
       function CreateStaticSoundDriver(ADeviceID: integer;
-        AParameters: TAuAudioParametersEx;
-        AScene: TAu3DScene = nil): TAuStaticSoundDriver;override;
+        AParameters: TAuAudioParametersEx): TAuStaticSoundDriver;override;
 
       function CreateStreamDriver(ADeviceID: integer;
-        AParameters: TAuAudioParametersEx;
-        AScene: TAu3DScene = nil): TAuStreamDriver;override;
-
-      function Create3DScene: TAu3DScene;override;
+        AParameters: TAuAudioParametersEx): TAuStreamDriver;override;
   end;
 
   TAuOpenALNotificationThread = class(TThread)
@@ -124,6 +132,7 @@ type
       FBuffer: TALuint;
       FSource: TALuint;
       FThread: TAuOpenALNotificationThread;
+      FParent: TAuOpenALDriver;
       procedure LoadBuffer;
       procedure OnStop(Sender: TObject);
     public
@@ -152,6 +161,8 @@ type
       FSyncDataBuf: array of TAuSyncData;
       FCurrentBlock: integer;
       FFreeBlocks: integer;
+      FParent: TAuOpenALDriver;
+      FIntProp: TAuOpenAL3DProperties;
       function AllocBuffers: boolean;
       procedure DestroyBuffers;
     public
@@ -176,7 +187,7 @@ const
 implementation
 
 var
-  OALCritSect: TCriticalSection;
+  OALMutex: TMutex;
 
 function GetALFormat(AFormat: TAuAudioParametersEx): integer;
 begin
@@ -217,56 +228,42 @@ begin
 end;
 
 function TAuOpenALDriver.CreateStaticSoundDriver(ADeviceID: integer;
-  AParameters: TAuAudioParametersEx; AScene: TAu3DScene): TAuStaticSoundDriver;
+  AParameters: TAuAudioParametersEx): TAuStaticSoundDriver;
 var
-  dev: TAuOpenALDevice;
   cont: TALCcontext;
 begin
   //Initialize variables
   result := nil;
-  cont := nil;
 
-  if AScene = nil then
-  begin
-    dev := GetDeviceFromId(ADeviceID);
-    if dev <> nil then
-    begin
-      dev.AllocContext;
-      cont := dev.Context;
-    end;
-  end;
-
+  cont := GetContext(ADeviceID);
   if cont <> nil then
-    result := TAuOpenALStaticSoundDriver.Create(cont, AParameters);
+    result := TAuOpenALStaticSoundDriver.Create(cont, AParameters)
 end;
 
 function TAuOpenALDriver.CreateStreamDriver(ADeviceID: integer;
-  AParameters: TAuAudioParametersEx; AScene: TAu3DScene): TAuStreamDriver;
+  AParameters: TAuAudioParametersEx): TAuStreamDriver;
 var
-  dev: TAuOpenALDevice;
   cont: TALCcontext;
 begin
   //Initialize variables
   result := nil;
-  cont := nil;
 
-  if AScene = nil then
-  begin
-    dev := GetDeviceFromId(ADeviceID);
-    if dev <> nil then
-    begin
-      dev.AllocContext;
-      cont := dev.Context;
-    end;
-  end;
-
+  cont := GetContext(ADeviceID);
   if cont <> nil then
-    result := TAuOpenALStreamDriver.Create(cont, AParameters);
+    result := TAuOpenALStreamDriver.Create(cont, AParameters)
 end;
 
-function TAuOpenALDriver.Create3DScene: TAu3DScene;
+function TAuOpenALDriver.GetContext(ADeviceID: integer): TALCcontext;
+var
+  dev: TAuOpenALDevice;
 begin
   result := nil;
+  dev := GetDeviceFromId(ADeviceID);
+  if dev <> nil then
+  begin
+    dev.AllocContext;
+    result := dev.Context;
+  end;
 end;
 
 procedure TAuOpenALDriver.EnumDevices(ACallback: TAuEnumDeviceProc);
@@ -310,7 +307,7 @@ begin
   FOpenDefault := true;
   FDevices.Clear;
 
-  if alcIsExtensionPresent(nil,'ALC_ENUMERATE_ALL_EXT') then
+  if alcIsExtensionPresent(nil, 'ALC_ENUMERATE_ALL_EXT') then
   begin
     FOpenDefault := false;
     FDefaultDevice := PAnsiChar(alcGetString(nil, ALC_DEFAULT_ALL_DEVICES_SPECIFIER));
@@ -407,8 +404,13 @@ begin
     //Be sure to have a device opened
     AllocDevice;
 
-    args := nil;
-    FContext := alcCreateContext(FDevice, args);
+    OALMutex.Acquire;
+    try
+      args := nil;
+      FContext := alcCreateContext(FDevice, args);
+    finally
+      OALMutex.Release;
+    end;
   end;
 end;
 
@@ -416,25 +418,40 @@ procedure TAuOpenALDevice.AllocDevice;
 begin
   if FDevice = nil then
   begin
-    if FName = AuOpenALDefaultDeviceName then
-      FDevice := alcOpenDevice(nil)
-    else
-      FDevice := PAnsiChar(alcOpenDevice(PByte(FName)));
-  end;      
+    OALMutex.Acquire;
+    try
+      if FName = AuOpenALDefaultDeviceName then
+        FDevice := alcOpenDevice(nil)
+      else
+        FDevice := PAnsiChar(alcOpenDevice(PByte(FName)));
+    finally
+      OALMutex.Release;
+    end;
+  end;
 end;
 
 procedure TAuOpenALDevice.FreeContext;
 begin
-  if FContext <> nil then
-    alcDestroyContext(FContext);
-  FContext := nil;
+  OALMutex.Acquire;
+  try
+    if FContext <> nil then
+      alcDestroyContext(FContext);
+    FContext := nil;
+  finally
+    OALMutex.Release;
+  end;
 end;
 
 procedure TAuOpenALDevice.FreeDevice;
 begin
-  if FDevice <> nil then
-    alcCloseDevice(FDevice);
-  FDevice := nil;
+  OALMutex.Acquire;
+  try
+    if FDevice <> nil then
+      alcCloseDevice(FDevice);
+    FDevice := nil;
+  finally
+    OALMutex.Release;
+  end;
 end;
 
 { TAuOpenALStreamDriver }
@@ -448,7 +465,7 @@ begin
   FParameters := AFmt;
   FFmt := GetALFormat(AFmt);
   FDelay := round((AuOpenALBufferCount * AuOpenALBufferSize) * 1000 / FParameters.Frequency);
-
+  F3DProperties := TAuOpenAL3DProperties.Create(FContext);
 end;
 
 destructor TAuOpenALStreamDriver.Destroy;
@@ -463,33 +480,43 @@ begin
   result := false;
   if (FContext <> nil) and (FFmt <> 0) then
   begin
-    ActivateContext(FContext);
-    
-    //Setup the source
-    alGenSources(1, @FSource);
-    alSource3f(FSource, AL_POSITION, 0, 0, 0);
-    alSource3f(FSource, AL_VELOCITY, 0, 0, 0);
-    alSource3f(FSource, AL_DIRECTION, 0, 0, 0);
-    alSourcef(FSource, AL_ROLLOFF_FACTOR, 0);
-    alSourcei(FSource, AL_SOURCE_RELATIVE, AL_TRUE);
+    OALMutex.Acquire;
+    try
+      ActivateContext(FContext);
 
-    alDistanceModel(AL_EXPONENT_DISTANCE);
+      //Setup the source
+      alGenSources(1, @FSource);
+      alSource3f(FSource, AL_POSITION, 0, 0, 0);
+      alSource3f(FSource, AL_VELOCITY, 0, 0, 0);
+      alSource3f(FSource, AL_DIRECTION, 0, 0, 0);
 
-    result :=  (alGetError() = AL_NO_ERROR) and AllocBuffers;
+      TAuOpenAL3DProperties(F3DProperties).SetSource(FSource);
 
-    if result then
-    begin
-      FState := audsOpened;
-      FOpened := true;
+      alDistanceModel(AL_EXPONENT_DISTANCE);
+
+      result :=  (alGetError() = AL_NO_ERROR) and AllocBuffers;
+
+      if result then
+      begin
+        FState := audsOpened;
+        FOpened := true;
+      end;
+    finally
+      OALMutex.Release;
     end;
   end;
 end;
 
 procedure TAuOpenALStreamDriver.Close;
 begin
-  DestroyBuffers;
+  OALMutex.Acquire;
+  try
+    DestroyBuffers;
 
-  alDeleteSources(1, @FSource);
+    alDeleteSources(1, @FSource);
+  finally
+    OALMutex.Release;
+  end;
 
   FState := audsClosed;
 end;
@@ -498,47 +525,57 @@ function TAuOpenALStreamDriver.AllocBuffers: boolean;
 begin
   result := false;
   
-  //Reserve memory for the buffers
-  FBufSize := AuBytesPerSample(FParameters) * AuOpenALBufferSize;
-  FMemSize := AuBytesPerSample(FParameters) * AuOpenALBufferCount * AuOpenALBufferSize;
-  GetMem(FMem, FMemSize);
+  OALMutex.Acquire;
+  try
+    //Reserve memory for the buffers
+    FBufSize := AuBytesPerSample(FParameters) * AuOpenALBufferSize;
+    FMemSize := AuBytesPerSample(FParameters) * AuOpenALBufferCount * AuOpenALBufferSize;
+    GetMem(FMem, FMemSize);
 
-  //Generate the buffers
-  SetLength(FBuffers, AuOpenALBufferCount);
-  alGenBuffers(AuOpenALBufferCount, @FBuffers[0]);
-  if alGetError() <> AL_NO_ERROR then
-    exit;
+    //Generate the buffers
+    SetLength(FBuffers, AuOpenALBufferCount);
+    alGenBuffers(AuOpenALBufferCount, @FBuffers[0]);
+    if alGetError() <> AL_NO_ERROR then
+      exit;
 
-  //Reserve memory for the sync data buffer
-  SetLength(FSyncDataBuf, AuOpenALBufferCount);
+    //Reserve memory for the sync data buffer
+    SetLength(FSyncDataBuf, AuOpenALBufferCount);
 
-  FCurrentBlock := 0;
-  FFreeBlocks := Length(FBuffers);
+    FCurrentBlock := 0;
+    FFreeBlocks := Length(FBuffers);
 
-  result := true;
+    result := true;
+  finally
+    OALMutex.Release;
+  end;
 end;
 
 procedure TAuOpenALStreamDriver.DestroyBuffers;
 begin
-  ActivateContext(FContext);
+  OALMutex.Acquire;
+  try
+    ActivateContext(FContext);
 
-  //Free the buffer memory
-  if Length(FBuffers) > 0 then
-  begin
-    alDeleteBuffers(AuOpenALBufferCount, @FBuffers[0]);
-    SetLength(FBuffers, 0);
+    //Free the buffer memory
+    if Length(FBuffers) > 0 then
+    begin
+      alDeleteBuffers(AuOpenALBufferCount, @FBuffers[0]);
+      SetLength(FBuffers, 0);
+    end;
+
+    //Free the sync data buffer
+    SetLength(FSyncDataBuf, 0);
+
+    if FMem <> nil then
+      FreeMem(FMem, FMemSize);
+    FMem := nil;
+    FMemSize := 0;
+
+    FCurrentBlock := 0;
+    FFreeBlocks := 0;
+  finally
+    OALMutex.Release;
   end;
-
-  //Free the sync data buffer
-  SetLength(FSyncDataBuf, 0);
-  
-  if FMem <> nil then  
-    FreeMem(FMem, FMemSize);
-  FMem := nil;
-  FMemSize := 0;
-
-  FCurrentBlock := 0;
-  FFreeBlocks := 0;
 end;
 
 procedure TAuOpenALStreamDriver.Idle(ACallback: TAuReadCallback);
@@ -553,72 +590,92 @@ begin
   if FState <> audsPlaying then
     exit;
 
-  ActivateContext(FContext);
+  OALMutex.Acquire;
+  try
+    ActivateContext(FContext);
 
-  Processed := 0;
-  alGetSourcei(FSource, AL_BUFFERS_PROCESSED, @processed);
-  FFreeBlocks := FFreeBlocks + processed;
+    Processed := 0;
+    alGetSourcei(FSource, AL_BUFFERS_PROCESSED, @processed);
+    FFreeBlocks := FFreeBlocks + processed;
 
-  mustplay := FFreeBlocks = AuOpenALBufferCount;
+    mustplay := FFreeBlocks = AuOpenALBufferCount;
 
-  for i := 0 to FFreeBlocks - 1 do
-  begin
-    alSourceUnqueueBuffers(FSource, 1, @FBuffers[FCurrentBlock]);
+    for i := 0 to FFreeBlocks - 1 do
+    begin
+      alSourceUnqueueBuffers(FSource, 1, @FBuffers[FCurrentBlock]);
 
-    //Calculate the memory position of the buffer
-    pmem := FMem;
-    inc(pmem, FBufSize * FCurrentBlock);
+      //Calculate the memory position of the buffer
+      pmem := FMem;
+      inc(pmem, FBufSize * FCurrentBlock);
 
-    //Output the sync data
-    FSyncData := FSyncDataBuf[FCurrentBlock];
+      //Output the sync data
+      FSyncData := FSyncDataBuf[FCurrentBlock];
 
-    //Read the wave data from the decoder
-    size := ACallback(pmem, FBufSize, tmpsync);
-    FSyncDataBuf[FCurrentBlock] := tmpsync;
+      //Read the wave data from the decoder
+      size := ACallback(pmem, FBufSize, tmpsync);
+      FSyncDataBuf[FCurrentBlock] := tmpsync;
 
-    //Write the data to the block and queue it
-    alBufferData(FBuffers[FCurrentBlock], FFmt, pmem, size,
-      FParameters.Frequency);
-    alSourceQueueBuffers(FSource, 1, @FBuffers[FCurrentBlock]);
+      //Write the data to the block and queue it
+      alBufferData(FBuffers[FCurrentBlock], FFmt, pmem, size,
+        FParameters.Frequency);
+      alSourceQueueBuffers(FSource, 1, @FBuffers[FCurrentBlock]);
 
-    //Increment block counters
-    FCurrentBlock := (FCurrentBlock + 1) mod AuOpenALBufferCount;
-    FFreeBlocks := FFreeBlocks - 1;
+      //Increment block counters
+      FCurrentBlock := (FCurrentBlock + 1) mod AuOpenALBufferCount;
+      FFreeBlocks := FFreeBlocks - 1;
+    end;
+
+    if mustplay then
+      alSourcePlay(FSource);
+  finally
+    OALMutex.Release;
   end;
-
-  if mustplay then
-    alSourcePlay(FSource);
 end;
 
 procedure TAuOpenALStreamDriver.Pause;
 begin
-  ActivateContext(FContext);
-
-  alSourcePause(FSource);
-
-  FState := audsPaused;
+  OALMutex.Acquire;
+  try
+    ActivateContext(FContext);
+    alSourcePause(FSource);
+    FState := audsPaused;
+  finally
+    OALMutex.Release;
+  end;
 end;
 
 procedure TAuOpenALStreamDriver.Play;
 begin
-  ActivateContext(FContext);
-
-  FState := audsPlaying;
-  alSourcePlay(FSource);
+  if (FState = audsOpened) or (FState = audsPaused) then
+  begin
+    OALMutex.Acquire;
+    try
+      ActivateContext(FContext);
+      FState := audsPlaying;
+      alSourcePlay(FSource);
+    finally
+      OALMutex.Release;
+    end;
+  end;
 end;
 
 procedure TAuOpenALStreamDriver.Stop;
 begin
-  ActivateContext(FContext);
-
   if (FState = audsPlaying) or (FState = audsPaused) then
   begin
-    alSourceStop(FSource);
-    alSourceUnqueueBuffers(FSource, AuOpenALBufferCount, @FBuffers[0]);
+    OALMutex.Acquire;
+    try
+      ActivateContext(FContext);
 
-    FState := audsOpened;
-    FCurrentBlock := 0;
-    FFreeBlocks := Length(FBuffers);
+      alSourceUnqueueBuffers(FSource, AuOpenALBufferCount, @FBuffers[0]);
+      alSourceStop(FSource);
+
+      FState := audsOpened;
+      FCurrentBlock := 0;
+      FFreeBlocks := Length(FBuffers);
+    finally
+      OALMutex.Release;
+    end;
   end;
 end;
 
@@ -631,7 +688,8 @@ begin
 
   FParameters := AFmt;
   FFmt := GetALFormat(AFmt);
-  FContext := AContext;
+  FContext := AContext;                            
+  F3DProperties := TAuOpenAL3DProperties.Create(FContext);
 end;
 
 destructor TAuOpenALStaticSoundDriver.Destroy;
@@ -651,26 +709,35 @@ begin
   end;
   FThread := nil;
 
-  if FBuffer <> 0 then
-    alDeleteBuffers(1, @FBuffer);
+  OALMutex.Acquire;
+  try
+    if FBuffer <> 0 then
+      alDeleteBuffers(1, @FBuffer);
 
-  if FSource <> 0 then
-    alDeleteSources(1, @FSource);
+    if FSource <> 0 then
+      alDeleteSources(1, @FSource);
 
-  FBuffer := 0;
-  FSource := 0;
+    FBuffer := 0;
+    FSource := 0;
+  finally
+    OALMutex.Release;
+  end;
 end;
 
 procedure TAuOpenALStaticSoundDriver.LoadBuffer;
 begin
-  ActivateContext(FContext);
-  
   if (FBuffer <> 0) then
   begin
-    alBufferData(FBuffer, FFmt, FMem, FMemSize, FParameters.Frequency);
-    FWroteData := true;
+    OALMutex.Acquire;
+    try
+      ActivateContext(FContext);
+      alBufferData(FBuffer, FFmt, FMem, FMemSize, FParameters.Frequency);
+      FWroteData := true;
 
-    FThread := TAuOpenALNotificationThread.Create(FContext, FSource, OnStop);
+      FThread := TAuOpenALNotificationThread.Create(FContext, FSource, OnStop);
+    finally
+      OALMutex.Release;
+    end;
   end;
 end;
 
@@ -687,29 +754,26 @@ begin
   result := false;
   if FState = audsClosed then
   begin
-    //Actually do nothing
-    if FFmt > 0 then
-    begin
-      ActivateContext(FContext);
-
-      alGenBuffers(1, @FBuffer);
-      alGenSources(1, @FSource);
-
-      //Initialize the source parameters
-      alSource3f(FSource, AL_POSITION, 0, 0, 0);
-      alSource3f(FSource, AL_VELOCITY, 0, 0, 0);
-      alSource3f(FSource, AL_DIRECTION, 0, 0, 0);
-      alSourcef(FSource, AL_ROLLOFF_FACTOR, 0);
-      alSourcei(FSource, AL_SOURCE_RELATIVE, AL_TRUE);
-
-      alListener3f(AL_POSITION, 0, 0, 0);
-      alListener3f(AL_VELOCITY, 0, 0, 0);
-
-      if (FSource <> 0) and (FBuffer <> 0) then
+    OALMutex.Acquire;
+    try
+      //Actually do nothing
+      if FFmt > 0 then
       begin
-        FState := audsOpened;
-        result := true;
+        ActivateContext(FContext);
+
+        alGenBuffers(1, @FBuffer);
+        alGenSources(1, @FSource);
+
+        TAuOpenAL3DProperties(F3DProperties).SetSource(FSource);
+
+        if (FSource <> 0) and (FBuffer <> 0) then
+        begin
+          FState := audsOpened;
+          result := true;
+        end;
       end;
+    finally
+      OALMutex.Release;
     end;
   end;
 end;
@@ -718,10 +782,15 @@ procedure TAuOpenALStaticSoundDriver.Pause;
 begin
   if FState > audsOpened then
   begin
-    ActivateContext(FContext);
-    
-    alSourcePause(FSource);
-    FState := audsPaused;
+    OALMutex.Acquire;
+    try
+      ActivateContext(FContext);
+
+      alSourcePause(FSource);
+      FState := audsPaused;
+    finally
+      OALMutex.Release;
+    end;
   end;
 end;
 
@@ -729,17 +798,22 @@ procedure TAuOpenALStaticSoundDriver.Play;
 begin
   if FState < audsPlaying then
   begin
-    ActivateContext(FContext);
+    OALMutex.Acquire;
+    try
+      ActivateContext(FContext);
 
-    if not FWroteData then
-      LoadBuffer;
+      if not FWroteData then
+        LoadBuffer;
 
-    FState := audsPlaying;
+      FState := audsPlaying;
 
-    //Attach the buffer to the source
-    alSourcei(FSource, AL_BUFFER, FBuffer);
+      //Attach the buffer to the source
+      alSourcei(FSource, AL_BUFFER, FBuffer);
 
-    alSourcePlay(FSource);
+      alSourcePlay(FSource);
+    finally
+      OALMutex.Release;
+    end;
   end;
 end;
 
@@ -747,10 +821,15 @@ procedure TAuOpenALStaticSoundDriver.Stop;
 begin
   if FState > audsOpened then
   begin
-    ActivateContext(FContext);
+    OALMutex.Acquire;
+    try
+      ActivateContext(FContext);
 
-    alSourceStop(FSource);
-    FState := audsOpened;
+      alSourceStop(FSource);
+      FState := audsOpened;
+    finally
+      OALMutex.Release;
+    end;
   end;
 end;
 
@@ -763,14 +842,12 @@ begin
 
     FWroteData := false;
   end;
-end;
-
+end;   
 
 function CreateOpenALDriver: TAuDriver;
 begin
   result := TAuOpenALDriver.Create;
 end;
-
 
 { TAuOpenALNotificationThread }
 
@@ -790,32 +867,67 @@ var
   newstate: TAlUint;
 begin
   repeat
+    OALMutex.Acquire;
     try
-      OALCritSect.Enter;
-
       ActivateContext(FContext);
 
       alGetSourcei(FSource, AL_BUFFERS_PROCESSED, @newstate);
       if (newstate <> Cardinal(FOldState)) and (FOldState <> -1) and (newstate = 1) then
         FNotify(self);
 
-     FOldState := newstate;
+      FOldState := newstate;
     finally
-      OALCritSect.Leave;
+      OALMutex.Release;
     end;
 
     Sleep(1);
-  until (Terminated) or (OALCritSect = nil);
+  until (Terminated) or (OALMutex = nil);
+end;
+
+{ TAuOpenAL3DProperties }
+
+constructor TAuOpenAL3DProperties.Create(AContext: TALCcontext);
+begin
+  inherited Create;
+
+  FSource := 0;
+  FContext := AContext;
+end;
+
+procedure TAuOpenAL3DProperties.SetSource(ASource: TALuint);
+begin
+  FSource := ASource;
+  Update;
+end;
+
+procedure TAuOpenAL3DProperties.Update;
+var
+  vec3: TAuVector3;
+begin
+  if FSource = 0 then
+    exit;
+    
+  OALMutex.Acquire;
+  try
+    ActivateContext(FContext);
+
+    alSourcef(FSource, AL_GAIN, Gain);
+    alSourcef(FSource, AL_PITCH, Pitch);
+    vec3 := Position;
+    alSourcefv(FSource, AL_POSITION, @vec3);
+  finally
+    OALMutex.Release;
+  end;
 end;
 
 initialization
   if {$IFDEF WIN32}InitOpenAL('soft_oal.dll') or {$ENDIF} InitOpenAL then
     AcRegSrv.RegisterClass(TAuOpenALDriver, @CreateOpenALDriver);
 
-  OALCritSect := TCriticalSection.Create;
+  OALMutex := TMutex.Create;
 
 finalization
-  OALCritSect.Free;
-  OALCritSect := nil;
+  OALMutex.Free;
+  OALMutex := nil;
 
 end.

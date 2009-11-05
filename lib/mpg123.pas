@@ -231,7 +231,7 @@ var
   mpg123_length: function(mh: PMPG123Handle): Cardinal;cdecl;
   mpg123_seek: function(mh: PMPG123Handle; sampleoff: integer; whence: integer): integer;cdecl; 
 
-function InitMPG123: boolean;
+function InitMPG123(ALib: string = ''): boolean;
 procedure FinalizeMPG123;
 
 implementation
@@ -248,9 +248,12 @@ begin
   end;
 end; 
 
-function InitMPG123: boolean;
+function InitMPG123(ALib: string = ''): boolean;
 begin
   result := true;
+
+  if ALib = '' then
+    ALib := MPG123_LibName;
 
   lib_handle := AcLoadLibrary(MPG123_LibName);
   if lib_handle <> 0 then

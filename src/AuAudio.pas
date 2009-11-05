@@ -219,6 +219,8 @@ type
       property Position: integer read GetPosition write SetPosition;
       property Seekable: boolean read GetSeekable;
 
+      property Driver: TAuStreamDriver read FDriver;
+
       property VolumeFilter: TAuVolumeFilter read FVolume;
 
       property OnSongFinishes: TAuNotifyEvent read FSongFinishesEvent write FSongFinishesEvent;

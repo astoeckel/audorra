@@ -40,7 +40,27 @@ unit AuTypes;
 
 interface
 
+uses
+  AcTypes;
+
 type
+  TAuVector1 = TAcVector1;
+  PAuVector1 = PAcVector1;
+
+  TAuVector2 = TAcVector2;
+  PAuVector2 = PAcVector2;
+
+  TAuVector3 = TAcVector3;
+  PAuVector3 = PAcVector3;
+
+  TAuVector4 = TAcVector4;
+  PAuVector4 = PAcVector4;
+
+  TAuOrientation = packed record
+    at: TAuVector3;
+    up: TAuVector3;
+  end;
+
   {TAuAudioParameters represents the internal audio data structure. The bit depth
    is always 32 bit.}
   TAuAudioParameters = packed record
@@ -133,7 +153,18 @@ function AuAudioParameters(const AFrequency, AChannels: Cardinal;
 
 function AuCompSyncData(AData1, AData2: TAuSyncData): boolean;
 
+function AuOrientation(AAt, AUp: TAuVector3): TAuOrientation;
+
 implementation
+
+function AuOrientation(AAt, AUp: TAuVector3): TAuOrientation;
+begin
+  with result do
+  begin
+    at := AAt;
+    up := AUp;
+  end;
+end;
 
 function AuCompSyncData(AData1, AData2: TAuSyncData): boolean;
 begin

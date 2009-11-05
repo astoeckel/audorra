@@ -41,7 +41,7 @@ unit AuDriverClasses;
 interface
 
 uses
-  AcPersistent,
+  AcPersistent, AcTypes,
   AuTypes;
 
 type
@@ -62,11 +62,29 @@ type
     UserData: Pointer; 
   end;
 
-  PAuDevice = ^TAuDevice;
+  PAuDevice = ^TAuDevice;  
 
   {TAuEnumDeviceProc is a callback funktion type declaration used by the driver
    to send all devices to the host appliaction.}
   TAuEnumDeviceProc = procedure(ADevice: TAuDevice) of object;
+
+  TAu3DProperties = class
+    private
+      FGain: single;
+      FPitch: single;
+      FPosition: TAuVector3;
+      procedure SetGain(AValue: single);virtual;
+      procedure SetPitch(AValue: single);virtual;
+      procedure SetPosition(AValue: TAuVector3);virtual;
+    protected
+      procedure Update;virtual;
+    public
+      constructor Create;
+
+      property Gain: single read FGain write SetGain;
+      property Pitch: single read FPitch write SetPitch;
+      property Position: TAuVector3 read FPosition write SetPosition;
+  end;
 
   {TAuAudioDriver is the base abstract class for audio output objects. Remember
    that many hardware devices have a limitation in how many output objects can
@@ -79,6 +97,7 @@ type
     protected
       FParameters: TAuAudioParametersEx;
       FState: TAuAudioDriverState;
+      F3DProperties: TAu3DProperties;
     public
       {Starts the audio playback.}
       procedure Play;virtual;abstract;
@@ -96,6 +115,8 @@ type
       property Parameters: TAuAudioParametersEx read FParameters;
       {Represents the state of the audio object. @seealso(TAuAudioDriverState)}
       property State: TAuAudioDriverState read FState;
+
+      property Properties3D: TAu3DProperties read F3DProperties;
   end;
 
   {TAuStaticSoundDriver is a descendand of TAuAudioDriver. It is used for the
@@ -137,10 +158,6 @@ type
       property Delay: Cardinal read FDelay;
   end;
 
-  TAu3DScene = class
-    //
-  end;
-
   {TAuDriver is the base abstract audio output managing class. If you want to implement
    a new audio output system, you have to derive a class from TAuDriver. TAuDriver
    copes with creating the corresponding audio output objects and enumerating
@@ -159,8 +176,7 @@ type
        @seealso(TAuAudioParameters)
        @seealso(TAuStaticSoundDriver)}
       function CreateStaticSoundDriver(ADeviceID: integer;
-        AParameters: TAuAudioParametersEx;
-        AScene: TAu3DScene = nil): TAuStaticSoundDriver;virtual;abstract;
+        AParameters: TAuAudioParametersEx): TAuStaticSoundDriver;virtual;abstract;
       {Creates a stream driver.
        @param(ADeviceID is the device the sound should be output to. You get valid
          device IDs by calling the EnumDevices method.)
@@ -170,12 +186,7 @@ type
        @seealso(TAuAudioParameters)
        @seealso(TAuStreamDriver)}
       function CreateStreamDriver(ADeviceID: integer;
-        AParameters: TAuAudioParametersEx;
-        AScene: TAu3DScene = nil): TAuStreamDriver;virtual;abstract;
-      {Creates a new 3D scene. If the driver doesn't support 3D sound, nil will
-       be returned.
-       @seealso(TAu3DScene)}
-      function Create3DScene: TAu3DScene;virtual;abstract;
+        AParameters: TAuAudioParametersEx): TAuStreamDriver;virtual;abstract;
   end;
 
   TAuCreateDriverProc = function: TAuDriver;
@@ -187,6 +198,43 @@ implementation
 procedure TAuStaticSoundDriver.SetLoop(AValue: boolean);
 begin
   FLoop := AValue;
+end;
+
+{ TAu3DProperties }
+
+constructor TAu3DProperties.Create;
+begin
+  inherited;
+
+  FGain := 1.0;
+  FPitch := 1.0;
+  FPosition := AcVector3(0.0, 0.0, 0.0);
+end;
+
+procedure TAu3DProperties.SetGain(AValue: single);
+begin
+  if AValue > 0 then
+    FGain := AValue
+  else
+    FGain := 0;
+  Update;
+end;
+
+procedure TAu3DProperties.SetPitch(AValue: single);
+begin
+  FPitch := AValue;
+  Update;
+end;
+
+procedure TAu3DProperties.SetPosition(AValue: TAuVector3);
+begin
+  FPosition := AValue;
+  Update;
+end;
+
+procedure TAu3DProperties.Update;
+begin
+  //
 end;
 
 end.

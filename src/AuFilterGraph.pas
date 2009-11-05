@@ -281,6 +281,8 @@ type
       FDecoderThread: TAuDecoderThread;
       FDecoder: TAuDecoder;
       FBufSize: integer;
+      FIntpTimecode: Integer;
+      FLastTimecode: Integer;
     protected
       procedure SyncDataCallback(var ASyncData: TAuSyncData; AReadBytes: Integer);override;
     public
@@ -443,7 +445,7 @@ begin
   //Translte variable bitrate driver callback calls to 32-Bit floating value
   //callback calls for the filter graph
   FFloatBufSize := AuConvertByteCount(ASize, FDriver.Parameters,
-    AuAudioParametersEx(FParameters, 32)); 
+    AuAudioParametersEx(FParameters, 32));
   ReallocMem(FFloatBuf, FFloatBufSize);
 
   result := FCallback(FFloatBuf, FFloatBufSize, ASyncData);
@@ -646,6 +648,7 @@ begin
 
   FDecoder := ADecoder;
   FBufSize := ABufSize;
+  FIntpTimecode := -1;
 
   //Create a new decoder thread
   FDecoderThread := TAuDecoderThread.Create(FDecoder, Buffer, CritSect, FBufSize);
@@ -673,6 +676,8 @@ var
   i: integer;
 begin
   inherited;
+
+  FIntpTimecode := -1;
   
   //Wait for the buffer to be filled again or 500ms
   i := 0;
@@ -686,6 +691,18 @@ end;
 
 procedure TAuDecoderFilter.SyncDataCallback(var ASyncData: TAuSyncData; AReadBytes: Integer);
 begin
+  //Interpolate the timecodes
+  if (FLastTimecode = ASyncData.Timecode) and (FIntpTimecode > -1) then
+  begin
+    FIntpTimecode := FIntpTimecode +
+      round(1000 * AReadBytes / (AuBytesPerSample(FParameters) * FParameters.Frequency));
+    ASyncData.Timecode := FIntpTimecode;
+  end else
+  begin
+    FLastTimecode := ASyncData.Timecode;
+    FIntpTimecode := ASyncData.Timecode;
+  end;
+
   if (FDecoderThread.LastFrame) and ((FBuffer.Filled = 0) or (AReadBytes = 0)) then
     ASyncData.FrameType := auftEnding
   else
@@ -1061,9 +1078,9 @@ begin
 
     smpls := result div AuBytesPerSample(Parameters);
 
-    for i := 0 to (smpls * Parameters.Channels) - 1 do
+    for i := 0 to (smpls * Integer(Parameters.Channels)) - 1 do
     begin
-      if i mod Parameters.Channels = 0 then
+      if i mod Integer(Parameters.Channels) = 0 then
       begin
         //Try to reach the estimated compression target
         if FCurrentCompressionFactor < 1 then
