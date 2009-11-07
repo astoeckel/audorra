@@ -152,7 +152,7 @@ type
       FSyncData: TAuSyncData;
       FDelay: Cardinal;
     public
-      procedure Idle(AReadCallback: TAuReadCallback);virtual;abstract;
+      function Idle(AReadCallback: TAuReadCallback): boolean;virtual;abstract;
 
       property SyncData: TAuSyncData read FSyncData;
       property Delay: Cardinal read FDelay;

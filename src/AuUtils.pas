@@ -55,9 +55,6 @@ function AuReadSample(var AMem: PByte; ABitDepth: Cardinal): Single;
  ABitDepth to AMem. The single value is clipped to the range from -1 to 1. AMem
  is automatically incremented.}
 procedure AuWriteSample(var AMem: PByte; AVal: Single; ABitDepth: Cardinal);
-{AuMaxSample returns the maximum value a sample in the given bit depth can have.
- Values are treated as signed.}
-function AuMaxSample(ABitDepth: Cardinal): Single;
 {Convertes a normalized, positive single sample value to dB.}
 function AuToDezibel(AVal: Single): Single;
 {Convertes a dB value to the corresponding normalized sample value.}
@@ -128,42 +125,30 @@ begin
   result := Power(10, ADez / 10);
 end;
 
-function AuReadSample(var AMem: PByte; ABitDepth: Cardinal): Single;
-var
-  pby: PByte;
-  pwo: PSmallint;
+function AuReadSample(var AMem: PByte; ABitDepth: Cardinal): Single;inline;
 begin
   result := 0;
 
   case ABitDepth of
     8:
     begin
-      pby := PByte(AMem);
-      result := pby^ - 127;
+      result := PShortInt(AMem)^ / High(ShortInt);
       Inc(AMem, SizeOf(ShortInt));
     end;
     16:
     begin
-      pwo := PSmallInt(AMem);
-      result := pwo^;
+      result := PSmallInt(AMem)^ / High(SmallInt);
       Inc(AMem, SizeOf(SmallInt));
-    end;
-    24:
-    begin
-      result := ((PInteger(AMem)^ shr 8)and $00FFFFFF);
-      Inc(AMem, 3);
     end;
     32:
     begin
-      result := PInteger(AMem)^;
+      result := PSingle(AMem)^;
       Inc(AMem, 4);
     end;
   end;
-
-  result := result / AuMaxSample(ABitDepth);
 end;
 
-function AuLimit(AVal: Single): Single;
+function AuLimit(AVal: Single): Single;inline;
 begin
   //Clamp the value to a range from 1 to -1
   if AVal > 1 then
@@ -175,36 +160,24 @@ begin
 end;
 
 
-procedure AuWriteSample(var AMem: PByte; AVal: Single; ABitDepth: Cardinal);
+procedure AuWriteSample(var AMem: PByte; AVal: Single; ABitDepth: Cardinal);inline;
 begin
   case ABitDepth of
     8:
     begin
-      PByte(AMem)^ := round((AuLimit(AVal) + 1) / 2 * AuMaxSample(ABitDepth));
+      PByte(AMem)^ := trunc((AuLimit(AVal) + 1) / 2 * High(SmallInt));
       Inc(AMem, SizeOf(ShortInt));
     end;
     16:
     begin
-      PSmallInt(AMem)^ := round(AuLimit(AVal) * AuMaxSample(ABitDepth));
+      PSmallInt(AMem)^ := trunc(AuLimit(AVal) * High(SmallInt));
       Inc(AMem, SizeOf(SmallInt));
     end;
-    24:
+    32:
     begin
-      PInteger(AMem)^ := Round((AVal * $1000000)) and $FFFFFF00;
-      Inc(AMem, 3);
+      PSingle(AMem)^ := AuLimit(AVal);
+      Inc(AMem, 4);
     end;
-  end;
-end;
-
-function AuMaxSample(ABitDepth: Cardinal): Single;
-begin
-  result := 0;
-  
-  case ABitDepth of
-    8: result := High(ShortInt);
-    16: result := High(SmallInt);
-    24: result := $1000000;
-    32: result := High(Integer);
   end;
 end;
 
@@ -215,7 +188,6 @@ end;
 
 function AuBytesPerSecond(const AParameters: TAuAudioParameters): Cardinal;
 begin
-//  result := AParameters.Frequency * AParameters.Channels * 4;
   result := AParameters.Frequency * AParameters.Channels * SizeOf(Single);
 end;
 
@@ -226,7 +198,6 @@ end;
 
 function AuBytesPerSample(const AParameters: TAuAudioParameters): Cardinal;
 begin
-//result := AParameters.Channels * 4;
   result := AParameters.Channels * SizeOf(Single)
 end;
 

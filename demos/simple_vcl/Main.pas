@@ -87,7 +87,6 @@ type
     AuPeakMeter: TAuPeakmeter;
     AuOscilloscope: TAuOscilloscope;
     AuFFT: TAuFFT;
-//    AuHTTPProt: TAuHTTPProtocol;
 
     vol_chn: integer;
 
@@ -367,7 +366,7 @@ begin
     1: DrawOscilloscope;
     2: DrawOscibars;
     0: DrawFFT;
-  end;
+  end; 
 
   if AuPlayer <> nil then
   begin
@@ -720,7 +719,10 @@ begin
   begin
     for i := 0 to vis_bmp.Height - 1 do
     begin
-      Pen.Color := ColorBetween(clWebOrangeRed, clWhite, i / vis_bmp.Height);
+{      if i mod 2 = 0 then
+        Pen.Color := clBlack
+      else}
+        Pen.Color := ColorBetween(clWebOrangeRed, clWhite, i / vis_bmp.Height);
       MoveTo(0, i);
       LineTo(vis_bmp.Width, i);
     end;

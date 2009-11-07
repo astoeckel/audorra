@@ -42,7 +42,7 @@ interface
 
 uses
   SysUtils, Classes, SyncObjs,
-  AcBuffer,
+  AcBuffer, AcSysUtils,
   AuTypes, AuDriverClasses, AuDecoderClasses, AuUtils, AuSyncUtils, AuAnalyzerClasses;
 
 type
@@ -179,8 +179,8 @@ type
         ACallback: TAuAnalyzeCallback);
       destructor Destroy;override;
 
-      property CritSect: TCriticalSection read FCritSect;
-      property Buffer: TAcBuffer read FBuffer;
+      procedure WriteNextData(ABuf: PByte; ASize: Integer; ATimecode: Cardinal);
+
       property Output: TAuOutputFilter read FOutput write FOutput;
   end;
 
@@ -189,6 +189,7 @@ type
       FThread: TAuAnalyzeThread;
       FAnalyzers: TAuAnalyzerList;
       FCritSect: TCriticalSection;
+      FBuf: PByte;
     protected
       function ReadCallback(ABuf: PByte; ASize: Cardinal;
         var ASyncData: TAuSyncData):Cardinal;override;
@@ -329,6 +330,10 @@ begin
   FPlaying := false;
 
   inherited Create(false);
+
+  //This thread has a very high priority in the whole application - it should
+  //always be able to gain new data - if it isn't able to do this, sound output
+  //will start to stutter or stop
   Priority := tpHighest;
 end;
 
@@ -339,8 +344,9 @@ begin
     begin
       if FPlaying then
       begin
-        //Ask the driver whether it needs more data
-        FDriver.Idle(FCallback);
+        //Ask the driver whether it needs more data - if it needed new data call
+        //the idle function again to try to fill the audio without further delay
+        while FDriver.Idle(FCallback) do;
 
         //Call the on sync data change event if it has changed
         if (not AuCompSyncData(FOldSyncData, FDriver.SyncData)) and Assigned(FSyncDataChange) then
@@ -436,13 +442,10 @@ begin
     result := false;
 end;
 
-var
-  t: Double = 0;
-
 function TAuDriverOutput.ReadCallback(ABuf: PByte; ASize: Cardinal;
   var ASyncData: TAuSyncData): Cardinal;
 begin
-  //Translte variable bitrate driver callback calls to 32-Bit floating value
+  //Translate variable bitrate driver callback calls to 32-Bit floating value
   //callback calls for the filter graph
   FFloatBufSize := AuConvertByteCount(ASize, FDriver.Parameters,
     AuAudioParametersEx(FParameters, 32));
@@ -451,7 +454,7 @@ begin
   result := FCallback(FFloatBuf, FFloatBufSize, ASyncData);
   result := AuConvertByteCount(result, AuAudioParametersEx(FParameters, 32), FDriver.Parameters);
 
-  AuPCMFloatToInt(FDriver.Parameters, FFloatBuf, ABuf, AuBytesToSamples(ASize,
+  AuPCMFloatToInt(FDriver.Parameters, FFloatBuf, ABuf, AuBytesToSamples(result,
     FDriver.Parameters));
 end;
 
@@ -584,6 +587,8 @@ begin
   FBufSize := ABufSize;
 
   inherited Create(false);
+
+  Priority := tpHighest;
 end;
 
 procedure TAuDecoderThread.Execute;
@@ -655,7 +660,8 @@ begin
 
   //Wait for the buffer to be filled the first time or 500ms
   i := 0;
-  while (Buffer.Filled < FBufSize) and (i < 500) do
+  while (Buffer.Filled < FBufSize) and (i < 500) and
+    (not FDecoderThread.LastFrame) do
   begin
     Sleep(1); i := i + 1;
   end;
@@ -681,7 +687,8 @@ begin
   
   //Wait for the buffer to be filled again or 500ms
   i := 0;
-  while (Buffer.Filled < FBufSize) and (i < 50) do
+  while (Buffer.Filled < FBufSize) and (i < 50) and
+    (not FDecoderThread.LastFrame) do
   begin
     Sleep(1); i := i + 1;
   end;
@@ -755,10 +762,14 @@ begin
       end;
     end else
     begin
-      for i := 0 to Integer(result) div 4 - 1 do
+      //If the master channel value is one, stop here
+      if Abs(FMaster - 1) > 0.00001 then
       begin
-        mem^ := mem^ * FMaster;
-        inc(mem);
+        for i := 0 to Integer(result) div 4 - 1 do
+        begin
+          mem^ := mem^ * FMaster;
+          inc(mem);
+        end;
       end;
     end;
   end;
@@ -828,6 +839,11 @@ begin
   FThread.Free;
   FAnalyzers.Free;
   FCritSect.Free;
+
+  if FBuf <> nil then
+    FreeMem(FBuf);
+  FBuf := nil;
+
   inherited;
 end;
 
@@ -844,14 +860,8 @@ begin
     output := Target.GetOutputFilter;
     if output <> nil then
       FThread.Output := output;
-    
 
-    FThread.CritSect.Enter;
-    try
-      FThread.Buffer.Write(ABuf, result, ASyncData.Timecode);
-    finally
-      FThread.CritSect.Leave;
-    end;
+    FThread.WriteNextData(ABuf, result, ASyncData.Timecode);  
   end;
 end;
 
@@ -887,6 +897,7 @@ destructor TAuAnalyzeThread.Destroy;
 begin
   FBuffer.Free;
   FCritSect.Free;
+
   inherited;
 end;
 
@@ -922,26 +933,26 @@ begin
 
     while not Terminated do
     begin
-      wait := true;
-      FCritSect.Enter;
-      try
-        if (FBuffer.Filled > bufsize) or (stamp_data < stamp_output) then
-        begin
-          if stamp_data < stamp_output then
-            wait := false;
-            
+     wait := true;
+      if (FBuffer.Filled > bufsize) or (stamp_data < stamp_output) then
+      begin
+        if stamp_data < stamp_output then
+          wait := false;
+
+        FCritSect.Enter;
+        try
           s  := FBuffer.Read(mem, readsize);
-
-          stamp_data := FBuffer.CurrentTag;
-          stamp_output := FOutput.SyncData.Timecode;
-
-          FCallback(mem, s);
+        finally
+          FCritSect.Leave;
         end;
-      finally
-        FCritSect.Leave;
+
+        stamp_data := FBuffer.CurrentTag;
+        stamp_output := FOutput.SyncData.Timecode;
+
+        FCallback(mem, s);
       end;
 
-      if wait then      
+      if wait then
         Sleep(1);
 
       //! TODO: This has to be significantly improved:
@@ -952,6 +963,16 @@ begin
     FreeMem(mem, readsize);
   except
     //
+  end;
+end;
+
+procedure TAuAnalyzeThread.WriteNextData(ABuf: PByte; ASize: Integer; ATimecode: Cardinal);
+begin
+  FCritSect.Enter;
+  try
+    FBuffer.Write(ABuf, ASize, ATimeCode);
+  finally
+    FCritSect.Leave;
   end;
 end;
 
@@ -988,47 +1009,38 @@ end;
 
 procedure TAuCustomDecoderFilter.Unlock;
 begin
-  FCritSect.Enter;
-  try
-    FLocked := false;
-  finally
-    FCritSect.Leave;
-  end;
+  FLocked := false;
 end;
 
 procedure TAuCustomDecoderFilter.Lock;
 begin
-  FCritSect.Enter;
-  try
-    FLocked := true;
-  finally
-    FCritSect.Leave;
-  end;
+  FLocked := true;
 end;
 
 function TAuCustomDecoderFilter.ReadCallback(ABuf: PByte; ASize: Cardinal;
   var ASyncData: TAuSyncData): Cardinal;
 begin
-  FCritSect.Enter;
-  try
-    if not FLocked then
-    begin
+  if not FLocked then
+  begin
+    FCritSect.Enter;
+    try
       result := FBuffer.Read(ABuf, ASize);
-      ASyncData.Timecode := FBuffer.CurrentTag;
+    finally
+      FCritSect.Leave;
+    end;
 
-      //Determine the current frame type 
-      if FFirstFrame then
-      begin
-        ASyncData.FrameType := auftBeginning;
-        FFirstFrame := false;
-      end;
+    ASyncData.Timecode := FBuffer.CurrentTag;
 
-      SyncDataCallback(ASyncData, result);
-    end else
-      result := 0;
-  finally
-    FCritSect.Leave;
-  end;
+    //Determine the current frame type
+    if FFirstFrame then
+    begin
+      ASyncData.FrameType := auftBeginning;
+      FFirstFrame := false;
+    end;
+
+    SyncDataCallback(ASyncData, result);
+  end else
+    result := 0;
 end;
 
 function TAuCustomDecoderFilter.AddSource(ACallback: TAuReadCallback): boolean;

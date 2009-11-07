@@ -38,7 +38,7 @@ unit AuDirectSound;
 interface
 
 uses
-  SysUtils, Classes,
+  SysUtils, Classes, SyncObjs,
   Windows, MMSystem, DirectSound,
   AcPersistent,
   AuTypes, AuDriverClasses;
@@ -70,10 +70,12 @@ type
       FFmt: TWaveFormatExtensible;
       FDesc: TDSBufferDesc;
       FBuf: IDirectSoundBuffer;
-//      FCaps: TDSBcaps;
       FLastCursor: Cardinal;
       FFragsize: Cardinal;
       FFramesize: Cardinal;
+      FMutex: TMutex;
+      FBufMem: PByte;
+      FBufMemSize: Cardinal;
     public
       constructor Create(ADSS8: IDirectSound8; AFmt: TWaveFormatExtensible);
       destructor Destroy;override;
@@ -83,7 +85,7 @@ type
       procedure Stop;override;
       function Open: boolean;override;
       procedure Close;override;
-      procedure Idle(AReadCallback: TAuReadCallback);override;
+      function Idle(AReadCallback: TAuReadCallback): boolean;override;
   end;
   
   TAuDirectSoundDriver = class(TAuDriver)
@@ -118,7 +120,7 @@ function DSEnumCallback(lpGuid: PGUID; lpcstrDescription, lpcstrModule: PAnsiCha
 var
   pdsd: PAuDirectSoundDevice;
 begin
-  result := false;
+  result := true;
   
   New(pdsd);
   pdsd^.GUID := lpGuid;
@@ -265,6 +267,10 @@ var
 begin
   inherited Create;
 
+  FMutex := TMutex.Create;
+
+  FDelay := DS_BufferSize;
+
   FDSS8 := ADSS8;
   FFmt := AFmt;
 
@@ -287,87 +293,146 @@ destructor TAuDirectSoundStreamDriver.Destroy;
 begin
   FBuf := nil;
   FDSS8 := nil;
+  FMutex.Free;
+
+  if FBufMem <> nil then
+    FreeMem(FBufMem, FBufMemSize);
+  FBufMem := nil;
+  FBufMemSize := 0;
 
   inherited;
 end;
 
-procedure TAuDirectSoundStreamDriver.Idle(AReadCallback: TAuReadCallback);
+var
+  time: Double;
+
+procedure CreateSine(ABuf: PByte; ASize: Cardinal);
+var
+  i, j: integer;
+  ps: PSmallInt;
+begin
+  ps := PSmallInt(ABuf);
+  for i := 0 to (ASize div 4) - 1 do
+  begin
+    time := time + 1/20;
+    for j := 0 to 1 do
+    begin
+      ps^ := Round(sin(time + PI) * High(SmallInt) * 0.25);
+      inc(ps);
+    end;
+  end;
+end;
+
+function TAuDirectSoundStreamDriver.Idle(AReadCallback: TAuReadCallback): boolean;
 var
   avail: Cardinal;
   playcur: Cardinal;
   res: HRESULT;
   wrtcnt1, wrtcnt2: Cardinal;
   wrtptr1, wrtptr2: Pointer;
+  read: integer;
+  pb: PByte;
 begin
-  if FBuf = nil then
-    exit;
-    
-  FBuf.GetCurrentPosition(@playcur, nil);
-  avail := (playcur - FLastcursor + FDesc.dwBufferBytes) mod FDesc.dwBufferBytes;
-  if avail > FFragsize then
-  begin
-    avail := avail - avail mod FFragsize;
-
-    wrtcnt1 := 0;
-    wrtcnt2 := 0;
-    wrtptr1 := nil;
-    wrtptr2 := nil;
-    res := FBuf.Lock(FLastcursor, avail, @wrtptr1, @wrtcnt1, @wrtptr2, @wrtcnt2, 0);
-    if res = DSERR_BUFFERLOST then
+  result := false;
+  
+  FMutex.Acquire;
+  try
+    if FBuf <> nil then
     begin
-      res := FBuf.Restore;
-      if res = DS_OK then
-        res := FBuf.Play(0, 0, DSBPLAY_LOOPING);
-      if res = DS_OK then
-        res := FBuf.Lock(FLastcursor, avail, @wrtptr1, @wrtcnt1, @wrtptr2, @wrtcnt2, 0);
+      FBuf.GetCurrentPosition(@playcur, nil);
+      avail := (playcur - FLastcursor + FDesc.dwBufferBytes) mod FDesc.dwBufferBytes;
+      if avail > FFragsize then
+      begin
+        avail := avail - avail mod FFragsize;
+
+        //Read audio data from the callback
+        if (avail <> FBufMemSize) or (FBufMem = nil) then
+          ReallocMem(FBufMem, avail);
+        FBufMemSize := avail;
+        read := AReadCallback(FBufMem, avail, FSyncData);
+
+        //Initialize some varibles
+        wrtcnt1 := 0; wrtcnt2 := 0; wrtptr1 := nil; wrtptr2 := nil;
+
+        //Lock the direct sound buffer
+        res := FBuf.Lock(FLastcursor, read, @wrtptr1, @wrtcnt1, @wrtptr2, @wrtcnt2, 0);
+        if res = DSERR_BUFFERLOST then
+        begin
+          res := FBuf.Restore;
+          if res = DS_OK then
+            res := FBuf.Play(0, 0, DSBPLAY_LOOPING);
+          if res = DS_OK then
+            res := FBuf.Lock(FLastcursor, read, @wrtptr1, @wrtcnt1, @wrtptr2, @wrtcnt2, 0);
+        end;
+
+        if res = DS_OK then
+        begin
+          try
+            pb := FBufMem;
+            Move(pb^, wrtptr1^, wrtcnt1);
+            inc(pb, wrtcnt1);
+            Move(pb^, wrtptr2^, wrtcnt2);
+            result := true;
+          finally
+            FBuf.Unlock(wrtptr1, wrtcnt1, wrtptr2, wrtcnt2);
+          end;
+        end;
+
+        FLastCursor := (FLastCursor + wrtcnt1 + wrtcnt2) mod FDesc.dwBufferBytes;
+      end;
     end;
-
-    if res = DS_OK then
-    begin
-      AReadCallback(wrtptr1, wrtcnt1, FSyncData);
-      if wrtptr2 <> nil then      
-        AReadCallback(wrtptr2, wrtcnt2, FSyncData);
-
-      FBuf.Unlock(wrtptr1, wrtcnt1, wrtptr2, wrtcnt2);
-    end;
-
-    FLastCursor := (FLastCursor + wrtcnt1 + wrtcnt2) mod FDesc.dwBufferBytes;
-  end;  
+  finally
+    FMutex.Release;
+  end;
 end;
 
 function TAuDirectSoundStreamDriver.Open: boolean;
 var
   res: HRESULT;
 begin
-  result := false;
-  if FBuf = nil then
-  begin
-    res := FDSS8.CreateSoundBuffer(FDesc, FBuf, nil);
-    if res = DS_OK then
+  FMutex.Acquire;
+  try
+    result := false;
+    if FBuf = nil then
     begin
-      FState := audsOpened;
-      result := true;
+      res := FDSS8.CreateSoundBuffer(FDesc, FBuf, nil);
+      if res = DS_OK then
+      begin
+        FState := audsOpened;
+        result := true;
+      end;
     end;
+  finally
+    FMutex.Release;
   end;
 end;
 
 procedure TAuDirectSoundStreamDriver.Close;
 begin
-  if (FState = audsOpened) and (FBuf <> nil) then
-  begin
-    Stop;
-    FBuf := nil;
+  FMutex.Acquire;
+  try
+    if (FState = audsOpened) and (FBuf <> nil) then
+    begin
+      Stop;
+      FBuf := nil;
+    end;
+  finally
+    FMutex.Release;
   end;
-    
   inherited;     
 end;
 
 procedure TAuDirectSoundStreamDriver.Pause;
 begin
-  if (FState = audsPlaying) and (FBuf <> nil) then
-  begin
-    FBuf.Stop;
-    FState := audsPaused;
+  FMutex.Acquire;
+  try
+    if (FState = audsPlaying) and (FBuf <> nil) then
+    begin
+      FBuf.Stop;
+      FState := audsPaused;
+    end;
+  finally
+    FMutex.Release;
   end;
 end;
 
@@ -375,37 +440,42 @@ procedure TAuDirectSoundStreamDriver.Play;
 var
   res: HRESULT;
 begin
-  if (FState >= audsOpened) then
-  begin
-    if FBuf = nil then
-      Open;
-    
-    res := FBuf.Play(0, 0, DSBPLAY_LOOPING);
-    if res = DS_OK then
+  FMutex.Acquire;
+  try
+    if (FState >= audsOpened) then
     begin
-      if FState = audsOpened then
-        FBuf.GetCurrentPosition(@FLastCursor, nil);
+      if FBuf = nil then
+        Open;
+    
+      res := FBuf.Play(0, 0, DSBPLAY_LOOPING);
+      if res = DS_OK then
+      begin
+        if FState = audsOpened then
+          FBuf.GetCurrentPosition(@FLastCursor, nil);
 
-      FState := audsPlaying;
+        FState := audsPlaying;
+      end;
     end;
+  finally
+    FMutex.Release;
   end;
 end;
 
 procedure TAuDirectSoundStreamDriver.Stop;
-var
-  wrtptr1, wrtptr2: Pointer;
-  wrtcnt1, wrtcnt2: Cardinal;
-  res: HRESULT;
-  buf: PByte;
 begin
-  if (FState >= audsOpened) and (FBuf <> nil) then
-  begin
-    FLastCursor := 0;
-    FBuf.SetCurrentPosition(0);
-    FBuf.Stop;
-    FBuf := nil;
+  FMutex.Acquire;
+  try
+    if (FState >= audsOpened) and (FBuf <> nil) then
+    begin
+      FLastCursor := 0;
+      FBuf.SetCurrentPosition(0);
+      FBuf.Stop;
+      FBuf := nil;
 
-    FState := audsOpened;
+      FState := audsOpened;
+    end;
+  finally
+    FMutex.Release;
   end;
 end;
 

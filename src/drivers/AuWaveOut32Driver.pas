@@ -155,7 +155,7 @@ type
       {Closes the audio object.}
       procedure Close;override;
 
-      procedure Idle(ACallback: TAuReadCallback);override;
+      function Idle(ACallback: TAuReadCallback):boolean;override;
   end;
 
 var
@@ -467,8 +467,9 @@ begin
   FState := audsClosed;
 end;
 
-procedure TAuWaveOutStreamDriver.Idle(ACallback: TAuReadCallback);
+function TAuWaveOutStreamDriver.Idle(ACallback: TAuReadCallback): boolean;
 begin
+  result := false;
   if (FFreeblocks > 0) and (FHwo <> 0) and (FBlockCount > 0) then
   begin
     with FBlocks[FCurrentBlock] do
@@ -491,6 +492,8 @@ begin
         FCurrentBlock := FCurrentBlock + 1;
         if FBlockCount > 0 then        
           FCurrentBlock := FCurrentBlock mod FBlockcount;
+
+        result := true;
       end;
     end;
   end;
