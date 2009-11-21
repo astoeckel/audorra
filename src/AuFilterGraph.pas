@@ -43,7 +43,10 @@ interface
 uses
   SysUtils, Classes, SyncObjs,
   AcBuffer, AcSysUtils,
-  AuTypes, AuDriverClasses, AuDecoderClasses, AuUtils, AuSyncUtils, AuAnalyzerClasses;
+  AuAudioSpline,
+  AuTypes, AuDriverClasses, AuDecoderClasses, AuUtils,
+  AuSyncUtils,
+  AuAnalyzerClasses;
 
 type
   TAuOutputFilter = class;
@@ -699,7 +702,7 @@ end;
 procedure TAuDecoderFilter.SyncDataCallback(var ASyncData: TAuSyncData; AReadBytes: Integer);
 begin
   //Interpolate the timecodes
-  if (FLastTimecode = ASyncData.Timecode) and (FIntpTimecode > -1) then
+  if (Cardinal(FLastTimecode) = ASyncData.Timecode) and (FIntpTimecode > -1) then
   begin
     FIntpTimecode := FIntpTimecode +
       round(1000 * AReadBytes / (AuBytesPerSample(FParameters) * FParameters.Frequency));

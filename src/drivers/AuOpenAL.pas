@@ -175,7 +175,7 @@ type
       function Open: boolean;override;
       procedure Close;override;
 
-      procedure Idle(ACallback: TAuReadCallback);override;
+      function Idle(ACallback: TAuReadCallback): boolean;override;
   end;
 
 
@@ -578,7 +578,7 @@ begin
   end;
 end;
 
-procedure TAuOpenALStreamDriver.Idle(ACallback: TAuReadCallback);
+function TAuOpenALStreamDriver.Idle(ACallback: TAuReadCallback): boolean;
 var
   processed: integer;
   i: integer;
@@ -587,6 +587,7 @@ var
   tmpsync: TAuSyncData;
   mustplay: boolean;
 begin
+  result := false;
   if FState <> audsPlaying then
     exit;
 
@@ -623,6 +624,7 @@ begin
       //Increment block counters
       FCurrentBlock := (FCurrentBlock + 1) mod AuOpenALBufferCount;
       FFreeBlocks := FFreeBlocks - 1;
+      result := true;
     end;
 
     if mustplay then
