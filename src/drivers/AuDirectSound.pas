@@ -111,7 +111,7 @@ const
   SPEAKER_ALL = $FFFFFFFF;
 
   //Buffer size in ms
-  DS_BufferSize = 50;
+  DS_BufferSize = 100;
 
 implementation
 

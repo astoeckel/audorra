@@ -648,7 +648,7 @@ begin
       end;
     end;
 
-    Writeln(lv:2:2, ' ', rv:2:2); 
+//    Writeln(lv:2:2, ' ', rv:2:2); 
 
     //Calculate the master gain
     mg := REFDIST / dist * Gain;

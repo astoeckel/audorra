@@ -34,6 +34,10 @@ Author: Andreas Stöckel
 {Contains functions and types for a cubic spline interpolation for audio purposes.} 
 unit AuAudioSpline;
 
+{$IFDEF FPC}
+  {$MODE DELPHI}
+{$ENDIF}
+
 interface
 
 type
@@ -74,7 +78,7 @@ type
  factors are written in the "data" record. "t" should be a value between 0 and 1.
  A "data" record can be created using the AuSplineFeed function. 
  @seealso(AuSplineFeed)}
-function AuSplineCalcValue(const t: Single; const data: PAuSplineData): Single;
+function AuSplineCalcValue(const t: Single; const data: PAuSplineData): Single; inline;
 
 {Creates a new TAuSplineProcessor. v1 and v2 are the first two values of the spline.
  Every spline processor should be destroyed using the AuSplineStop function.
@@ -94,12 +98,9 @@ procedure AuSplineStop(const processor: PAuSplineProcessor);
  @seealso(TAuSplineData)
  @seealso(TAuSplineProcessor)}
 procedure AuSplineFeed(const processor: PAuSplineProcessor;
-  const v: Single; const data: PAuSplineData);
+  const v: Single; const data: PAuSplineData); inline;
 
 implementation
-
-var
-  i: integer;
 
 function AuSplineCalcValue(const t: Single; const data: PAuSplineData): Single;
 var
@@ -112,8 +113,6 @@ begin
   result := result  + data^.b * ft;
   ft := ft * t;
   result := result  + data^.a * ft;
-
-//  result := data^.a * (1-t) + data^.b * t;
 end;
 
 procedure AuSplineStop(const processor: PAuSplineProcessor);
@@ -174,9 +173,6 @@ begin
 
   data^.a := l2 - 2 * l1;
   data^.b := 3 * l1 - l2;
-
-{  data^.a := processor^.lv1;
-  data^.b := processor^.lv2; }
 
   //Store the new data in the processor
   processor^.lv1 := processor^.lv2;

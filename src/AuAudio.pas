@@ -630,7 +630,7 @@ begin
         if (FDriver = nil) or (not FDriver.Open) then exit;
           //! RAISE EXCEPTION
           
-        FTarget := TAuDriverOutput.Create(params, FDriver);
+        FTarget := TAuDriverOutput.Create(FDriver);
         FOutput := TAuOutputFilter(FTarget);
         FOwnTarget := true;
       end else exit;
@@ -675,6 +675,8 @@ begin
       FVolume.Target := FCompressor;
       FCompressor.Target := FTarget;
 
+      //Initialize the target filter
+      TAuOutputFilter(FTarget).Init(params);  
 
       result := true;
     end;
@@ -830,7 +832,7 @@ begin
     if (FDecoder <> nil) and (State >= aupsOpened) then
     begin
       //Reset playback
-      FDriver.Stop; //Actually not needed because the decoder timeslices are very small
+      TAuOutputFilter(FTarget).Stop; //Actually not needed because the decoder timeslices are very small
 
       //Seek to the given position
       if FDecoder.SeekTo(Position, AValue) then
@@ -991,7 +993,7 @@ begin
 
     try
       //Create a file stream and open the file.
-      FStream := TFileStream.Create(AFile, fmOpenRead or fmShareDenyNone);
+      FStream := TFileStream.Create(AFile, fmOpenRead or fmShareDenyWrite);
       FOwnStream := true;
 
       LoadFromStream(FStream);

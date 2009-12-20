@@ -97,6 +97,10 @@ type
       FStopEvent: TAuNotifyEvent;
       FDelay: Cardinal;
     public
+      constructor Create;reintroduce;
+
+      procedure Init(const AParameters: TAuAudioParameters);virtual;
+
       property SyncData: TAuSyncData read FSyncData;
       property OnStop: TAuNotifyEvent read FStopEvent write FStopEvent;
       property Delay: Cardinal read FDelay;
@@ -119,7 +123,7 @@ type
         var ASyncData: TAuSyncData):Cardinal;
     protected
     public
-      constructor Create(AParameters: TAuAudioParameters; ADriver: TAuStreamDriver);
+      constructor Create(ADriver: TAuStreamDriver);
       destructor Destroy;override;
 
       procedure Play;override;
@@ -389,10 +393,9 @@ end;
 
 { TAuDriverOutput }
 
-constructor TAuDriverOutput.Create(AParameters: TAuAudioParameters;
-  ADriver: TAuStreamDriver);
+constructor TAuDriverOutput.Create(ADriver: TAuStreamDriver);
 begin
-  inherited Create(AParameters); 
+  inherited Create;
 
   FDriver := ADriver;
 
@@ -448,17 +451,22 @@ end;
 function TAuDriverOutput.ReadCallback(ABuf: PByte; ASize: Cardinal;
   var ASyncData: TAuSyncData): Cardinal;
 begin
+  result := 0;
+  
   //Translate variable bitrate driver callback calls to 32-Bit floating value
   //callback calls for the filter graph
-  FFloatBufSize := AuConvertByteCount(ASize, FDriver.Parameters,
-    AuAudioParametersEx(FParameters, 32));
-  ReallocMem(FFloatBuf, FFloatBufSize);
+  if Assigned(FCallback) then
+  begin
+    FFloatBufSize := AuConvertByteCount(ASize, FDriver.Parameters,
+      AuAudioParametersEx(FParameters, 32));
+    ReallocMem(FFloatBuf, FFloatBufSize);
 
-  result := FCallback(FFloatBuf, FFloatBufSize, ASyncData);
-  result := AuConvertByteCount(result, AuAudioParametersEx(FParameters, 32), FDriver.Parameters);
+    result := FCallback(FFloatBuf, FFloatBufSize, ASyncData);
+    result := AuConvertByteCount(result, AuAudioParametersEx(FParameters, 32), FDriver.Parameters);
 
-  AuPCMFloatToInt(FDriver.Parameters, FFloatBuf, ABuf, AuBytesToSamples(result,
-    FDriver.Parameters));
+    AuPCMFloatToInt(FDriver.Parameters, FFloatBuf, ABuf, AuBytesToSamples(result,
+      FDriver.Parameters));
+  end;
 end;
 
 function TAuDriverOutput.RemoveSource(ACallback: TAuReadCallback): boolean;
@@ -936,7 +944,10 @@ begin
 
     while not Terminated do
     begin
-     wait := true;
+      wait := true;
+      stamp_data := FBuffer.CurrentTag;
+      stamp_output := FOutput.SyncData.Timecode;
+
       if (FBuffer.Filled > bufsize) or (stamp_data < stamp_output) then
       begin
         if stamp_data < stamp_output then
@@ -944,13 +955,10 @@ begin
 
         FCritSect.Enter;
         try
-          s  := FBuffer.Read(mem, readsize);
+          s := FBuffer.Read(mem, readsize);
         finally
           FCritSect.Leave;
         end;
-
-        stamp_data := FBuffer.CurrentTag;
-        stamp_output := FOutput.SyncData.Timecode;
 
         FCallback(mem, s);
       end;
@@ -1117,6 +1125,20 @@ begin
       inc(ps);
     end;
   end;
+end;
+
+{ TAuOutputFilter }
+
+constructor TAuOutputFilter.Create;
+begin
+  //The output filter does not perform an initialization of the audio parameters
+  //at creation 
+  inherited Create(AuAudioParameters(0, 0));
+end;
+
+procedure TAuOutputFilter.Init(const AParameters: TAuAudioParameters);
+begin
+  FParameters := AParameters;
 end;
 
 end.

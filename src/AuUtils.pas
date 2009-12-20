@@ -248,7 +248,7 @@ begin
       //AuReadSample function)
       inc(psrc);
     end;
-  end;         
+  end;
 end;
 
 function AuBytesToSamples(AByteCount: integer; const ASrcParameters: TAuAudioParameters): integer;overload;

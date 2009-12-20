@@ -138,6 +138,8 @@ type
     MixedValue: Single;
   end;
 
+  TAuSamplestamp = Int64;
+
 {Produces a TAuAudioParameters record.
  @seealso(TAuAudioParametersEx)}
 function AuAudioParametersEx(const AFrequency, AChannels, ABitDepth: Cardinal;
