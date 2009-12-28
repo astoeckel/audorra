@@ -51,7 +51,7 @@ uses
   Windows,
   AuTypes,
   AuAudio,
-  AuOpenAL,
+  AuWASAPI,
   AuAnalyzers,
   AuWAV,
   AuMPG123 in '..\..\src\decoders\AuMPG123.pas',
@@ -143,8 +143,8 @@ begin
           end;
         end;
         Write(#13);
-        Sleep(5);
-        time := time + 5;
+        Sleep(10);
+        time := time + 10;
       end;
 
     end else

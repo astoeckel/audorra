@@ -68,24 +68,6 @@ type
    to send all devices to the host appliaction.}
   TAuEnumDeviceProc = procedure(ADevice: TAuDevice) of object;
 
-  TAu3DProperties = class
-    private
-      FGain: single;
-      FPitch: single;
-      FPosition: TAuVector3;
-      procedure SetGain(AValue: single);virtual;
-      procedure SetPitch(AValue: single);virtual;
-      procedure SetPosition(AValue: TAuVector3);virtual;
-    protected
-      procedure Update;virtual;
-    public
-      constructor Create;
-
-      property Gain: single read FGain write SetGain;
-      property Pitch: single read FPitch write SetPitch;
-      property Position: TAuVector3 read FPosition write SetPosition;
-  end;
-
   {TAuAudioDriver is the base abstract class for audio output objects. Remember
    that many hardware devices have a limitation in how many output objects can
    be opened at once. So mix down channels together in software if possible.
@@ -97,7 +79,6 @@ type
     protected
       FParameters: TAuAudioParametersEx;
       FState: TAuAudioDriverState;
-      F3DProperties: TAu3DProperties;
     public
       {Starts the audio playback.}
       procedure Play;virtual;abstract;
@@ -115,36 +96,6 @@ type
       property Parameters: TAuAudioParametersEx read FParameters;
       {Represents the state of the audio object. @seealso(TAuAudioDriverState)}
       property State: TAuAudioDriverState read FState;
-
-      property Properties3D: TAu3DProperties read F3DProperties;
-  end;
-
-  {TAuStaticSoundDriver is a descendand of TAuAudioDriver. It is used for the
-   playback of single, static sound effects. If you want to stream data to it,
-   use the TAuStreamDriverClass. An instance of this class may be created by
-   using the corresponding TAuDriver.CreateStaticSoundDriver function.
-   @seealso(TAuAudioDriver)
-   @seealso(TAuDriver)}
-  TAuStaticSoundDriver = class(TAuAudioDriver)
-    protected
-      FLoop: boolean;
-      FStopProc: TAuNotifyEvent;
-      procedure SetLoop(AValue: boolean);virtual;
-    public
-      {After the audio object has been opened, the WriteData function can be used
-       to write data into its sound buffer. Remember that the length of this audio
-       data shouldn't be too long. A justifiable value is 10 seconds, an absolute
-       maximum should be one minute.
-       The data is not copied to the driver object, the data has to be available
-       until the sound object is freed.
-       You can't write new data to the buffer once you've started playback. You
-       have to close the device then.}
-      procedure WriteData(ABuf: PByte; ASize: Cardinal);virtual;abstract;
-
-      {If thid property is true, the sound will repeat playing after each playback.}
-      property Loop: boolean read FLoop write SetLoop;
-
-      property OnStop: TAuNotifyEvent read FStopProc write FStopProc;
   end;
 
   TAuStreamDriver = class(TAuAudioDriver)
@@ -174,16 +125,6 @@ type
        @param(AScene is used to put the output object in a 3D environment.)
        @seealso(EnumDevices)
        @seealso(TAuAudioParameters)
-       @seealso(TAuStaticSoundDriver)}
-      function CreateStaticSoundDriver(ADeviceID: integer;
-        AParameters: TAuAudioParametersEx): TAuStaticSoundDriver;virtual;abstract;
-      {Creates a stream driver.
-       @param(ADeviceID is the device the sound should be output to. You get valid
-         device IDs by calling the EnumDevices method.)
-       @param(AParameters is used to set the audio format information.)
-       @param(AScene is used to put the output object in a 3D environment.)
-       @seealso(EnumDevices)
-       @seealso(TAuAudioParameters)
        @seealso(TAuStreamDriver)}
       function CreateStreamDriver(ADeviceID: integer;
         AParameters: TAuAudioParametersEx): TAuStreamDriver;virtual;abstract;
@@ -192,49 +133,5 @@ type
   TAuCreateDriverProc = function: TAuDriver;
 
 implementation
-
-{ TAuStaticSoundDriver }
-
-procedure TAuStaticSoundDriver.SetLoop(AValue: boolean);
-begin
-  FLoop := AValue;
-end;
-
-{ TAu3DProperties }
-
-constructor TAu3DProperties.Create;
-begin
-  inherited;
-
-  FGain := 1.0;
-  FPitch := 1.0;
-  FPosition := AcVector3(0.0, 0.0, 0.0);
-end;
-
-procedure TAu3DProperties.SetGain(AValue: single);
-begin
-  if AValue > 0 then
-    FGain := AValue
-  else
-    FGain := 0;
-  Update;
-end;
-
-procedure TAu3DProperties.SetPitch(AValue: single);
-begin
-  FPitch := AValue;
-  Update;
-end;
-
-procedure TAu3DProperties.SetPosition(AValue: TAuVector3);
-begin
-  FPosition := AValue;
-  Update;
-end;
-
-procedure TAu3DProperties.Update;
-begin
-  //
-end;
 
 end.

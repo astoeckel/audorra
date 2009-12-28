@@ -226,9 +226,9 @@ type
       property OnSongFinishes: TAuNotifyEvent read FSongFinishesEvent write FSongFinishesEvent;
   end;
 
-  TAuSoundList = class;
+//  TAuSoundList = class;
 
-  TAuStaticSound = class(TAuCustomAudioObject)
+{  TAuStaticSound = class(TAuCustomAudioObject)
     private
       FSound: TAuStaticSoundDriver;
       FMs: TMemoryStream;
@@ -307,7 +307,7 @@ type
       
       property Parent: TAuAudio read FParent;
       property Items[AIndex: integer]: TAuStaticSound read GetItem write SetItem; default;
-  end;
+  end;    }
 
 implementation
 
@@ -1118,7 +1118,7 @@ end;
 
 { TAuStaticSound }
 
-constructor TAuStaticSound.Create(AAudio: TAuAudio);
+{constructor TAuStaticSound.Create(AAudio: TAuAudio);
 begin
   inherited Create(AAudio);
   
@@ -1423,11 +1423,11 @@ begin
   end;
 
   result := node;
-end;
+end; }
 
 { TAuSoundList }
 
-constructor TAuSoundList.Create(AParent: TAuAudio);
+{constructor TAuSoundList.Create(AParent: TAuAudio);
 begin
   inherited Create;
 
@@ -1588,7 +1588,7 @@ begin
   finally
     fs.Free;
   end;
-end;
+end;     }
 
 end.
 

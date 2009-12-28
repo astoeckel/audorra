@@ -98,8 +98,6 @@ type
       destructor Destroy;override;
       
       procedure EnumDevices(ACallback: TAuEnumDeviceProc);override;
-      function CreateStaticSoundDriver(ADeviceID: integer;
-        AParameters: TAuAudioParametersEx): TAuStaticSoundDriver;override;
       function CreateStreamDriver(ADeviceID: integer;
         AParameters: TAuAudioParametersEx): TAuStreamDriver;override;
   end;
@@ -224,12 +222,6 @@ begin
 
     result := pdsd^.DSS8;
   end;
-end;
-
-function TAuDirectSoundDriver.CreateStaticSoundDriver(ADeviceID: integer;
-  AParameters: TAuAudioParametersEx): TAuStaticSoundDriver;
-begin
-  result := nil;
 end;
 
 function TAuDirectSoundDriver.CreateStreamDriver(ADeviceID: integer;

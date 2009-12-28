@@ -50,6 +50,7 @@ type
     private
       FParameters: TAuAudioParameters;
       FCritSect: TCriticalSection;
+      FActive: boolean;
     protected
       procedure DoAnalyze(ASamples: PSingle; ACount: Cardinal);virtual;
       procedure DoSetParameters;virtual;
@@ -62,6 +63,7 @@ type
 
       procedure AnalyzeData(ASamples: PSingle; ACount: Cardinal);
       property Parameters: TAuAudioParameters read FParameters write SetParameters;
+      property Active: boolean read FActive write FActive;
   end;
 
   TAuAnalyzerList = class(TList)
@@ -90,6 +92,7 @@ begin
 
   FCritSect := TCriticalSection.Create;
   FParameters := AuAudioParameters(44100, 2);
+  FActive := false;
 end;
 
 destructor TAuAnalyzer.Destroy;
@@ -111,6 +114,9 @@ end;
 
 procedure TAuAnalyzer.AnalyzeData(ASamples: PSingle; ACount: Cardinal);
 begin
+  if not FActive then
+    exit;
+    
   FCritSect.Enter;
   try
     //Call the user handler

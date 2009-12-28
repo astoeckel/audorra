@@ -452,6 +452,10 @@ function TAuDriverOutput.ReadCallback(ABuf: PByte; ASize: Cardinal;
   var ASyncData: TAuSyncData): Cardinal;
 begin
   result := 0;
+
+  //Exit if the "Init" function hasn't been called yet
+  if (FParameters.Frequency = 0) or (FParameters.Channels = 0) then
+    exit;  
   
   //Translate variable bitrate driver callback calls to 32-Bit floating value
   //callback calls for the filter graph
@@ -938,9 +942,6 @@ begin
     //Calculate how many bytes have to be read every visualisation step
     readsize := FSampleCount * Integer(AuBytesPerSample(FParameters));
     GetMem(mem, readsize);
-
-    stamp_data := 0;
-    stamp_output := 0;
 
     while not Terminated do
     begin

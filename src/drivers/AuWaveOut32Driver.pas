@@ -58,66 +58,12 @@ type
 
   PWaveHdr = ^TWaveHdr;
 
-  TAuWaveOutProperties = class(TAu3DProperties)
-    private
-      FHWO: HWAVEOUT;
-    protected
-      procedure Update;override;
-    public
-      procedure SetHWO(AHWO: HWAVEOUT);
-  end;
-
   TAuWaveOutDriver = class(TAuDriver)
     public
       procedure EnumDevices(ACallback: TAuEnumDeviceProc);override;
 
-      function CreateStaticSoundDriver(ADeviceID: integer;
-        AParameters: TAuAudioParametersEx): TAuStaticSoundDriver;override;
-
       function CreateStreamDriver(ADeviceID: integer;
         AParameters: TAuAudioParametersEx): TAuStreamDriver;override;
-  end;
-
-  TAuWaveOutStaticSoundDriver = class(TAuStaticSoundDriver)
-    private
-      FHWO: HWAVEOUT;
-      FFormat: TWaveFormatExtensible;
-      FDevID: Cardinal;
-      FBlock: TWaveHdr;
-      FBuf: PByte;
-      FSize: Cardinal;
-      FWroteHeader: boolean;
-      procedure WriteHeader;
-    public
-      {Creates a new instance of TAuWaveOutStaticSoundDriver.
-       @param(AID is the device id.)
-       @param(AFmt is the windows wave format descriptor.)}
-      constructor Create(AID: Cardinal; AFmt: TWaveFormatExtensible);
-
-      {Destroys the instance of TAuWaveOutStaticSoundDriver.}
-      destructor Destroy;override;
-
-      {Starts the audio playback.}
-      procedure Play;override;
-      {Pauses the audio playback.}
-      procedure Pause;override;      
-      {Stops audio playback: All loaded audio buffers are cleaned up.}
-      procedure Stop;override;
-      {Openes the audio object. And prepares it for playback. When using the
-       TAuStaticSoundDriver, data can now be written into the object.}
-      function Open: boolean;override;
-      {Closes the audio object.}
-      procedure Close;override;
-
-      {After the audio object has been opened, the WriteData function can be used
-       to write data into its sound buffer. Remember that the length of this audio
-       data shouldn't be too long. A justifiable value is 10 seconds, an absolute
-       maximum should be one minute.
-       The data is not copied to the driver object, the data has to be available
-       until the sound object is freed.}
-      procedure WriteData(ABuf: PByte; ASize: Cardinal);override;
-
-      procedure NotifyStop;
   end;
 
   TAuWaveOutStreamDriver = class(TAuStreamDriver)
@@ -252,156 +198,11 @@ begin
   end;    
 end;
 
-function TAuWaveOutDriver.CreateStaticSoundDriver(ADeviceID: integer;
-  AParameters: TAuAudioParametersEx): TAuStaticSoundDriver;
-begin
-  result := TAuWaveOutStaticSoundDriver.Create(Cardinal(ADeviceID),
-    GetWaveFormatEx(AParameters));
-end;
-
 function TAuWaveOutDriver.CreateStreamDriver(ADeviceID: integer;
   AParameters: TAuAudioParametersEx): TAuStreamDriver;
 begin
   result := TAuWaveOutStreamDriver.Create(Cardinal(ADeviceID),
     GetWaveFormatEx(AParameters));
-end;
-
-{ TAuWaveOutStaticSoundDriver }
-
-procedure static_callback(hwo: HWAVEOUT; uMsg: Cardinal; dwInstance, dwParam1, dwParam2: DWORD);stdcall;
-begin
-  if (uMsg = WOM_DONE) then
-    TAuWaveOutStaticSoundDriver(Pointer(dwInstance)).NotifyStop;
-end;
-
-constructor TAuWaveOutStaticSoundDriver.Create(AID: Cardinal;
-  AFmt: TWaveFormatExtensible);
-begin
-  inherited Create;
-
-  FHWO := 0;
-  FFormat := AFmt;
-  FDevID := AID;
-end;
-
-destructor TAuWaveOutStaticSoundDriver.Destroy;
-begin
-  Close;
-
-  inherited;
-end;
-
-procedure TAuWaveOutStaticSoundDriver.NotifyStop;
-begin
-  FState := audsOpened;
-  FWroteHeader := false;
-  if Assigned(FStopProc) then
-    FStopProc(self);
-end;
-
-procedure TAuWaveOutStaticSoundDriver.Close;
-begin
-  if FHWO <> 0 then
-  begin
-    //Stop any playback process
-    Stop;
-
-{    while (waveOutUnprepareHeader(FHWO, FBlock, SizeOf(FBlock)) = WAVERR_STILLPLAYING) do
-      Sleep(1);             }
-
-    while waveOutClose(FHWO) = WAVERR_STILLPLAYING do
-      Sleep(1);
-
-    //Set the wave out handle to zero
-    FHWO := 0;
-  end;
-
-  FState := audsClosed;
-end;
-
-function TAuWaveOutStaticSoundDriver.Open: boolean;
-begin
-  //Close the waveout interface
-  Close;
-
-  result := false;
-
-  //Try to open the wave out interface
-  if waveOutOpen(@FHWO, FDevID, @FFormat,
-    Cardinal(@static_callback),
-    Cardinal(self), CALLBACK_FUNCTION) = MMSYSERR_NOERROR then
-  begin    
-    result := true;
-    FState := audsOpened;
-  end;
-end;
-
-procedure TAuWaveOutStaticSoundDriver.Pause;
-begin
-  waveOutPause(FHWO);
-  FState := audsPaused;
-end;
-
-procedure TAuWaveOutStaticSoundDriver.Play;
-begin
-  if FState < audsPlaying then
-  begin
-    if not FWroteHeader then
-      WriteHeader;
-
-    FState := audsPlaying;
-
-    waveOutRestart(FHWO);
-  end;
-end;
-
-procedure TAuWaveOutStaticSoundDriver.Stop;
-begin
-  if FHWO <> 0 then
-  begin
-    waveOutReset(FHWO);
-    FState := audsOpened;
-    FWroteHeader := false;
-  end;                      
-end;
-
-procedure TAuWaveOutStaticSoundDriver.WriteData(ABuf: PByte; ASize: Cardinal);
-begin
-  if FState = audsOpened then
-  begin
-    FBuf := ABuf;
-    FSize := ASize;
-
-    FWroteHeader := false;
-
-//    WriteHeader;
-  end;
-  //! else Raise exception or return value
-end;
-
-procedure TAuWaveOutStaticSoundDriver.WriteHeader;
-begin
-  //Fill the header with zeros
-  FillChar(FBlock, SizeOf(FBlock), #0);
-
-  //Set the data pointer and the data length
-  FBlock.lpData := PAnsiChar(FBuf);
-  FBlock.dwBufferLength := FSize;
-
-  //Set the loop property
-  if FLoop then
-  begin
-    FBlock.dwFlags := WHDR_BEGINLOOP or WHDR_ENDLOOP;
-    FBlock.dwLoops := High(Cardinal);
-  end;
-
-  //Prepare the header
-  waveOutPrepareHeader(FHWO, @FBlock, SizeOf(FBlock));
-
-  //Write the to the audio device
-  waveOutWrite(FHWO, @FBlock, SizeOf(FBlock));
-
-  FWroteHeader := true;
 end;
 
 { TAuWaveOutStreamDriver }
@@ -425,16 +226,12 @@ begin
   FParameters.Frequency := AFmt.Format.nSamplesPerSec;
   FParameters.Channels := AFmt.Format.nChannels;
   FParameters.BitDepth := AFmt.Format.wBitsPerSample;
-
-  F3DProperties := TAuWaveOutProperties.Create;
 end;
 
 destructor TAuWaveOutStreamDriver.Destroy;
 begin
   Close;
   DestroyBlocks;
-
-  F3DProperties.Free;
 
   inherited;
 end;
@@ -451,8 +248,6 @@ begin
       if FBlocks[i].dwFlags = WHDR_PREPARED then
         while (waveOutUnprepareHeader(FHWO, @FBlocks[i], SizeOf(FBlocks[i])) = WAVERR_STILLPLAYING) do
           Sleep(1);
-
-    TAuWaveOutProperties(F3DProperties).SetHWO(0);
 
     while waveOutClose(FHWO) = WAVERR_STILLPLAYING do
       Sleep(1);
@@ -509,8 +304,6 @@ begin
   begin
     result := true;
     FState := audsOpened;
-
-    TAuWaveOutProperties(F3DProperties).SetHWO(FHWO);
 
     //Pause the playback
     Pause;
@@ -597,70 +390,6 @@ begin
   
   FBlockCount := 0;
   FBlockSize := 0;
-end;
-
-{ TAuWaveOutProperties }
-
-procedure TAuWaveOutProperties.SetHWO(AHWO: HWAVEOUT);
-begin
-  FHWO := AHWO;
-  Update;
-end;
-
-const
-  REFDIST = 1;
-  MAXDIST = 100;
-  ROLLOFF = 1.0;
-
-procedure TAuWaveOutProperties.Update;
-var
-  angle: Single;
-  dist: Single;
-  lv, rv: Single;
-  dw: Cardinal;
-  pw: PWord;
-  mg: Single;
-begin
-  if FHWO <> 0 then
-  begin
-    lv := 1;
-    rv := 1;
-
-    dist := Sqrt(Sqr(Position.x) + Sqr(Position.y) + Sqr(Position.z));
-
-    if dist > MAXDIST then
-      dist := MAXDIST;
-
-    if dist < REFDIST then
-      dist := REFDIST;
-
-    if dist > 0 then
-    begin
-      if Position.x < 0 then
-      begin
-        lv := 1;
-        rv := 1 + position.x / dist;
-      end
-      else
-      begin
-        rv := 1;
-        lv := 1 - position.x / dist;
-      end;
-    end;
-
-//    Writeln(lv:2:2, ' ', rv:2:2); 
-
-    //Calculate the master gain
-    mg := REFDIST / dist * Gain;
-
-    //Write the results
-    pw := PWord(@dw);
-    pw^ := round(lv * mg * High(Word));
-    inc(pw);
-    pw^ := round(rv * mg * High(Word));
-
-    waveOutSetVolume(FHWO, dw);
-  end;
 end;
 
 initialization
