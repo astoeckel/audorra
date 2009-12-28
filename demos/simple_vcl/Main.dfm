@@ -36,8 +36,6 @@ object frmPlayer: TfrmPlayer
     ViewStyle = vsReport
     OnDblClick = lstPlaylistDblClick
     OnKeyDown = lstPlaylistKeyDown
-    ExplicitLeft = 160
-    ExplicitTop = 89
   end
   object pnlTop: TPanel
     Left = 0

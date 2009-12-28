@@ -32,7 +32,7 @@ Author: Andreas Stöckel
 }
 
 {Software output driver for the low level windows "WaveOut" interface.}
-unit AuWaveOut32Driver;
+unit AuWaveOut32;
 
 {$IFDEF FPC}
   {$MODE DELPHI}

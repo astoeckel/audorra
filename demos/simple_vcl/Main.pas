@@ -8,7 +8,7 @@ uses
   wnd_OpenURL,
 
   AcPersistent, AcDLLExplorer, AcStrUtils,
-  AuHTTP,
+  AuHTTP, 
   AuWAV, AuAcinerella, AuWASAPI, AuDirectSound, AuUtils, AuTypes, AuAudio, AuAnalyzers, AuComplex,
   AuVisualisations, Tabs, Buttons;
 
