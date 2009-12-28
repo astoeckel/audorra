@@ -52,10 +52,10 @@ uses
   AuTypes,
   AuAudio,
   AuWASAPI,
+  AuDirectSound,
   AuAnalyzers,
   AuWAV,
-  AuMPG123 in '..\..\src\decoders\AuMPG123.pas',
-  mpg123 in '..\..\lib\mpg123.pas';
+  AuMPG123;
 
 var
   AuAudio: TAuAudio;
@@ -100,6 +100,7 @@ begin
 
     //Create an peak meter analyzer
     AuPeaks := TAuPeakMeter.Create;
+    AuPeaks.Active := true;
     AuPlayer.AddAnalzyer(AuPeaks);
 
     //Load...

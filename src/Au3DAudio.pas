@@ -56,8 +56,10 @@ type
       FFrequency: integer;
       FBitdepth: integer;
       FSpeakerPreset: TAu3DSpeakerPreset;
-      FDeviceID: integer;  
+      FDeviceID: integer;
+
       function GetParameters: TAuAudioParametersEx;
+      function GetListener: TAu3DListener;
     public
       constructor Create(AAudio: TAuAudio; ASpeakerPreset: TAu3DSpeakerPreset;
         AFrequency, ABitdepth: integer; ADeviceID: integer = -1);
@@ -75,6 +77,7 @@ type
       property SpeakerPreset: TAu3DSpeakerPreset read FSpeakerPreset;
       property Parameters: TAuAudioParametersEx read GetParameters;
       property DeviceID: integer read FDeviceID;
+      property Listener: TAu3DListener read GetListener;
   end;
 
 implementation
@@ -152,6 +155,13 @@ begin
   FreeAndNil(FDriver);
   FreeAndNil(FOutputAdapter);
   FreeAndNil(FRenderer);
+end;
+
+function TAu3DAudio.GetListener: TAu3DListener;
+begin
+  result := nil;
+  if FOutputAdapter <> nil then
+    result := FOutputAdapter.Listener;
 end;
 
 function TAu3DAudio.GetParameters: TAuAudioParametersEx;

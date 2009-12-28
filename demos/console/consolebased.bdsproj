@@ -130,7 +130,7 @@
 			<Directories Name="UsePackages">False</Directories>
 		</Directories>
 		<Parameters>
-			<Parameters Name="RunParams">"D:\Dokumente und Einstellungen\Andreas\Eigene Dateien\Musik\CD's\Avantasia\Avantasia - The Metal Opera Pt. 2\Avantasia - 06 - Neverland.mp3"</Parameters>
+			<Parameters Name="RunParams">"I:\Dokumente und Einstellungen\Andreas\Eigene Dateien\Musik\CD's\Bravo Hits\Bravo Hits - Jahr 2000\CD 2\17 - Bloodhound Gang - The Ballad Of Chasey Lain.mp3"</Parameters>
 			<Parameters Name="HostApplication"></Parameters>
 			<Parameters Name="Launcher"></Parameters>
 			<Parameters Name="UseLauncher">False</Parameters>
