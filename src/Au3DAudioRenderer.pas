@@ -29,8 +29,8 @@ unit Au3DAudioRenderer;
 interface
 
 uses
-  SysUtils, Classes, Math, SyncObjs,
-  AcMath, AcTypes,
+  SysUtils, Classes, Math,
+  AcMath, AcTypes, AcSyncObjs,
   AuTypes, AuUtils, AuAudioSpline, Au3DRingBuffer;
 
 const
@@ -315,7 +315,7 @@ type
       FEnvironment: TAu3DEnvironment;
       FOutvalues: TAu3DGainValues;
       FGainvalues: TAu3DGainValues;
-      FMutex: TMutex;
+      FMutex: TAcMutex;
       function CalculateSoundAngle(APos: TAcVector4;
         var AAlpha: Single): Boolean;
       procedure CalculatePositionalSoundData(AListener: TAu3DListener;
@@ -422,7 +422,7 @@ begin
   inherited Create;
 
   //Create the mutex used in the lock and unlock function.
-  FMutex := TMutex.Create;
+  FMutex := TAcMutex.Create;
 
   FEnvironment := TAu3DEnvironment.Create;
   FSpeakerSetup := TAu3DSpeakerSetup.Create(ASpeakerPreset);

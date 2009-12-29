@@ -42,7 +42,7 @@ interface
 
 uses
   SysUtils, Classes,
-  AcPersistent, AcDataStore, AcStrUtils, AcRegUtils,
+  AcPersistent, AcDataStore, AcStrUtils, AcRegUtils, AcSyncObjs,
   AuTypes, AuUtils, AuFilterGraph, AuProtocolClasses, AuDecoderClasses,
   AuDriverClasses, AuAnalyzerClasses, AuSyncUtils, AuMessages;
 
@@ -133,7 +133,7 @@ type
       FOwnProtocol: boolean;
       FDeviceID: integer;
       FSetDeviceID: boolean;
-      FLock: TAuLock;
+      FLock: TAcLock;
       procedure SetDeviceID(AValue: integer);
       function GetDeviceID: integer;
       procedure CallStateChange;
@@ -147,7 +147,7 @@ type
       property OwnProtocol: boolean read FOwnProtocol write FOwnProtocol;
       property Stream: TStream read FStream write FStream;
       property OwnStream: boolean read FOwnStream write FOwnStream;
-      property Lock: TAuLock read FLock;
+      property Lock: TAcLock read FLock;
     public
       constructor Create(AParent: TAuAudio);
       destructor Destroy;override;
@@ -928,7 +928,7 @@ begin
 
   FParent := AParent;  
   FState := aupsClosed;
-  FLock := TAuLock.Create;
+  FLock := TAcLock.Create;
 end;
 
 destructor TAuCustomAudioObject.Destroy;

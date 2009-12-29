@@ -40,31 +40,11 @@ interface
   {$MODE DELPHI}
 {$ENDIF}
 
-{$I audorra_conf.inc}
+{$I commons_conf.inc}
 
 uses
-  SysUtils, Classes, SyncObjs,
-  AcPersistent, AcSysUtils;
-
-type
-  TAuLock = class(TSynchroObject)
-    private
-      FCritSect: TCriticalSection;
-      FIntCritSect: TCriticalSection;
-      FEnterCount: Cardinal;
-      FHandle: Cardinal;
-    public
-      constructor Create;
-      destructor Destroy;override;
-      
-      procedure Acquire;override;
-      procedure Release;override;
-
-      function Entered: boolean;
-
-      procedure Enter;
-      procedure Leave;
-  end;
+  SysUtils, Classes,
+  AcSyncObjs, AcPersistent, AcSysUtils;
 
 {Adds a method to the queue. It is unknown wheter or when the method will be executed.
  Do not use this function for important messages, but only for notifying. If you're
@@ -77,95 +57,6 @@ procedure AuQueueRemove(AObj: Pointer);
 
 implementation
 
-{ TAuLock }
-
-constructor TAuLock.Create;
-begin
-  inherited;
-  FCritSect := TCriticalSection.Create;
-  FIntCritSect := TCriticalSection.Create;
-  
-  FEnterCount := 0;
-  FHandle := 0;
-end;
-
-destructor TAuLock.Destroy;
-begin
-  FCritSect.Free;
-  FIntCritSect.Free;
-  inherited;
-end;
-
-procedure TAuLock.Enter;
-begin
-  if self = nil then
-    exit;
-
-  Acquire;
-end;
-
-function TAuLock.Entered: boolean;
-begin
-  FIntCritSect.Enter;
-  try
-    result := FHandle = AcGetCurrentThreadId;
-  finally
-    FIntCritSect.Leave;
-  end;
-end;
-
-procedure TAuLock.Leave;
-begin
-  if self = nil then
-    exit;
-    
-  Release;
-end;
-
-procedure TAuLock.Acquire;
-var
-  h: Cardinal;
-begin
-  FIntCritSect.Enter;
-  try
-    h := AcGetCurrentThreadId;
-  finally
-    FIntCritSect.Leave;
-  end;
-
-  if h <> FHandle then
-  begin
-    FCritSect.Enter;
-
-    FIntCritSect.Enter;
-    try
-      FHandle := h;
-      FEnterCount := 0;
-    finally
-      FIntCritSect.Leave;
-    end;
-  end
-  else
-    FEnterCount := FEnterCount + 1;
-
-end;
-
-procedure TAuLock.Release;
-begin
-  if (FEnterCount = 0) then
-  begin
-    FCritSect.Leave;
-    FIntCritSect.Enter;
-    try
-      FHandle := 0;
-    finally
-      FIntCritSect.Leave;
-    end;
-  end else
-    FEnterCount := FEnterCount - 1;
-
-end;
-
 type
   PThreadMethod = ^TThreadMethod;
   PMethod = ^TMethod;
@@ -173,7 +64,7 @@ type
   TAuSyncMgr = class(TThread)
     private
       FCallList: TList;
-      FCritSect: TCriticalSection;
+      FCritSect: TAcCriticalSection;
       FCurMem: PThreadMethod;
       FDeletedCurMem: boolean;
     protected
@@ -189,7 +80,7 @@ constructor TAuSyncMgr.Create;
 begin
   FCallList := TList.Create;
   
-  FCritSect := TCriticalSection.Create;
+  FCritSect := TAcCriticalSection.Create;
 
   inherited Create(False);
 end;
@@ -278,7 +169,7 @@ begin
           //
         end;
       end;
-      Sleep(5);
+      Sleep(1);
     end;
   except
     //

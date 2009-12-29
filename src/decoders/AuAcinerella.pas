@@ -77,9 +77,6 @@ type
 
 implementation
 
-const
-  AdWavBufSize: integer = 4096;
-
 function read_proc(sender: Pointer; buf: PByte; size: integer): integer; cdecl;
 begin
   result := TAuAcinerellaDecoder(sender).Protocol.Read(buf, size);

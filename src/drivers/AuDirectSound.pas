@@ -35,12 +35,16 @@ Author: Andreas Stöckel
  it should be used as a default.}
 unit AuDirectSound;
 
+{$IFDEF FPC}
+  {$MODE DELPHI}
+{$ENDIF}
+
 interface
 
 uses
-  SysUtils, Classes, SyncObjs,
+  SysUtils, Classes, AuSyncUtils,
   Windows, MMSystem, DirectSound,
-  AcPersistent,
+  AcPersistent, AcSyncObjs,
   AuTypes, AuDriverClasses;
 
 type
@@ -73,7 +77,7 @@ type
       FLastCursor: Cardinal;
       FFragsize: Cardinal;
       FFramesize: Cardinal;
-      FMutex: TMutex;
+      FMutex: TAcMutex;
       FBufMem: PByte;
       FBufMemSize: Cardinal;
     public
@@ -259,7 +263,7 @@ var
 begin
   inherited Create;
 
-  FMutex := TMutex.Create;
+  FMutex := TAcMutex.Create;
 
   FDelay := DS_BufferSize;
 

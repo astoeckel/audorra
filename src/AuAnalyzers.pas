@@ -41,7 +41,7 @@ interface
 {$ENDIF}
 
 uses
-  SysUtils, Classes, SyncObjs,
+  SysUtils, Classes,
 
   AuUtils, AuTypes, AuAnalyzerClasses, AuFFT, AuComplex;
 
