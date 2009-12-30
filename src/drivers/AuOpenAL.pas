@@ -41,9 +41,9 @@ interface
 {$ENDIF}
 
 uses
-  SysUtils, Classes, AuSyncUtils,
+  SysUtils, Classes,
   openal,
-  AcPersistent,
+  AcPersistent, AcSyncObjs,
   AuTypes, AuDriverClasses, AuUtils;
 
 type
@@ -133,7 +133,7 @@ const
 implementation
 
 var
-  OALMutex: TAuLock;
+  OALMutex: TAcLock;
 
 function GetALFormat(AFormat: TAuAudioParametersEx): integer;
 begin
@@ -620,7 +620,7 @@ initialization
   if {$IFDEF WIN32}InitOpenAL('soft_oal.dll') or {$ENDIF} InitOpenAL then
     AcRegSrv.RegisterClass(TAuOpenALDriver, @CreateOpenALDriver);
 
-  OALMutex := TAuLock.Create;
+  OALMutex := TAcLock.Create;
 
 finalization
   OALMutex.Free;

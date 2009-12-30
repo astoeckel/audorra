@@ -41,7 +41,7 @@ unit AuVisualisations;
 interface
 
 uses
-  {$IFDEF WIN32}Windows,{$ELSE}LCLIntf,{$ENDIF}
+  {$IFDEF WIN32}Windows,{$ELSE}LCLIntf, LCLType,{$ENDIF}
   SysUtils, Classes, Graphics,
   AuTypes, AuUtils, AuAnalyzerClasses, AuAnalyzers, AuComplex;
 
@@ -217,12 +217,17 @@ begin
   //Composite the background and the foreground
 
   //1. Draw the background bitmap
+  {$IFDEF WIN32}
   BitBlt(FComp.Canvas.Handle, 0, 0, Width, Height,
     FBG.Canvas.Handle, 0, 0, SRCCOPY);
 
   //2. Draw the foreground bitmap with the "AND" operator
   BitBlt(FComp.Canvas.Handle, 0, 0, Width, Height,
     FFG.Canvas.Handle, 0, 0, SRCAND);
+  {$ELSE}
+  BitBlt(FComp.Canvas.Handle, 0, 0, Width, Height,
+    FFG.Canvas.Handle, 0, 0, SRCCOPY);
+  {$ENDIF}
 
   //3. Draw the comp bitmap to the target
   if FComp.Transparent then

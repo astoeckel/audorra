@@ -43,7 +43,6 @@ interface
 uses
   SysUtils, Classes, SyncObjs,
   AcBuffer, AcSysUtils,
-  AuAudioSpline,
   AuTypes, AuDriverClasses, AuDecoderClasses, AuUtils,
   AuSyncUtils,
   AuAnalyzerClasses;

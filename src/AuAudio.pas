@@ -43,7 +43,7 @@ interface
 uses
   SysUtils, Classes,
   AcPersistent, AcDataStore, AcStrUtils, AcRegUtils, AcSyncObjs,
-  AuTypes, AuUtils, AuFilterGraph, AuProtocolClasses, AuDecoderClasses,
+  AuTypes, AuFilterGraph, AuProtocolClasses, AuDecoderClasses,
   AuDriverClasses, AuAnalyzerClasses, AuSyncUtils, AuMessages;
 
 

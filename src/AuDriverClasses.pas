@@ -41,7 +41,7 @@ unit AuDriverClasses;
 interface
 
 uses
-  AcPersistent, AcTypes,
+  AcPersistent,
   AuTypes;
 
 type
