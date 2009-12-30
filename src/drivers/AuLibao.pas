@@ -27,7 +27,7 @@ other provisions required by the GPL License. If you do not delete the
 provisions above, a recipient may use your version of this file under either the
 MPL or the GPL License.
 
-File: AuOpenAL.pas
+File: AuLibao.pas
 Author: Andreas Stöckel
 }
 
