@@ -96,7 +96,7 @@ type
 
 const
   RIFF_CDDA = $41444443;
-  BUFFER_SIZE = 5; //In sectors á 2352 Byte
+  BUFFER_SIZE = 2; //In sectors á 2352 * sector_count Byte
 
 implementation
 
@@ -149,30 +149,35 @@ procedure TAuCDDAProtocol.Open(AUrl: string);
 var
   Prot, User, Pass, Host, Port, Path, Para: String;
   track_number: integer;
+  p: integer;
 begin
   ParseURL(AUrl, Prot, User, Pass, Host, Port, Path, Para);
 
-  track_number := StrToInt(Copy(Path, 2));
-
-  if FCDROM.OpenDrive(Host[1]) then
+  p := Pos('track=', Para);
+  if p > 0 then
   begin
-    FTrack := FCDROM.TOC.TrackNumberd(track_number);
-    if FTrack <> nil then
+    track_number := StrToInt(Copy(Para, p+6));
+
+    if FCDROM.OpenDrive(Host[1]) then
     begin
-      FReader := FCDROM.InitBlockRead(FTrack^);
-      if FReader <> nil then
+      FTrack := FCDROM.TOC.TrackNumberd(track_number);
+      if FTrack <> nil then
       begin
-        FBuf.Clear;
+        FReader := FCDROM.InitBlockRead(FTrack^);
+        if FReader <> nil then
+        begin
+          FBuf.Clear;
 
-        FPos := 0;
+          FPos := 0;
 
-        WriteHeader;
+          WriteHeader;
 
-        //Start the read thread
-        FCDThread := TAuCDThread.Create(FBuf, FCritSect, FCDROM, FReader,
-          FReader^.block_size * BUFFER_SIZE);
+          //Start the read thread
+          FCDThread := TAuCDThread.Create(FBuf, FCritSect, FCDROM, FReader,
+            FReader^.block_size * BUFFER_SIZE);
 
-        FillBuffer;
+          FillBuffer;
+        end;
       end;
     end;
   end;
@@ -381,7 +386,7 @@ begin
     begin
       //Create a new CDDA protocol and open the track described in the CDA File
       FCDDAProtocol := TAuCDDAProtocol.Create;
-      FCDDAProtocol.Open('cdda://'+letter+'/'+IntToStr(FTrackNumber));
+      FCDDAProtocol.Open('cdda://'+letter+'/?track='+IntToStr(FTrackNumber));
 
       //Open the WAVE-Decoder with the TAuCDDAProtocol
       inherited Create(FCDDAProtocol);
