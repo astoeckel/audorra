@@ -202,7 +202,7 @@ begin
     bpos := bpos - FFilePos;
 
     //Set the new file position
-    FFilePos := FFilePos + bpos;    
+    FFilePos := FFilePos + bpos; 
 
     FProtocol.Seek(aupsFromCurrent, bpos);
 

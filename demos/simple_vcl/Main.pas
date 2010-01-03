@@ -66,6 +66,7 @@ type
     procedure btnMuteClick(Sender: TObject);
     procedure btnVolNorClick(Sender: TObject);
     procedure File1Click(Sender: TObject);
+    procedure TrackBar1Change(Sender: TObject);
   private
   public
     AuAudio: TAuAudio;
@@ -80,6 +81,8 @@ type
     prefix: string;
     suffix: string;
     playlist_ind: integer;
+    trbchange_time: Cardinal;
+    seek: boolean;
     procedure FinishedSong(Sender: TObject);
     procedure ActivateButtons;
     procedure DeactivateButtons;
@@ -320,17 +323,35 @@ begin
       exit;
     end;
 
-    if changed then
-      exit;
-      
-    pos := AuPlayer.Len;
-    if pos >= 0 then
-      TrackBar1.Max := pos;
-    
-    pos := AuPlayer.Position;
-    if pos >= 0 then
-      TrackBar1.Position := pos;
+    if GetTickCount - trbchange_time > 250 then
+    begin
+      changed := true;
+
+      if seek then
+      begin
+        seek := false;
+        AuPlayer.Position := TrackBar1.Position;
+      end;
+        
+      pos := AuPlayer.Len;
+      if pos >= 0 then
+        TrackBar1.Max := pos;
+
+      pos := AuPlayer.Position;
+      if pos >= 0 then
+        TrackBar1.Position := pos;
+    end;
   end;
+end;
+
+procedure TfrmPlayer.TrackBar1Change(Sender: TObject);
+begin
+  if not changed then
+  begin
+    seek := true;
+    trbchange_time := GetTickCount;
+  end;
+  changed := false;
 end;
 
 procedure TfrmPlayer.btnOpenDirClick(Sender: TObject);

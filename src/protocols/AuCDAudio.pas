@@ -46,14 +46,14 @@ type
   TAuCDThread = class(TThread)
     private
       FBuf: TAcBuffer;
-      FCritSect: TAcCriticalSection;
+      FCritSect: TAcMutex;
       FCDROM: Tcdrom;
       FReader: PBlockRead;
       FBufSize: integer;
     protected
       procedure Execute;override;
     public
-      constructor Create(ABuf: TAcBuffer; ACritSect: TAcCriticalSection;
+      constructor Create(ABuf: TAcBuffer; ACritSect: TAcMutex;
         ACDROM: Tcdrom; AReader: PBlockRead; ABufSize: integer);
       destructor Destroy;override;
   end;
@@ -62,9 +62,14 @@ type
     private
       FBuf: TAcBuffer;
       FCDThread: TAuCDThread;
-      FCritSect: TAcCriticalSection;
+      FCritSect: TAcMutex;
+      FCSec2: TAcCriticalSection;
       FCDROM: Tcdrom;
       FReader: PBlockRead;
+      FTrack: Pcdrom_track;
+      FPos: Int64;
+      procedure FillBuffer;
+      procedure WriteHeader;
     public
       constructor Create;
       destructor Destroy;override;
@@ -90,7 +95,8 @@ type
   end;
 
 const
-  RIFF_CDDA = $41444443;  
+  RIFF_CDDA = $41444443;
+  BUFFER_SIZE = 5; //In sectors á 2352 Byte
 
 implementation
 
@@ -101,7 +107,8 @@ begin
   inherited Create;
 
   FBuf := TAcBuffer.Create;
-  FCritSect := TAcCriticalSection.Create;
+  FCritSect := TAcMutex.Create;
+  FCSec2 := TAcCriticalSection.Create;
   FCDROM := Tcdrom.Create;
 end;
 
@@ -119,20 +126,29 @@ begin
   FReader := nil;  
 
   FCDROM.Free;
+  FCSec2.Free;
   FCritSect.Free;
   FBuf.Free;
   inherited Destroy;
+end;
+
+procedure TAuCDDAProtocol.FillBuffer;
+var
+  wait: integer;
+begin
+  //Wait until the buffer is filled
+  wait := FReader^.sectors_left * FReader^.sector_size;
+  if wait > Integer(FReader^.block_size) * BUFFER_SIZE div 2 then
+    wait := Integer(FReader^.block_size) * BUFFER_SIZE div 2;
+
+  while FBuf.Filled < Integer(wait) do
+    Sleep(1);
 end;
 
 procedure TAuCDDAProtocol.Open(AUrl: string);
 var
   Prot, User, Pass, Host, Port, Path, Para: String;
   track_number: integer;
-  track: Pcdrom_track;
-  c: Cardinal;
-  hdr: TAuWAVFmt;
-  wait: Cardinal;
-
 begin
   ParseURL(AUrl, Prot, User, Pass, Host, Port, Path, Para);
 
@@ -140,46 +156,23 @@ begin
 
   if FCDROM.OpenDrive(Host[1]) then
   begin
-    track := FCDROM.TOC.TrackNumberd(track_number);
-    if track <> nil then
+    FTrack := FCDROM.TOC.TrackNumberd(track_number);
+    if FTrack <> nil then
     begin
-      FReader := FCDROM.InitBlockRead(track^);
+      FReader := FCDROM.InitBlockRead(FTrack^);
       if FReader <> nil then
       begin
         FBuf.Clear;
 
-        //Write the WAVE Header to the bufffer
-        c := RIFF_HDR; FBuf.Write(PByte(@c), 4);
-        c := track^.length +  40; FBuf.Write(PByte(@c), 4);
-        c := RIFF_WAVE; FBuf.Write(PByte(@c), 4);
-        c := RIFF_FMT; FBuf.Write(PByte(@c), 4);
+        FPos := 0;
 
-        //Write the FMT Header
-        hdr.HeadSize := SizeOf(hdr);
-        hdr.FormatTag := 1;
-        hdr.Channels := 2;
-        hdr.SampleRate := 44100;
-        hdr.BytesPSec := 4 * 44100;
-        hdr.BlockAlign := 4;
-        hdr.BitsPSmp := 16;
-        FBuf.Write(PByte(@hdr), SizeOf(hdr));
-
-        //Write the DATA header
-        c := RIFF_DATA; FBuf.Write(PByte(@c), 4);
-        c := track^.length;
-        FBuf.Write(PByte(@c), 4);
+        WriteHeader;
 
         //Start the read thread
         FCDThread := TAuCDThread.Create(FBuf, FCritSect, FCDROM, FReader,
-          FReader^.block_size * 10);
+          FReader^.block_size * BUFFER_SIZE);
 
-        //Wait until the buffer is filled
-        wait := track^.length + 40;
-        if wait > Integer(FReader^.block_size) * 10 div 2 then
-          wait := Integer(FReader^.block_size) * 10 div 2;
-
-        while FBuf.Filled < Integer(wait) do
-          Sleep(1);
+        FillBuffer;
       end;
     end;
   end;
@@ -187,23 +180,95 @@ end;
 
 function TAuCDDAProtocol.Read(ABuf: PByte; ACount: Integer): Integer;
 begin
-  FCritSect.Enter;
+  FCSec2.Acquire;
   try
-    result := FBuf.Read(ABuf, ACount);
+    FCritSect.Acquire;
+    try
+      result := FBuf.Read(ABuf, ACount);
+      FPos := FPos + result;
+    finally
+      FCritSect.Release;
+    end;
   finally
-    FCritSect.Leave;
+    FCSec2.Release;
   end;
 end;
 
 function TAuCDDAProtocol.Seek(ASeekMode: TAuProtocolSeekMode;
   ACount: Int64): Int64;
+var
+  pos, curpos: Int64;
+  tar_sector: Integer;
+  buf: array[0..511] of Byte;
+  rc, read: Integer;
 begin
   result := 0;
+  pos := 0;
+
+  FCSec2.Acquire;
+  try
+    if FReader <> nil then
+    begin
+      //Calculate the absolute seeking position
+      case ASeekMode of
+        aupsFromBeginning: pos := ACount;
+        aupsFromCurrent: pos := FPos + ACount;
+        aupsFromEnd: pos := Int64(FTrack^.length + 44) - ACount;
+      end;
+
+      if not ((pos < 0) or (pos > Int64(FTrack^.length + 44))) then
+      begin
+        FBuf.Clear;
+
+        //Terminate the CD-Thread
+        FCDThread.Terminate;
+        FCDThread.WaitFor;
+        FreeAndNil(FCDThread);
+
+        //Calculate the sector we have to seek to
+        tar_sector := (pos - 44) div FReader^.sector_size;
+        FCDROM.SeekToTrackSector(FReader, tar_sector);
+
+        //Calcualte the real current position
+        curpos := tar_sector * FReader^.sector_size + 44;
+
+        //Write - if necessary - the header
+        if pos < 44 then
+        begin
+          WriteHeader;
+          FBuf.Read(@Buf[0], pos);
+          curpos := pos;
+        end;
+
+        //Create a new CD thread
+        FCDThread := TAuCDThread.Create(FBuf, FCritSect, FCDROM, FReader,
+          FReader^.block_size * BUFFER_SIZE);
+
+        //Fill the buffer
+        FillBuffer;
+
+        //Read until the desired position is reached
+        while curpos < pos do
+        begin
+          rc := pos - curpos;
+          if rc > 512 then
+            rc := 512;                   
+          read := FBuf.Read(@Buf[0], rc);
+          curpos := curpos + read;
+        end;         
+
+        FPos := pos;
+        result := pos;
+      end;                    
+    end;
+  finally
+    FCSec2.Release;
+  end;
 end;
 
 function TAuCDDAProtocol.Seekable: boolean;
 begin
-  result := false;
+  result := true;
 end;
 
 function TAuCDDAProtocol.SupportsProtocol(const AName: string): boolean;
@@ -211,9 +276,36 @@ begin
   result := AName = 'cdda';
 end;
 
+procedure TAuCDDAProtocol.WriteHeader;
+var
+  c: Cardinal;
+  hdr: TAuWAVFmt;
+begin
+  //Write the WAVE Header to the bufffer
+  c := RIFF_HDR; FBuf.Write(PByte(@c), 4);
+  c := FTrack^.length +  44; FBuf.Write(PByte(@c), 4);
+  c := RIFF_WAVE; FBuf.Write(PByte(@c), 4);
+  c := RIFF_FMT; FBuf.Write(PByte(@c), 4);
+
+  //Write the FMT Header
+  hdr.HeadSize := SizeOf(hdr);
+  hdr.FormatTag := 1;
+  hdr.Channels := 2;
+  hdr.SampleRate := 44100;
+  hdr.BytesPSec := 4 * 44100;
+  hdr.BlockAlign := 4;
+  hdr.BitsPSmp := 16;
+  FBuf.Write(PByte(@hdr), SizeOf(hdr));
+
+  //Write the DATA header
+  c := RIFF_DATA; FBuf.Write(PByte(@c), 4);
+  c := FTrack^.length;
+  FBuf.Write(PByte(@c), 4);
+end;
+
 { TAuCDThread }
 
-constructor TAuCDThread.Create(ABuf: TAcBuffer; ACritSect: TAcCriticalSection;
+constructor TAuCDThread.Create(ABuf: TAcBuffer; ACritSect: TAcMutex;
   ACDROM: Tcdrom; AReader: PBlockRead; ABufSize: integer);
 begin
   inherited Create(false);
@@ -248,11 +340,11 @@ begin
 
         if read > 0 then
         begin
-          FCritSect.Enter;
+          FCritSect.Acquire;
           try
             FBuf.Write(buf, read);
           finally
-            FCritSect.Leave;
+            FCritSect.Release;
           end;
         end;
       end else

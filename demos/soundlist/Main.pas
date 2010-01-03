@@ -106,8 +106,6 @@ end;
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
-  PostMessage(Application.Handle, WM_NULL, 0, 0);
-
   ReportMemoryLeaksOnShutdown := true;
 
   AuAudio := TAuAudio.Create;
@@ -117,8 +115,6 @@ begin
     if Au3DAudio.Initialize then
       AuSoundList := TAuSoundList.Create(Au3DAudio);
   end;
-
-  PostMessage(Application.Handle, WM_NULL, 0, 0);
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
@@ -142,7 +138,6 @@ begin
       try
         em := TAu3DEmitter.Create(sel.Sound);
         em.OnStop := OnNotify;
-        //em := CheckBox1.Checked;
         sel.Sound.Loop := CheckBox1.Checked;
       finally
         Au3DAudio.Unlock;

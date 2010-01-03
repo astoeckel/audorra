@@ -34,6 +34,8 @@ Author: Andreas Stöckel
 {Contains low-level cd audio access classes for windows.}
 unit win_cdrom;
 
+//Reference used: http://www.codeproject.com/KB/audio-video/SimpleAudioCD.aspx?msg=1686942
+
 interface
 
 uses
@@ -41,6 +43,7 @@ uses
   SysUtils, Classes;
 
 type
+  //Records end declarations can be found in the Windows DDK ntddcdrm.h
   TTrackDataAddressArray = array[0..3] of Byte;
 
   TTrackData = packed record
@@ -100,6 +103,7 @@ type
 
   TBlockRead = record
     block_size: integer;
+    sector_size: integer;
     track_addr: int64;
     track_length: int64;
     offset: int64;
@@ -121,6 +125,7 @@ type
 
       function InitBlockRead(const ATrack: Tcdrom_track): PBlockRead;
       procedure FinalizeBlockRead(ABlockRead: PBlockRead);
+      procedure SeekToTrackSector(ABlockRead: PBlockRead; ASector: integer); 
       function ReadTrackBlock(ABlockRead: PBlockRead; ABuf: PByte): Cardinal;
       
       property TOC: Tcdrom_toc read FTOC;
@@ -249,13 +254,14 @@ begin
   begin
     New(result);
     result^.block_size := sector_size * sector_count;
+    result^.sector_size := sector_size;
     result^.track_addr :=
       AddressToSectors(FCDDATOC.TrackData[ATrack.number - FCDDATOC.FirstTrack].Address);
     result^.track_length :=
       AddressToSectors(FCDDATOC.TrackData[ATrack.number - FCDDATOC.FirstTrack + 1].Address) -
       AddressToSectors(FCDDATOC.TrackData[ATrack.number - FCDDATOC.FirstTrack].Address);
-    result^.offset := result^.track_addr * 2048;
-    result^.sectors_left := result^.track_length;
+
+    SeekToTrackSector(result, 0);
   end;
 end;
 
@@ -290,6 +296,15 @@ begin
       ABlockRead^.sectors_left := ABlockRead^.sectors_left - Integer(info.SectorCount);
       ABlockRead^.offset := ABlockRead^.offset + info.SectorCount * 2048;
     end;
+  end;
+end;
+
+procedure Tcdrom.SeekToTrackSector(ABlockRead: PBlockRead; ASector: integer);
+begin
+  if ASector < ABlockRead^.track_length then
+  begin
+    ABlockRead^.offset := (ABlockRead^.track_addr + ASector) * 2048;
+    ABlockRead^.sectors_left := ABlockRead^.track_length - ASector;
   end;
 end;
 

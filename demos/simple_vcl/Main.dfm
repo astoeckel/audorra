@@ -185,6 +185,7 @@ object frmPlayer: TfrmPlayer
         TabOrder = 0
         TickMarks = tmBoth
         TickStyle = tsNone
+        OnChange = TrackBar1Change
       end
       object trbVol: TTrackBar
         Left = 523
