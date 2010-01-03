@@ -6,7 +6,8 @@ uses
   Forms,
   Main in 'Main.pas' {frmPlayer},
   wnd_OpenURL in 'wnd_OpenURL.pas' {OpenURLWnd},
-  AuVisualisations in '..\..\src\AuVisualisations.pas';
+  AuCDAudio in '..\..\src\AuCDAudio.pas',
+  win_cdrom in '..\..\lib\win_cdrom.pas';
 
 {$R *.res}
 

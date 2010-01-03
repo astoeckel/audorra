@@ -2,7 +2,7 @@ object Form1: TForm1
   Left = 475
   Top = 371
   Caption = 'Form1'
-  ClientHeight = 418
+  ClientHeight = 484
   ClientWidth = 426
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -16,7 +16,7 @@ object Form1: TForm1
   OnDestroy = FormDestroy
   DesignSize = (
     426
-    418)
+    484)
   PixelsPerInch = 96
   TextHeight = 13
   object Button2: TButton
@@ -48,9 +48,9 @@ object Form1: TForm1
   end
   object ListView1: TListView
     Left = 8
-    Top = 39
+    Top = 62
     Width = 410
-    Height = 371
+    Height = 414
     Anchors = [akLeft, akTop, akRight, akBottom]
     Columns = <
       item
@@ -82,18 +82,21 @@ object Form1: TForm1
     TabOrder = 4
     OnClick = Button4Click
   end
+  object CheckBox1: TCheckBox
+    Left = 8
+    Top = 39
+    Width = 97
+    Height = 17
+    Caption = 'Loop'
+    TabOrder = 5
+  end
   object OpenDialog1: TOpenDialog
     Options = [ofHideReadOnly, ofNoChangeDir, ofAllowMultiSelect, ofEnableSizing]
     Left = 16
     Top = 64
   end
-  object Timer1: TTimer
-    OnTimer = Timer1Timer
-    Left = 48
-    Top = 64
-  end
   object ImageList1: TImageList
-    Left = 80
+    Left = 48
     Top = 64
     Bitmap = {
       494C010101000400040010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
@@ -236,12 +239,7 @@ object Form1: TForm1
       000000000000}
   end
   object XPManifest1: TXPManifest
-    Left = 112
+    Left = 80
     Top = 64
-  end
-  object Timer2: TTimer
-    Interval = 100
-    Left = 144
-    Top = 72
   end
 end

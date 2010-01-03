@@ -330,7 +330,7 @@ var
   pb: PByte;
 begin
   result := false;
-  
+
   FMutex.Acquire;
   try
     if FBuf <> nil then

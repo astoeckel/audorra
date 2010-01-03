@@ -81,11 +81,10 @@ type
       FLoop: Boolean;
       FLocked: Boolean;
     public
-      constructor Create(ASampleCount: integer; AChannels: integer;
-        ALoop: boolean);
+      constructor Create(ASampleCount: integer; AChannels: integer);
       destructor Destroy;override;
 
-      function GetSample(ATime: TAuSamplestamp; AChannel: Integer): Single; inline;
+      function GetSample(ATime: TAuSamplestamp; AChannel: Integer): Single;//!inline;
 
       procedure WriteSamples(ACount: Cardinal; ABuf: PSingle);
 
@@ -97,13 +96,14 @@ type
       property SmplSize: Integer read FSmplSize;
 
       property Locked: Boolean read FLocked write FLocked;
+      property Loop: Boolean read FLoop write FLoop;
   end;
 
 const
   Au3DRingBuffer_TblEntries = (1 shl 16);
 
 var
-  Au3DRingBuffer_Tbl: array[0..Au3DRingBuffer_TblEntries - 1] of Single;
+  Au3DRingBuffer_Tbl: array[0..Au3DRingBuffer_TblEntries] of Single;
   
 implementation
 
@@ -211,13 +211,13 @@ begin
 end;
 
 constructor TAu3DAudioRingBuffer.Create(ASampleCount: integer;
-  AChannels: integer; ALoop: boolean);
+  AChannels: integer);
 var
   i: integer;
 begin
   inherited Create;
 
-  FLoop := ALoop;
+  FLoop := false;
   FChannels := AChannels;
   FSmplSize := ASampleCount;
   FSize := ASampleCount * SizeOf(TAuSplineData);
@@ -268,7 +268,7 @@ begin
   if not FLocked then
   begin
     //Calculate the position of the sample in the byte stream
-    bytepos := (ATime shr 16) * SizeOf(TAuSplineData);
+    bytepos := (ATime div (1 shl 16)) * SizeOf(TAuSplineData);
 
     if FLoop then
     begin
@@ -292,7 +292,7 @@ end;
 
 procedure TAu3DAudioRingBuffer.WriteSamples(ACount: Cardinal; ABuf: PSingle);
 var
-  i, smploffs, c, w: Integer;
+  i, j, smploffs, c, w: Integer;
   ps: PSingle;
   pt: PAuSplineData;
   v1, v2: Single;
@@ -364,6 +364,24 @@ begin
         c := c - 1;
       end;
 
+      //Finalize the spline
+      ps := ABuf;
+      for j := 0 to 1 do
+      begin
+        for i := 0 to FChannels - 1 do
+        begin
+          pt := buf[i];
+          inc(pt, w);
+
+          //Add the value to the spline
+          AuSplineFeed(FProcessors[i], ps^, pt);
+
+          //Increment the source position
+          inc(ps);
+        end;
+        w := w + 1;
+      end;
+
       //Write the result data into the ring buffers
       for i := 0 to FChannels - 1 do
         FRings[i].WriteData(w * SizeOf(TAuSplineData), PByte(buf[i]));
@@ -379,7 +397,7 @@ var
   i: integer;
 
 initialization
-  for i := 0 to Au3DRingBuffer_TblEntries - 1 do
+  for i := 0 to Au3DRingBuffer_TblEntries do
       Au3DRingBuffer_Tbl[i] := i / Au3DRingBuffer_TblEntries;
 
 end.

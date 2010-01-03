@@ -42,7 +42,7 @@ interface
 
 uses
   SysUtils, Classes,
-  AcPersistent, AcDataStore, AcStrUtils, AcRegUtils, AcSyncObjs,
+  AcPersistent, AcStrUtils, AcRegUtils, AcSyncObjs,
   AuTypes, AuFilterGraph, AuProtocolClasses, AuDecoderClasses,
   AuDriverClasses, AuAnalyzerClasses, AuSyncUtils, AuMessages;
 
@@ -134,6 +134,7 @@ type
       FDeviceID: integer;
       FSetDeviceID: boolean;
       FLock: TAcLock;
+      FURL: string;
       procedure SetDeviceID(AValue: integer);
       function GetDeviceID: integer;
       procedure CallStateChange;
@@ -159,9 +160,6 @@ type
 
       function Open: boolean;virtual;abstract;
       procedure Close;virtual;abstract;
-      procedure Play;virtual;abstract;
-      procedure Pause;virtual;abstract;
-      procedure Stop;virtual;abstract;
 
       property Parent: TAuAudio read FParent;
       property State: TAuPlayerState read FState;
@@ -210,9 +208,9 @@ type
 
       function Open: boolean;override;
       procedure Close;override;
-      procedure Play;override;
-      procedure Pause;override;
-      procedure Stop;override;
+      procedure Play;
+      procedure Pause;
+      procedure Stop;
 
       property BufSize: integer read FBufSize write FBufSize;
       property MasterVolume: Single read FMasterVolume write SetMasterVolume;
@@ -225,89 +223,6 @@ type
 
       property OnSongFinishes: TAuNotifyEvent read FSongFinishesEvent write FSongFinishesEvent;
   end;
-
-//  TAuSoundList = class;
-
-{  TAuStaticSound = class(TAuCustomAudioObject)
-    private
-      FSound: TAuStaticSoundDriver;
-      FMs: TMemoryStream;
-      FOwnMs: boolean;
-      FFormat: TAuAudioParametersEx;
-      FSoundFinishesEvent: TAuNotifyEvent;
-      FLoop: boolean;
-      FName: AnsiString;
-      FOwner: Pointer;
-      FOpened: boolean;
-      FTimePassed: double;
-      FAutoFreeOnStop: boolean;
-      FInstances: TAuSoundList;
-      FParentSound: TAuStaticSound;
-      FFinished: boolean;
-      procedure FreeComponents;
-      function DecodeStream: boolean;
-      procedure StopEvent(ASender: TObject);
-      procedure StopCall;
-      procedure SetLoop(AValue: boolean);
-      function CreateSoundObj: boolean;
-    protected
-      function GetLength: integer; override;
-    public
-      constructor Create(AAudio: TAuAudio);
-      destructor Destroy;override;
-      
-      function Open: boolean;override;
-      procedure Close;override;
-      procedure Play;override;
-      procedure Pause;override;
-      procedure Stop;override;
-
-      procedure Move(ATimeGap: double);
-      procedure Assign(ASound: TAuStaticSound; ACopy: boolean = false);
-
-      function SaveItemToStore(AStore: TAcStoreNode): TAcStoreNode;
-      procedure LoadItemFromStore(AStore: TAcStoreNode);
-
-      property Loop: boolean read FLoop write SetLoop;
-      property Name: AnsiString read FName write FName;
-      property Owner: Pointer read FOwner write FOwner;
-      property Format: TAuAudioParametersEx read FFormat;
-      property DecodedData: TMemoryStream read FMs;
-      property AutoFreeOnStop: boolean read FAutoFreeOnStop write FAutoFreeOnStop;
-      property Instances: TAuSoundList read FInstances;
-      property ParentSound: TAuStaticSound read FParentSound;
-
-      property OnSoundFinishes: TAuNotifyEvent read FSoundFinishesEvent write FSoundFinishesEvent;
-  end;
-
-  TAuSoundList = class(TList)
-    private
-      FParent: TAuAudio;
-      function GetItem(AIndex: integer): TAuStaticSound;
-      procedure SetItem(AIndex: integer; AItem: TAuStaticSound);
-    protected
-      procedure Notify(ptr: Pointer; action: TListNotification);override;
-    public
-      constructor Create(AParent: TAuAudio);
-      destructor Destroy;override;
-
-      function IndexOf(AName: AnsiString): integer;overload;
-      function IndexOf(AObj: TAuStaticSound): integer;overload;
-      function Find(AName: AnsiString): TAuStaticSound;
-      function AddNew(AName: AnsiString): TAuStaticSound;
-
-      procedure SaveToStream(AStream: TStream);
-      procedure LoadFromStream(AStream: TStream);
-      procedure SaveToFile(AFile: string);
-      procedure LoadFromFile(AFile: string);
-      function SaveToStore(AStore: TAcStoreNode): TAcStoreNode;
-      procedure LoadFromStore(AStore: TAcStoreNode);
-
-      procedure Move(ATimeGap: double);
-      
-      property Parent: TAuAudio read FParent;
-      property Items[AIndex: integer]: TAuStaticSound read GetItem write SetItem; default;
-  end;    }
 
 implementation
 
@@ -453,6 +368,8 @@ end;
 constructor TAuPlayer.Create(AAudio: TAuAudio; ATarget: TAuFilter = nil;
   ASource: TAuCustomDecoderFilter = nil);
 begin
+  FURL := '';
+  
   inherited Create(AAudio);
   
   if ATarget <> nil then
@@ -554,22 +471,32 @@ begin
 end;
 
 procedure TAuPlayer_EnumDecoders(ASender: Pointer; AEntry: PAcRegisteredClassEntry);
+
+  procedure DestroyDecoder;
+  begin
+    with TAuPlayer(ASender) do
+    begin
+      if Protocol.Seekable then
+        Protocol.Seek(aupsFromBeginning, 0);
+
+      FreeAndNil(FDecoder);
+    end;
+  end;
+
 begin
   with TAuPlayer(ASender) do
   begin
     if not FHasDecoder then
     begin
       FDecoder := TAuCreateDecoderProc(AEntry.ClassConstructor)(Protocol);
-      if not FDecoder.OpenDecoder then
-      begin
-        //Seek back
-        if Protocol.Seekable then
-          Protocol.Seek(aupsFromBeginning, 0);
-
-        //Destroy the FDecoder
-        FreeAndNil(FDecoder);
-      end else
-        FHasDecoder := true;
+      try
+        if not FDecoder.OpenDecoder then
+          DestroyDecoder
+        else
+          FHasDecoder := true;
+      except
+        DestroyDecoder;
+      end;
     end;
   end;
 end;
@@ -991,6 +918,8 @@ begin
     //Switch to the "loading" state
     SetState(aupsLoading);
 
+    FUrl := AFile;
+
     try
       //Create a file stream and open the file.
       FStream := TFileStream.Create(AFile, fmOpenRead or fmShareDenyWrite);
@@ -1014,7 +943,10 @@ begin
     
     //Close if not in the "loading" state
     if FState <> aupsLoading then
+    begin
+      FURL := '';
       Close;
+    end;
 
     //If we've reached this line, the loading progress has been finished
     SetState(aupsLoaded);
@@ -1032,11 +964,15 @@ begin
     
     //Close if not in the "loading" state
     if FState <> aupsLoading then
+    begin
+      FURL := '';
       Close;
+    end;
 
     SetState(aupsLoading);
 
     FProtocol := TAuStreamProtocol.Create(AStream);
+    TAuStreamProtocol(FProtocol).URL := FURL;
     FOwnProtocol := true;
 
     LoadFromProtocol(FProtocol);
@@ -1115,480 +1051,6 @@ begin
   FSetDeviceID := true;
   FDeviceID := AValue;
 end;
-
-{ TAuStaticSound }
-
-{constructor TAuStaticSound.Create(AAudio: TAuAudio);
-begin
-  inherited Create(AAudio);
-  
-  FInstances := TAuSoundList.Create(AAudio);
-end;
-
-destructor TAuStaticSound.Destroy;
-begin
-  SetState(aupsClosed, false);
-  Close;
-
-  //Free the instances list
-  FInstances.Free;
-  FInstances := nil;
-
-  inherited;
-end;
-
-procedure TAuStaticSound.FreeComponents;
-begin
-  //Free the driver sound object
-  if FSound <> nil then
-    FSound.Free;
-  FSound := nil;
-
-  //Clear the instances list and delete all sound objectes which depend
-  //on the memory stream of this object, wich will be freed in the next step
-  if FInstances <> nil then  
-    FInstances.Clear;
-
-  //Free the memory stream if it was our own
-  if (FMs <> nil) and (FOwnMs) then
-    FMs.Free;
-  FMs := nil;
-
-  //Remove ourself from the parents instances list
-  if (FParentSound <> nil) then
-  begin
-    FOwner := nil;
-    FParentSound.Instances.Remove(self);
-  end;
-  FParentSound := nil;
-
-  //Free all objects which were delivered by the parent class
-  FreeObjects;
-end;
-
-function TAuStaticSound.GetLength: integer;
-begin
-  result := inherited GetLength;
-
-  if FMs <> nil then
-    result := round((FMs.Size * 1000)/  AuBytesPerSecond(FFormat));
-end;
-
-procedure TAuStaticSound_EnumDecoders(ASender: Pointer; AEntry: PAcRegisteredClassEntry);
-var
-  res: TAuDecoderState;
-  decoder: TAuDecoder;
-  pckg: TAuPacket;
-begin
-  with TAuStaticSound(ASender) do
-  begin
-    if not FFinished then
-    begin
-      decoder := TAuCreateDecoderProc(AEntry.ClassConstructor)(Protocol);
-      try
-        if decoder.OpenDecoder then
-        begin
-          FMs := TMemoryStream.Create;
-          FOwnMs := true;
-
-          FFormat := decoder.Info;
-          repeat
-            res := decoder.Decode;
-            if res = audsHasFrame then
-            begin
-              decoder.GetPacket(pckg);
-              FMs.Write(pckg.Buffer^, pckg.BufferSize);
-            end;
-          until res = audsEnd;
-
-          FFinished := true;
-        end;
-      finally
-        decoder.Free;
-      end;
-    end;
-  end;
-end;
-
-function TAuStaticSound.DecodeStream: boolean;
-begin
-  FFinished := false;
-  try
-    AcRegSrv.EnumClasses(TAuDecoder, TAuStaticSound_EnumDecoders, self);
-  finally
-    result := FFinished;
-  end;
-end;
-
-function TAuStaticSound.Open: boolean;
-begin
-  result := false;
-  if (State = aupsLoaded) and (DecodeStream) then
-  begin
-    FOpened := false;
-    FTimePassed := 0;
-    result := true;
-    SetState(aupsOpened);
-  end;
-end;
-
-function TAuStaticSound.CreateSoundObj: boolean;
-begin
-  result := false;
-  FSound := Parent.Driver.CreateStaticSoundDriver(Parent.StandardDeviceID,
-    FFormat);
-  if FSound <> nil then
-  begin
-    FSound.Open;
-    FSound.WriteData(PByte(FMs.Memory), FMs.Size);
-    FSound.OnStop := StopEvent;
-    FSound.Loop := FLoop;
-    result := true;
-    FOpened := true;                           
-  end;
-end;
-
-procedure TAuStaticSound.Assign(ASound: TAuStaticSound; ACopy: boolean);
-begin
-  Close;
-
-  if not ACopy then
-  begin
-    //Set a reference to the parent sound
-    FMs := ASound.FMs;
-    FOwnMs := false;
-
-    //Add this instance to the parent list
-    FParentSound := ASound;
-    ASound.Instances.Add(self);
-    FOwner := ASound.Instances;
-  end else
-  begin
-    FMs := TMemoryStream.Create;
-    FOwnMs := true;
-    ASound.FMs.Position := 0;
-    FMs.CopyFrom(ASound.FMs, 0);
-  end;
-
-  FFormat := ASound.Format;
-
-  if (FMs <> nil) and (CreateSoundObj) then
-    SetState(aupsOpened);
-end;
-
-procedure TAuStaticSound.Close;
-begin
-  if (State >= aupsOpened) and FAutoFreeOnStop then
-    Free;
-
-  SetState(aupsClosed);
-  FreeComponents;
-end;
-
-procedure TAuStaticSound.Pause;
-begin
-  if (State = aupsPlaying) and (FSound <> nil) then
-  begin
-    FSound.Pause;
-    SetState(aupsPaused);
-  end;
-end;
-
-procedure TAuStaticSound.Play;
-begin
-  if (State >= aupsOpened) then
-  begin
-    if not FOpened then
-      CreateSoundObj;
-      
-    FSound.Play;
-    SetState(aupsPlaying);
-    FTimePassed := 0;
-  end;
-end;
-
-procedure TAuStaticSound.SetLoop(AValue: boolean);
-begin
-  FLoop := AValue;
-  if FSound <> nil then
-    FSound.Loop := FLoop;
-end;
-
-procedure TAuStaticSound.Stop;
-begin
-  if (State > aupsOpened) and (FSound <> nil) then
-  begin
-    FSound.Stop;
-    SetState(aupsOpened);
-
-    if FAutoFreeOnStop then
-      Free;
-  end;
-end;
-
-procedure TAuStaticSound.StopCall;
-begin
-  SetState(aupsOpened);
-
-  if Assigned(FSoundFinishesEvent) then
-    FSoundFinishesEvent(self);
-
-  if FAutoFreeOnStop then
-    Free;
-end;
-
-procedure TAuStaticSound.StopEvent(ASender: TObject);
-begin
-  //Synchronize this event with the main thread.
-  AuQueueCall(StopCall);
-end;
-
-procedure TAuStaticSound.LoadItemFromStore(AStore: TAcStoreNode);
-var
-  fmt_node: TAcStoreNode;
-  strm_node: TAcStreamNode;
-begin
-  Close;
-
-  FName := AStore.StringValue('name');
-
-  fmt_node := AStore.Nodes.ItemNamed['fmt'];
-  FillChar(FFormat, SizeOf(FFormat), 0);
-  if fmt_node <> nil then
-  begin
-    FFormat.Frequency := fmt_node.IntValue('freq', 44100);
-    FFormat.BitDepth := fmt_node.IntValue('bits', 16);
-    FFormat.Channels := fmt_node.IntValue('chan', 2);
-  end;
-
-  strm_node := TAcStreamNode(AStore.Nodes.ItemNamed['data']);
-  if (strm_node <> nil) and (strm_node is TAcStreamNode) then
-  begin
-    strm_node.Open(acsoRead);
-    try
-      FMs := TMemoryStream.Create;
-      FOwnMs := true;
-
-      FMs.CopyFrom(strm_node.Stream, 0);
-      FMs.Position := 0;
-    finally
-      strm_node.Close;
-    end;
-  end;
-
-  if CreateSoundObj then
-    SetState(aupsOpened);
-end;
-
-procedure TAuStaticSound.Move(ATimeGap: double);
-begin
-  if (FOpened) and (State = aupsOpened) then
-  begin
-    FTimePassed := FTimePassed + ATimeGap;
-    if FTimePassed > 10 then
-    begin
-      if FSound <> nil then
-      begin
-        FSound.Free;
-        FSound := nil;
-      end;
-      FOpened := false;
-      FTimePassed := 0;
-    end;
-  end;
-end;
-
-function TAuStaticSound.SaveItemToStore(AStore: TAcStoreNode): TAcStoreNode;
-var
-  node, fmt_node: TAcStoreNode;
-  strm_node: TAcStreamNode;
-begin
-  node := AStore.Add('sound');
-  node.Add('name', FName);
-
-  fmt_node := node.Add('fmt');
-  fmt_node.Add('freq', FFormat.Frequency);
-  fmt_node.Add('bits', FFormat.BitDepth);
-  fmt_node.Add('chan', FFormat.Channels);
-
-  if FMs <> nil then
-  begin
-    strm_node := TAcStreamNode(node.Add('data', TAcStreamNode));
-    strm_node.Open(acsoWrite);
-    try
-      strm_node.Stream.CopyFrom(FMs, 0);
-    finally
-      strm_node.Close;
-    end;
-  end;
-
-  result := node;
-end; }
-
-{ TAuSoundList }
-
-{constructor TAuSoundList.Create(AParent: TAuAudio);
-begin
-  inherited Create;
-
-  FParent := AParent;
-end;
-
-destructor TAuSoundList.Destroy;
-begin
-  inherited;
-end;
-
-function TAuSoundList.AddNew(AName: AnsiString): TAuStaticSound;
-begin
-  result := TAuStaticSound.Create(FParent);
-  result.Name := AName;
-  result.Owner := self;
-  Add(result);
-end;
-
-function TAuSoundList.GetItem(AIndex: integer): TAuStaticSound;
-begin
-  result := inherited Items[AIndex];
-end;
-
-procedure TAuSoundList.SetItem(AIndex: integer; AItem: TAuStaticSound);
-begin
-  inherited Items[AIndex] := AItem;
-end;
-
-function TAuSoundList.IndexOf(AName: AnsiString): integer;
-var
-  i: integer;
-begin
-  result := -1;
-  for i := 0 to Count - 1 do
-  begin
-    if Items[i].Name = AName then
-    begin
-      result := i;
-      exit;
-    end;
-  end;
-end;
-
-function TAuSoundList.IndexOf(AObj: TAuStaticSound): integer;
-var
-  i: integer;
-begin
-  result := -1;
-  for i := 0 to Count - 1 do
-  begin
-    if Items[i] = AObj then
-    begin
-      result := i;
-      exit;
-    end;
-  end;
-end;
-
-procedure TAuSoundList.Notify(ptr: Pointer; action: TListNotification);
-begin
-  if (action = lnDeleted) and (TAuStaticSound(ptr).Owner = self) then
-    TAuStaticSound(ptr).Free;
-end;
-
-function TAuSoundList.Find(AName: AnsiString): TAuStaticSound;
-var
-  ind: integer;
-begin
-  result := nil;
-  ind := IndexOf(AName);
-  if ind > -1 then
-    result := Items[ind];
-end;
-
-procedure TAuSoundList.LoadFromStore(AStore: TAcStoreNode);
-var
-  i: integer;
-  tmp: TAuStaticSound;
-begin
-  for i := 0 to AStore.Nodes.Count - 1 do
-  begin
-    if AStore.Nodes[i].Name = 'sound' then
-    begin
-      tmp := TAuStaticSound.Create(FParent);
-      tmp.LoadItemFromStore(AStore.Nodes[i]);
-      tmp.Owner := self;
-      Add(tmp);
-    end;
-  end;
-end;
-
-procedure TAuSoundList.LoadFromStream(AStream: TStream);
-var
-  store: TAcStoreNode;
-begin
-  store := TAcStoreNode.Create(nil);
-  store.LoadFromStream(AStream);
-  LoadFromStore(store);
-  store.FinishLoading;
-  store.Free;
-end;
-
-procedure TAuSoundList.Move(ATimeGap: double);
-var
-  i: integer;
-begin
-  for i := 0 to Count - 1 do
-    Items[i].Move(ATimeGap);
-end;
-
-function TAuSoundList.SaveToStore(AStore: TAcStoreNode): TAcStoreNode;
-var
-  i: integer;
-begin
-  if AStore <> nil then  
-    result := AStore.Add
-  else
-    result := TAcStoreNode.Create(nil);
-
-  result.Name := 'soundlist';
-
-  for i := 0 to Count - 1 do
-    Items[i].SaveItemToStore(result);
-end;
-
-procedure TAuSoundList.SaveToStream(AStream: TStream);
-begin
-  with SaveToStore(nil) do
-  begin
-    try
-      SaveToStream(AStream);
-    finally
-      Free;
-    end;
-  end;
-end;
-
-procedure TAuSoundList.LoadFromFile(AFile: string);
-var
-  fs: TFileStream;
-begin
-  fs := TFileStream.Create(AFile, fmOpenRead or fmShareDenyWrite);
-  try
-    LoadFromStream(fs);
-  finally
-    fs.Free;
-  end;
-end;
-
-procedure TAuSoundList.SaveToFile(AFile: string);
-var
-  fs: TFileStream;
-begin
-  fs := TFileStream.Create(AFile, fmCreate);
-  try
-    SaveToStream(fs);
-  finally
-    fs.Free;
-  end;
-end;     }
 
 end.
 

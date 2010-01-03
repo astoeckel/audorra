@@ -9,7 +9,7 @@ uses
 
   AcPersistent, AcDLLExplorer, AcStrUtils,
   AuHTTP, 
-  AuWAV, AuAcinerella, AuWASAPI, AuDirectSound, AuUtils, AuTypes, AuAudio, AuAnalyzers, AuComplex,
+  AuWAV, AuWASAPI, AuDirectSound, AuUtils, AuTypes, AuAudio, AuAnalyzers, AuComplex,
   AuVisualisations, Tabs, Buttons;
 
 type
@@ -304,7 +304,7 @@ begin
 
   if AuPlayer <> nil then
   begin
-    if AuPlayer.Seekable then
+    if AuPlayer.Len > -1 then
     begin
       TrackBar1.Enabled := true;
       lblPos.Caption :=

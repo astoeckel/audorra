@@ -41,7 +41,7 @@ unit AuWAVFormat;
 interface
 
 uses
-  AuUtils, AuTypes, AuProtocolClasses;
+  AuUtils, AuTypes, AuProtocolClasses, AuDecoderClasses;
 
 type
   TAuWAVFmt = packed record

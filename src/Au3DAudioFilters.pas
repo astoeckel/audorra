@@ -190,7 +190,7 @@ procedure TAu3DSoundFilterAdapter.Pause;
 begin
   FRenderer.Lock;
   try
-    FSound.Pause;
+    FSound.Active := false;
   finally
     FRenderer.Unlock;
   end;
@@ -200,7 +200,7 @@ procedure TAu3DSoundFilterAdapter.Play;
 begin
   FRenderer.Lock;
   try
-    FSound.Play;
+    FSound.Active := true;
   finally
     FRenderer.Unlock;
   end;
@@ -215,7 +215,10 @@ begin
     FTime := 0;
     FLastSyncData.Timecode := 0;
     FLastSyncData.FrameType := auftBeginning;
-    FSound.Stop;
+
+    //Pause the TAu3DSound and clear its buffers
+    FSound.Active := false;
+    FSound.ClearBuffers;
   finally
     FRenderer.Unlock;
   end;

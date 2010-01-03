@@ -6,7 +6,8 @@ uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ExtCtrls, XPMan, ImgList, ComCtrls,
 
-  AuOpenAL, {AuWaveOut32Driver,} AuWAV, AuAcinerella, AuAudio,
+  AuDirectSound, AuWAV, AuAcinerella, AuAudio, Au3DAudio, Au3DAudioRenderer,
+  AuSyncUtils,
 
   AdTypes;
 
@@ -16,24 +17,23 @@ type
     OpenDialog1: TOpenDialog;
     Button1: TButton;
     Button3: TButton;
-    Timer1: TTimer;
     ListView1: TListView;
     ImageList1: TImageList;
     XPManifest1: TXPManifest;
-    Timer2: TTimer;
     Button4: TButton;
+    CheckBox1: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure ListBox1DblClick(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure Button3Click(Sender: TObject);
-    procedure Timer1Timer(Sender: TObject);
     procedure Button4Click(Sender: TObject);
   private
     { Private-Deklarationen }
   public
     AuAudio: TAuAudio;
+    Au3DAudio: TAu3DAudio;
     AuSoundList: TAuSoundList;
     procedure DisplayItems;
     procedure OnNotify(Sender: TObject);
@@ -57,13 +57,18 @@ var
 begin
   if OpenDialog1.Execute then
   begin
-    for i := 0 to OpenDialog1.Files.Count - 1 do
-    begin
-      with AuSoundList.AddNew(ExtractFileName(OpenDialog1.Files[i])) do
+    Au3DAudio.Lock;
+    try
+      for i := 0 to OpenDialog1.Files.Count - 1 do
       begin
-        LoadFromFile(OpenDialog1.Files[i]);
-        Open;
+        with AuSoundList.AddNew(ExtractFileName(OpenDialog1.Files[i])) do
+        begin
+          LoadFromFile(OpenDialog1.Files[i]);
+          Open;
+        end;
       end;
+    finally
+      Au3DAudio.Unlock;
     end;
 
     DisplayItems;
@@ -94,60 +99,79 @@ begin
       Caption := AuSoundList[i].Name;
       ImageIndex := 0;
       SubItems.Add(FormatFloat('#0.00', AuSoundList[i].Len / 1000)+'s');
-      SubItems.Add(IntToStr(AuSoundList[i].Instances.Count));
+      SubItems.Add(IntToStr(AuSoundList[i].Sound.Emitters.Count));
     end;
   end;
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
 begin
+  PostMessage(Application.Handle, WM_NULL, 0, 0);
+
   ReportMemoryLeaksOnShutdown := true;
 
   AuAudio := TAuAudio.Create;
   if AuAudio.Initialize then
-    AuSoundList := TAuSoundList.Create(AuAudio);
+  begin
+    Au3DAudio := TAu3DAudio.Create(AuAudio, au3dss51, 44100, 16);
+    if Au3DAudio.Initialize then
+      AuSoundList := TAuSoundList.Create(Au3DAudio);
+  end;
+
+  PostMessage(Application.Handle, WM_NULL, 0, 0);
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
 begin
   AuSoundList.Free;
+  Au3DAudio.Free;
   AuAudio.Free;
 end;
 
 procedure TForm1.ListBox1DblClick(Sender: TObject);
 var
-  sel, newsound: TAuStaticSound;
+  sel: TAuStaticSound;
+  em: TAu3DEmitter;
 begin
   if ListView1.ItemIndex >= 0 then
   begin
     sel :=  AuSoundList.Items[ListView1.ItemIndex];
     if sel <> nil then
     begin
-      newsound := TAuStaticSound.Create(AuAudio);
-      newsound.AutoFreeOnStop := true;
-      newsound.Assign(sel);
-      newsound.Play;
-      newsound.OnSoundFinishes := OnNotify;
+      Au3DAudio.Lock;
+      try
+        em := TAu3DEmitter.Create(sel.Sound);
+        em.OnStop := OnNotify;
+        //em := CheckBox1.Checked;
+        sel.Sound.Loop := CheckBox1.Checked;
+      finally
+        Au3DAudio.Unlock;
+      end;
 
-      ListView1.Items[ListView1.ItemIndex].SubItems[1] := IntToStr(AuSoundList[ListView1.ItemIndex].Instances.Count);
+      ListView1.Items[ListView1.ItemIndex].SubItems[1] := IntToStr(AuSoundList[ListView1.ItemIndex].Sound.Emitters.Count);
     end;
   end;
 end;
 
 procedure TForm1.OnNotify(Sender: TObject);
 var
-  ind: integer;
+  i: integer;
 begin
-  ind := AuSoundList.IndexOf(TAuStaticSound(Sender).ParentSound);
-  if ind >= 0 then
-  begin
-    ListView1.Items[ind].SubItems[1] := IntToStr(AuSoundList[ind].Instances.Count - 1);
-  end;
-end;
+  Au3DAudio.Lock;
+  try
+    if (not CheckBox1.Checked) or (not TAu3DEmitter(Sender).Sound.Loop) then
+    begin
+      TAu3DEmitter(Sender).Free;
+    end;
 
-procedure TForm1.Timer1Timer(Sender: TObject);
-begin
-  AuSoundList.Move(1);
+    for i := 0 to AuSoundList.Count - 1 do
+    begin
+      if AuSoundList[i].Sound = TAu3DEmitter(Sender).Sound then
+        ListView1.Items[i].SubItems[1] := IntToStr(AuSoundList[i].Sound.Emitters.Count);
+    end;
+  finally
+    Au3DAudio.Unlock;
+  end;
 end;
 
 end.

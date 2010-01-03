@@ -111,6 +111,7 @@ end;
 
 procedure TAuHTTPProtocol.Open(AUrl: string);
 begin
+  FURL := AURL;
   if FThread = nil then
   begin
     FThread := TAuHTTPThread.Create(FBuffer, FCritSect, AUrl);

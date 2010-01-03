@@ -62,6 +62,7 @@ type
     private
       FStream: TStream;
       FCanSeek: boolean;
+      FURL: string;
       function StreamIsSeekable: boolean;
     public
       constructor Create(AStream: TStream);
@@ -69,12 +70,19 @@ type
       function Read(ABuf: PByte; ACount: Integer): Integer;override;
       function Seekable: boolean;override;
       function Seek(ASeekMode: TAuProtocolSeekMode; ACount: Int64): Int64;override;
+
+      property Stream: TStream read FStream;
+      property URL: string read FURL write FURL;
   end;
 
   TAuURLProtocol = class(TAuProtocol)
+    protected
+      FURL: string;
     public
       function SupportsProtocol(const AName: string):boolean;virtual;abstract;
       procedure Open(AUrl: string);virtual;abstract;
+
+      property URL: string read FURL;
   end;
 
   TAuCreateURLProtocolProc = function: TAuURLProtocol;

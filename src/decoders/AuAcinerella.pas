@@ -219,9 +219,8 @@ var
   t: Cardinal;
   td: Double;
 begin
-{  if (pDecoder = nil) or (pInstance = nil) or (not pInstance^.opened) then
-    exit;}
-
+  if (pDecoder = nil) or (pInstance = nil) or (not pInstance^.opened) then
+    exit;
 
   //Calculate the timecode in ms
   with pDecoder^.stream_info.additional_info.audio_info do

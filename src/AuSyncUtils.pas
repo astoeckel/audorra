@@ -48,12 +48,13 @@ uses
 
 {Adds a method to the queue. It is unknown wheter or when the method will be executed.
  Do not use this function for important messages, but only for notifying. If you're
- working in a console/non VCL-Application, you have to declare the NO_VCL compiler switch.}
+ working in a console/non VCL-Application, you have to declare the DO_NOT_USE_VCL
+ compiler switch.}
 procedure AuQueueCall(AProc: TThreadMethod);
 
-{Removes an object from the queue - this prozedure should be called, if a method,
- which is able to have calls on the queue, is freed.}
-procedure AuQueueRemove(AObj: Pointer);
+{Removes an object from the queue - this procedure should be called, if an object,
+ which is able to push calls on the queue is freed.}
+procedure AuQueueRemove(AObj: Pointer);   
 
 implementation
 
@@ -146,6 +147,7 @@ begin
         try
           try
             {$IFNDEF DO_NOT_USE_VCL}
+            //Unfortunately this doesn't work correctly. 
             Synchronize(FCurMem^);
             {$ELSE}
             FCurMem^;

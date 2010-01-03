@@ -31,7 +31,7 @@ interface
 uses
   SysUtils, Classes, Math,
   AcMath, AcTypes, AcSyncObjs,
-  AuTypes, AuUtils, AuAudioSpline, Au3DRingBuffer;
+  AuTypes, AuUtils, AuAudioSpline, AuSyncUtils, Au3DRingBuffer;
 
 const
   AU3DPROP_PHASE = $01;
@@ -136,9 +136,11 @@ type
       FStreamed: Boolean;
       FLoop: boolean;
       FMapper: TAu3DChannelMapper;
-      FPlaying: boolean;
+      FActive: boolean;
 
       procedure SetPitch(AValue: Single);
+      procedure SetLoop(AValue: Boolean);
+      procedure SetActive(AValue: Boolean);
       
       procedure ReadSamples(ACount: Cardinal);inline;
       procedure GenericInit(AParameters: TAuAudioParameters; ASamples: Cardinal);
@@ -146,15 +148,13 @@ type
       constructor Create(ACallback: TAuReadCallback;
         const AParameters: TAuAudioParameters; ABufferTime: Single = 5.0);overload;
       constructor Create(ABuf: PByte; ASamples: Cardinal;
-        const AParameters: TAuAudioParameters; ALoop: boolean);overload; 
+        const AParameters: TAuAudioParameters);overload;
 
       destructor Destroy; override;
 
       procedure Move(ATimeGap: Extended);
 
-      procedure Pause;
-      procedure Play;
-      procedure Stop;
+      procedure ClearBuffers;
 
       property Parameters: TAuAudioParameters read FParameters;
       property Pitch: Single read FPitch write SetPitch;
@@ -164,8 +164,9 @@ type
       property Emitters: TAu3DEmitterList read FEmitters;
       property TimePosition: TAuSamplestamp read FTimePosition;
       property Streamed: Boolean read FStreamed;
-      property Loop: Boolean read FLoop;
+      property Loop: Boolean read FLoop write SetLoop;
       property Mapper: TAu3DChannelMapper read FMapper;
+      property Active: Boolean read FActive write SetActive;
   end;
 
   TAu3DEmitterProc = procedure(AEmitter: TAu3DEmitter;
@@ -195,12 +196,16 @@ type
       FTimePosition: TAuSampleStamp;
       FTimeOffset: TAuSampleStamp;
       FProperties: Byte;
+      FActive: boolean;
+      FManualPositionChange: boolean;
 
       function GetGlobalEmitter: Boolean;
       procedure SetGain(AValue: Single);
       procedure SetRolloff(AValue: Single);
       procedure SetMaxDistance(AValue: Single);
       procedure SetReferenceDistance(AValue: Single);
+
+      procedure StopProc;
     public
       constructor Create(ASound: TAu3DSound);
       destructor Destroy;override;
@@ -218,8 +223,11 @@ type
       property ReferenceDistance: Single read FReferenceDistance write SetReferenceDistance;
       property TimeOffset: TAuSampleStamp read FTimeOffset;
       property Properties: Byte read FProperties write FProperties;
+      property Active: boolean read FActive write FActive;
+      property ManualPositionChange: Boolean read FManualPositionChange;
 
       function TimePosition: TAuSampleStamp;
+      procedure SetTimePosition(AVal: TAuSampleStamp);
 
       property OnMove: TAu3DEmitterProc read FMoveProc write FMoveProc;
       property OnStop: TAuNotifyEvent read FStopProc write FStopProc;
@@ -316,6 +324,7 @@ type
       FOutvalues: TAu3DGainValues;
       FGainvalues: TAu3DGainValues;
       FMutex: TAcMutex;
+      FWroteData: boolean;
       function CalculateSoundAngle(APos: TAcVector4;
         var AAlpha: Single): Boolean;
       procedure CalculatePositionalSoundData(AListener: TAu3DListener;
@@ -461,6 +470,8 @@ var
   i, j: integer;
   pobj: PAu3DEmitterProps;
 begin
+  FWroteData := false;
+
   //Exit in invalid sample count values
   if (ASampleCount <= 0) or (ABuf = nil) or (AListener = nil) then
     exit;
@@ -477,18 +488,32 @@ begin
 
       for j := 0 to FSounds[i].Emitters.Count - 1 do
       begin
-        //Get the listener information attached to the sound
-        AListener.Sources.GetSourceObj(FSounds[i].Emitters[j], pobj);
+        if (FSounds[i].Emitters[j].Active) and
+           (FSounds[i].Streamed or FSounds[i].Loop or
+            (FSounds[i].Emitters[j].TimePosition shr 16 <= FSounds[i].BufferSamples)
+           ) then
+        begin
+          //Get the listener information attached to the sound
+          AListener.Sources.GetSourceObj(FSounds[i].Emitters[j], pobj);
 
-        //Do the actual rendering
-        if not FSounds[i].Emitters[j].GlobalEmitter then
-          CalculatePositionalSoundData(AListener, ASampleCount, ABuf,
-            FSounds[i].Emitters[j], (i = 0) and (j = 0), pobj)
-        else
-          CalculateStaticSoundData(AListener, ASampleCount, ABuf,
-            FSounds[i].Emitters[j], (i = 0) and (j = 0), pobj);
+          FSounds[i].Emitters[j].Move(ASampleCount / FFrequency);
+          
+          //Do the actual rendering
+          if not FSounds[i].Emitters[j].GlobalEmitter then
+            CalculatePositionalSoundData(AListener, ASampleCount, ABuf,
+              FSounds[i].Emitters[j], not FWroteData, pobj)
+          else
+            CalculateStaticSoundData(AListener, ASampleCount, ABuf,
+              FSounds[i].Emitters[j], not FWroteData, pobj);
+        end;
       end;
     end;
+
+    //If no emitter has written any data, zero the buffer memory
+    if not FWroteData then
+      FillChar(ABuf^, FSpeakerSetup.OutputChannelCount * SizeOf(Single) *
+        ASampleCount, 0);
+
     AListener.Sources.EndScene;
   finally
     Unlock;
@@ -550,10 +575,11 @@ begin
   posadd := (AEmitter.TimePosition - AObj^.Position) div ASampleCount;
   pos := AObj^.Position - AEmitter.TimeOffset;
 
+  FWroteData := true;
+
   for j := 0 to ASampleCount - 1 do
   begin
     ip := j / ASampleCount;
-    pos := pos + posadd; 
 
     //Read a sample from the sound buffer
     for k := 0 to AEmitter.Sound.Parameters.Channels - 1 do
@@ -561,6 +587,8 @@ begin
         LinInt(AObj^.GainValues[0], gain, ip);
 
     AEmitter.Sound.Mapper.Map(@outvals[0], PSingle(ps), AClear);
+
+    pos := pos + posadd;
   end;
 
   AObj^.GainValues[0] := gain;
@@ -635,13 +663,13 @@ begin
   else
     posd := AEmitter.TimePosition;
 
+  FWroteData := true;
+
   posadd := (posd - AObj^.Position) div ASampleCount;
   pos := AObj^.Position - AEmitter.TimeOffset;
-
   for j := 0 to ASampleCount - 1 do
   begin
     ip := j / ASampleCount;
-    pos := pos + posadd;
 
     //Read a sample from the sound buffer
     smpl := AEmitter.Sound.RingBuffer.GetSample(pos, 0);
@@ -653,6 +681,8 @@ begin
         LinInt(AObj^.GainValues[k], FGainvalues[k], ip) * smpl;
 
     FSpeakerSetup.Mapper.Map(@FOutvalues[0], PSingle(ps), AClear);
+
+    pos := pos + posadd;
   end;
 
   for k := 0 to FSpeakerSetup.ChannelCount - 1 do
@@ -1037,6 +1067,10 @@ begin
   for i := FList.Count - 1 downto 0 do
   begin
     pobj := FList[i];
+
+    //Reset the manual position change value
+    TAu3DEmitter(pobj^.Source).FManualPositionChange := false;
+
     if not pobj^.Used then
     begin
       Dispose(pobj);
@@ -1052,6 +1086,7 @@ var
   i: integer;
 begin
   AProps := nil;
+
   for i := 0 to FList.Count - 1 do
   begin
     pobj := FList[i];
@@ -1063,12 +1098,20 @@ begin
     end;
   end;
 
-  if AProps = nil then
+  //Remove the emitter object from the list if the position has been changed
+  //manually.
+  if TAu3DEmitter(ASource).ManualPositionChange and (AProps <> nil) then
+  begin
+    FList.Remove(AProps);
+    AProps := nil;
+  end;
+
+  if (AProps = nil) then
   begin
     New(pobj);
     pobj^.Source := ASource;
     pobj^.Used := true;
-    pobj^.Position := TAu3DSound(ASource).TimePosition;
+    pobj^.Position := TAu3DEmitter(ASource).TimePosition;
     FList.Add(pobj);
     AProps := pobj;
   end;
@@ -1194,7 +1237,7 @@ begin
   FParameters := AParameters;
 
   //Create the ring buffer
-  FRing := TAu3DAudioRingBuffer.Create(ASamples, FParameters.Channels, FLoop);
+  FRing := TAu3DAudioRingBuffer.Create(ASamples, FParameters.Channels);
 
   //Create the emitter list
   FEmitters := TAu3DEmitterList.Create;
@@ -1209,7 +1252,7 @@ begin
   FBuf := nil;
   FBufSize := 0;
   FAutoFree := true;
-  FPlaying := true;
+  FActive := true;
 end;
 
 constructor TAu3DSound.Create(ACallback: TAuReadCallback;
@@ -1227,11 +1270,11 @@ begin
 end;
 
 constructor TAu3DSound.Create(ABuf: PByte; ASamples: Cardinal;
-  const AParameters: TAuAudioParameters; ALoop: boolean);
+  const AParameters: TAuAudioParameters);
 begin
   inherited Create;
 
-  FLoop := ALoop;
+  FLoop := false;
 
   //Initialize the class
   GenericInit(AParameters, ASamples);
@@ -1245,7 +1288,7 @@ end;
 
 destructor TAu3DSound.Destroy;
 begin
-  //Free the audio temporary audio data buffer
+  //Free the temporary audio data buffer
   if FBuf <> nil then
     FreeMem(FBuf, FBufSize);
   FBuf := nil;
@@ -1280,9 +1323,9 @@ end;
 
 procedure TAu3DSound.Move(ATimeGap: Extended);
 var
-  c, i: integer;
+  c: integer;
 begin
-  if not FPlaying then
+  if not FActive then
     exit;
     
   if FStreamed then
@@ -1301,34 +1344,33 @@ begin
     FTimePosition := FTimePosition +
       round((ATimeGap * FPitch * Parameters.Frequency * (1 shl 16)));
   end;
-
-  //Call the sound move proc in which the sound should change its position
-  for i := 0 to FEmitters.Count - 1 do
-    FEmitters[i].Move(ATimeGap);
 end;
 
-procedure TAu3DSound.Pause;
-begin
-  FPlaying := false;
-  FRing.Locked := true;
-end;
-
-procedure TAu3DSound.Play;
-begin
-  FPlaying := true;
-  FRing.Locked := false;
-end;
-
-procedure TAu3DSound.Stop;
+procedure TAu3DSound.ClearBuffers;
 var
   i: integer;
 begin
-  Pause;
+  //Clear the buffer ring
   FRing.Clear;
+
+  //Clear the own time position index
   FTimePosition := 0;
 
+  //Clear the emitter time position index
   for i := 0 to FEmitters.Count - 1 do
-    FEmitters[i].FTimePosition := 0;    
+    FEmitters[i].SetTimePosition(0);    
+end;
+
+procedure TAu3DSound.SetActive(AValue: Boolean);
+begin
+  FActive := AValue;
+  FRing.Locked := not AValue;
+end;
+
+procedure TAu3DSound.SetLoop(AValue: Boolean);
+begin
+  FLoop := AValue;
+  FRing.Loop := FLoop;
 end;
 
 procedure TAu3DSound.SetPitch(AValue: Single);
@@ -1359,6 +1401,9 @@ begin
   inherited Create;
 
   FSound := ASound;
+  
+  if ASound = nil then; //! RAISE EXCEPTION
+  
 
   //Preset some parameters
   FGain := 1.0;
@@ -1372,6 +1417,7 @@ begin
   FTimePosition := 0;
   FTimeOffset := 0;
   FProperties := AU3DPROP_ALL;
+  FActive := true;
 
   FSound.Emitters.Add(self)
 end;
@@ -1380,6 +1426,9 @@ destructor TAu3DEmitter.Destroy;
 begin
   FAutoFree := false;
   FSound.Emitters.Remove(self);
+
+  AuQueueRemove(self);
+
   inherited Destroy;
 end;
 
@@ -1390,6 +1439,9 @@ end;
 
 procedure TAu3DEmitter.Move(ATimeGap: Extended);
 begin
+  if not FActive then
+    exit;
+    
   if Assigned(FMoveProc) then
     FMoveProc(self, ATimeGap);
 
@@ -1400,14 +1452,17 @@ begin
     FTimePosition := FTimePosition +
       round((ATimeGap * FSound.Pitch * FSound.Parameters.Frequency * (1 shl 16)));
 
-    while (FTimePosition - FTimeOffset > FSound.BufferSamples) do
+    if ((FTimePosition - FTimeOffset) shr 16) > FSound.BufferSamples then
     begin
-      if FSound.Loop then
-        FTimeOffset := FTimeOffset + FSound.BufferSamples;
-
       if Assigned(FStopProc) then
-        FStopProc(self);
-    end;       
+      begin
+        AuQueueCall(StopProc);
+      end;
+
+      if FSound.Loop then
+        while ((FTimePosition - FTimeOffset) shr 16 >= FSound.BufferSamples) do
+          FTimeOffset := FTimeOffset + Int64(FSound.BufferSamples) shl 16;
+    end;
   end;
 end;
 
@@ -1433,6 +1488,22 @@ procedure TAu3DEmitter.SetRolloff(AValue: Single);
 begin
   if AValue > 0 then
     FRolloffFactor := AValue;
+end;
+
+procedure TAu3DEmitter.SetTimePosition(AVal: TAuSampleStamp);
+begin
+  if not FSound.Streamed then
+  begin
+    FTimePosition := AVal;
+    FTimeOffset := 0;
+    FManualPositionChange := true;
+  end;
+end;
+
+procedure TAu3DEmitter.StopProc;
+begin
+  if Assigned(FStopProc) then
+    FStopProc(self);
 end;
 
 function TAu3DEmitter.TimePosition: TAuSamplestamp;
