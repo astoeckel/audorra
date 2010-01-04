@@ -76,11 +76,14 @@ type
   end;
 
   TAuURLProtocol = class(TAuProtocol)
-    protected
+    private
       FURL: string;
+
     public
       function SupportsProtocol(const AName: string):boolean;virtual;abstract;
-      procedure Open(AUrl: string);virtual;abstract;
+      function Open(AUrl: string): boolean;virtual;
+      procedure Close;virtual;abstract;
+      function Opened: boolean;virtual;abstract;
 
       property URL: string read FURL;
   end;
@@ -142,6 +145,13 @@ begin
     (TMethod(current_seek_proc).Code <> TMethod(base_seek_proc).Code) or
     (TMethod(current_seek_proc_64).Code <> TMethod(base_seek_proc_64).Code);
 end;     
+
+{ TAuURLProtocol }
+
+function TAuURLProtocol.Open(AUrl: string): boolean;
+begin
+  FURL := AURL;
+end;
 
 end.
 

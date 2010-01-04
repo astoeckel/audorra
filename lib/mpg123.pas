@@ -274,8 +274,7 @@ begin
     mpg123_replace_reader := AcGetProcAddress(lib_handle, 'mpg123_replace_reader');
     mpg123_scan := AcGetProcAddress(lib_handle, 'mpg123_scan');
     mpg123_length := AcGetProcAddress(lib_handle, 'mpg123_length');
-    mpg123_seek := AcGetProcAddress(lib_handle, 'mpg123_seek');
-
+    mpg123_seek := AcGetProcAddress(lib_handle, 'mpg123_seek');  
 
     if @mpg123_init <> nil then
     begin

@@ -55,7 +55,7 @@ type
       FChannels: integer;
       FTimecode: Cardinal;
       FMustRead: boolean;
-    FProtocol: TAuProtocol;
+      FProtocol: TAuProtocol;
       function OpenFeedDecoder: boolean;
       function OpenStreamDecoder: boolean;
       function DecodeFeed: TAuDecoderState;
@@ -257,7 +257,7 @@ begin
           atend := false;
       end;
     end;
-  until atend or (c > 10);
+  until atend or (c > 5);
 end;
 
 function read_proc(fd: integer; buf: PByte; count: integer): integer;cdecl;
@@ -283,6 +283,9 @@ begin
      (mpg123_open_fd(FDec, Integer(self)) < 0) or
      (mpg123_getformat(FDec, @FFrequency, @FChannels, @enc) < 0) then
     exit;
+
+  if (FFrequency = 0) or (FChannels = 0) then
+    exit;  
     
   FBitDepth := 16;
 

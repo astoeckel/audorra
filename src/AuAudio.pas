@@ -509,6 +509,10 @@ begin
 
     if State = aupsLoaded then
     begin
+      //Reopen the URL-Protocol if this didn't happen.
+      if (Protocol is TAuURLProtocol) and (not TAuURLProtocol(Protocol).Opened) then
+        TAuURLProtocol(Protocol).Open(TAuURLProtocol(Protocol).URL);      
+
       if FSource = nil then
       begin
         FHasDecoder := false;
@@ -518,7 +522,7 @@ begin
 
       if not FHasDecoder then
         exit;
-      
+     
       if BuildFilterGraph then
       begin
         SetState(aupsOpened);
@@ -673,7 +677,9 @@ begin
           FreeComponents(false);
 
           if Protocol.Seekable then
-            Protocol.Seek(aupsFromBeginning, 0);
+            Protocol.Seek(aupsFromBeginning, 0)
+          else if Protocol is TAuURLProtocol then
+            TAuURLProtocol(Protocol).Close;
 
           //Open the file again
           SetState(aupsLoaded, false);
@@ -994,6 +1000,7 @@ begin
     if Prot = '' then
       LoadFromFile(AUrl)
     else begin
+
       //Close if not in the "loading" state
       if FState <> aupsLoading then
         Close;
@@ -1009,8 +1016,10 @@ begin
         if TAuURLProtocol(FProtocol).SupportsProtocol(LowerCase(Prot)) then
         begin
           FOwnProtocol := true;
-          TAuURLProtocol(FProtocol).Open(AUrl);
-          LoadFromProtocol(FProtocol);
+          if TAuURLProtocol(FProtocol).Open(AUrl) then
+            LoadFromProtocol(FProtocol)
+          else
+            FreeAndNil(FProtocol);          
         end else
           FreeAndNil(FProtocol);
       end;

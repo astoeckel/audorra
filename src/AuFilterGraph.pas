@@ -301,6 +301,9 @@ type
 
 implementation
 
+var
+  fs: TFileStream;
+
 { TAuFilter }
 
 constructor TAuFilter.Create(AParameters: TAuAudioParameters);
@@ -456,7 +459,7 @@ begin
   if (FParameters.Frequency = 0) or (FParameters.Channels = 0) then
     exit;  
   
-  //Translate variable bitrate driver callback calls to 32-Bit floating value
+  //Translate variable bit depth driver callback calls to 32-Bit floating value
   //callback calls for the filter graph
   if Assigned(FCallback) then
   begin
@@ -469,6 +472,8 @@ begin
 
     AuPCMFloatToInt(FDriver.Parameters, FFloatBuf, ABuf, AuBytesToSamples(result,
       FDriver.Parameters));
+
+    fs.Write(ABuf^, result);
   end;
 end;
 
@@ -1140,5 +1145,11 @@ procedure TAuOutputFilter.Init(const AParameters: TAuAudioParameters);
 begin
   FParameters := AParameters;
 end;
+
+initialization
+  fs := TFileStream.Create('C:\test.raw', fmCreate);
+
+finalization
+  FreeAndNil(fs);
 
 end.

@@ -142,7 +142,7 @@ type
       procedure SetLoop(AValue: Boolean);
       procedure SetActive(AValue: Boolean);
       
-      procedure ReadSamples(ACount: Cardinal);inline;
+      procedure ReadSamples(ACount: Cardinal);//! inline;
       procedure GenericInit(AParameters: TAuAudioParameters; ASamples: Cardinal);
     public
       constructor Create(ACallback: TAuReadCallback;
@@ -491,7 +491,7 @@ begin
         if (FSounds[i].Emitters[j].Active) and
            (FSounds[i].Streamed or FSounds[i].Loop or
             (FSounds[i].Emitters[j].TimePosition shr 16 <= FSounds[i].BufferSamples)
-           ) then
+           ) then 
         begin
           //Get the listener information attached to the sound
           AListener.Sources.GetSourceObj(FSounds[i].Emitters[j], pobj);
@@ -1402,8 +1402,7 @@ begin
 
   FSound := ASound;
   
-  if ASound = nil then; //! RAISE EXCEPTION
-  
+  if ASound = nil then; //! RAISE EXCEPTION          
 
   //Preset some parameters
   FGain := 1.0;

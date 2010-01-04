@@ -41,15 +41,15 @@ unit AuHTTP;
 interface
 
 uses
-  SysUtils, Classes, SyncObjs,
+  SysUtils, Classes,
   httpsend,
-  AcBuffer, AcPersistent,
+  AcBuffer, AcPersistent, AcSyncObjs,
   AuProtocolClasses;
 
 type
   TAuHTTPThread = class(TThread)
     private
-      FCritSect: TCriticalSection;
+      FCritSect: TAcCriticalSection;
       FBuffer: TAcBuffer;
       FHttpSend: THTTPSend;
       FAddr: string;
@@ -57,7 +57,7 @@ type
     protected
       procedure Execute;override;
     public
-      constructor Create(ABuf: TAcBuffer; ACritSect: TCriticalSection; AAddr: string);
+      constructor Create(ABuf: TAcBuffer; ACritSect: TAcCriticalSection; AAddr: string);
       destructor Destroy;override;
   end;
   
@@ -66,14 +66,17 @@ type
   TAuHTTPProtocol = class(TAuURLProtocol)
     private
       FBuffer: TAcBuffer;
-      FCritSect: TCriticalSection;
+      FCritSect: TAcCriticalSection;
       FThread: TAuHTTPThread;
-      procedure WaitForBytecount(ACount: integer);
+      procedure WaitForBytecount(ACount: integer); 
+      procedure FreeThread;
     public
       constructor Create;
       destructor Destroy;override;
       function SupportsProtocol(const AName: string): boolean;override;
-      procedure Open(AUrl: string);override;
+      function Open(AUrl: string): boolean;override;
+      procedure Close;override;
+      function Opened: boolean;override;
       function Read(ABuf: PByte; ACount: Integer): Integer;override;
       function Seekable: boolean;override;
       function Seek(ASeekMode: TAuProtocolSeekMode; ACount: Int64): Int64;override;
@@ -86,37 +89,56 @@ const
 
 { TAuHTTPProtocol }
 
+procedure TAuHTTPProtocol.Close;
+begin
+  FreeThread;
+end;
+
 constructor TAuHTTPProtocol.Create;
 begin
   inherited Create;
 
   FBuffer := TAcBuffer.Create;
-  FCritSect := TCriticalSection.Create;
+  FCritSect := TAcCriticalSection.Create;
 end;
 
 destructor TAuHTTPProtocol.Destroy;
+begin
+  Close;
+
+  FreeAndNil(FBuffer);
+  FreeAndNil(FCritSect);
+
+  inherited;
+end;
+
+procedure TAuHTTPProtocol.FreeThread;
 begin
   if FThread <> nil then
   begin
     FThread.Terminate;
     FThread.WaitFor;
-    FThread.Free;
+    FreeAndNil(FThread);
   end;
 
-  FBuffer.Free;
-  FCritSect.Free;
-
-  inherited;
+  FBuffer.Clear;
 end;
 
-procedure TAuHTTPProtocol.Open(AUrl: string);
+function TAuHTTPProtocol.Open(AUrl: string): boolean;
 begin
-  FURL := AURL;
-  if FThread = nil then
+  inherited Open(AUrl);
+  
+  result := true;
+  if not Opened then
   begin
     FThread := TAuHTTPThread.Create(FBuffer, FCritSect, AUrl);
     WaitForByteCount(buf);
   end;
+end;
+
+function TAuHTTPProtocol.Opened: boolean;
+begin
+  result := FThread <> nil;
 end;
 
 function TAuHTTPProtocol.Read(ABuf: PByte; ACount: Integer): Integer;
@@ -164,7 +186,7 @@ end;
 
 { TAuHTTPThread }
 
-constructor TAuHTTPThread.Create(ABuf: TAcBuffer; ACritSect: TCriticalSection;
+constructor TAuHTTPThread.Create(ABuf: TAcBuffer; ACritSect: TAcCriticalSection;
   AAddr: string);
 begin
   FBuffer := ABuf;

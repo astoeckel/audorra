@@ -5,8 +5,7 @@ program Simple;
 uses
   Forms,
   Main in 'Main.pas' {frmPlayer},
-  wnd_OpenURL in 'wnd_OpenURL.pas' {OpenURLWnd},
-  AuCDAudio in '..\..\src\protocols\AuCDAudio.pas';
+  wnd_OpenURL in 'wnd_OpenURL.pas' {OpenURLWnd};
 
 {$R *.res}
 

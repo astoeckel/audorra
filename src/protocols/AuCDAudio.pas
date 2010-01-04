@@ -34,6 +34,10 @@ Author: Andreas Stöckel
 {Adds support for audio CDs to Audorra (windows only).}
 unit AuCDAudio;
 
+{$IFDEF FPC}
+  {$MODE DELPHI}
+{$ENDIF}
+
 interface
 
 uses
@@ -78,7 +82,9 @@ type
       function Seekable: boolean;override;
       function Seek(ASeekMode: TAuProtocolSeekMode; ACount: Int64): Int64;override;
       function SupportsProtocol(const AName: string):boolean;override;
-      procedure Open(AUrl: string);override;
+      function Open(AUrl: string): boolean;override;
+      procedure Close;override;
+      function Opened: boolean;override;
   end;
 
   TAuCDADecoder = class(TAuWAVDecoder)
@@ -96,7 +102,7 @@ type
 
 const
   RIFF_CDDA = $41444443;
-  BUFFER_SIZE = 2; //In sectors á 2352 * sector_count Byte
+  BUFFER_SIZE = 4; //In sectors á 2352 * sector_count Byte
 
 implementation
 
@@ -114,16 +120,7 @@ end;
 
 destructor TAuCDDAProtocol.Destroy;
 begin
-  if FCDThread <> nil then
-  begin
-    FCDThread.Terminate;
-    FCDThread.WaitFor;
-    FreeAndNil(FCDThread);
-  end;
-
-  if FReader <> nil then
-    FCDROM.FinalizeBlockRead(FReader);
-  FReader := nil;  
+  Close;
 
   FCDROM.Free;
   FCSec2.Free;
@@ -131,6 +128,28 @@ begin
   FBuf.Free;
   inherited Destroy;
 end;
+
+procedure TAuCDDAProtocol.Close;
+begin
+  //Free the buffer thread
+  if FCDThread <> nil then
+  begin
+    FCDThread.Terminate;
+    FCDThread.WaitFor;
+    FreeAndNil(FCDThread);
+  end;
+
+  //Finish reading
+  if FReader <> nil then
+    FCDROM.FinalizeBlockRead(FReader);
+  FReader := nil;
+
+  //Clear the buffer
+  FBuf.Clear;
+
+  //Close the CD-Drive
+  FCDROM.CloseDrive;
+end;   
 
 procedure TAuCDDAProtocol.FillBuffer;
 var
@@ -145,12 +164,14 @@ begin
     Sleep(1);
 end;
 
-procedure TAuCDDAProtocol.Open(AUrl: string);
+function TAuCDDAProtocol.Open(AUrl: string): boolean;
 var
   Prot, User, Pass, Host, Port, Path, Para: String;
   track_number: integer;
   p: integer;
 begin
+  result := false;
+  
   ParseURL(AUrl, Prot, User, Pass, Host, Port, Path, Para);
 
   p := Pos('track=', Para);
@@ -177,10 +198,17 @@ begin
             FReader^.block_size * BUFFER_SIZE);
 
           FillBuffer;
+
+          result := true;
         end;
       end;
     end;
   end;
+end;
+
+function TAuCDDAProtocol.Opened: boolean;
+begin
+  result := FReader <> nil;
 end;
 
 function TAuCDDAProtocol.Read(ABuf: PByte; ACount: Integer): Integer;

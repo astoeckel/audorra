@@ -103,7 +103,7 @@ const
   Au3DRingBuffer_TblEntries = (1 shl 16);
 
 var
-  Au3DRingBuffer_Tbl: array[0..Au3DRingBuffer_TblEntries] of Single;
+  Au3DRingBuffer_Tbl: array[0..Au3DRingBuffer_TblEntries-1] of Single;
   
 implementation
 
@@ -365,7 +365,7 @@ begin
       end;
 
       //Finalize the spline
-      ps := ABuf;
+{      ps := ABuf;
       for j := 0 to 1 do
       begin
         for i := 0 to FChannels - 1 do
@@ -380,9 +380,9 @@ begin
           inc(ps);
         end;
         w := w + 1;
-      end;
+      end;    }
 
-      //Write the result data into the ring buffers
+      //Write  the result data into the ring buffers
       for i := 0 to FChannels - 1 do
         FRings[i].WriteData(w * SizeOf(TAuSplineData), PByte(buf[i]));
     end;
@@ -397,7 +397,7 @@ var
   i: integer;
 
 initialization
-  for i := 0 to Au3DRingBuffer_TblEntries do
+  for i := 0 to Au3DRingBuffer_TblEntries - 1 do
       Au3DRingBuffer_Tbl[i] := i / Au3DRingBuffer_TblEntries;
 
 end.
