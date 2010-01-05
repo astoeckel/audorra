@@ -7,10 +7,8 @@ uses
   Dialogs, StdCtrls, ExtCtrls, XPMan, ImgList, ComCtrls,
 
   AuDirectSound, AuWAV, AuAcinerella, AuAudio, Au3DAudio, Au3DAudioRenderer,
-  AuSyncUtils,
-
-  AdTypes;
-
+  AuSyncUtils;
+  
 type
   TForm1 = class(TForm)
     Button2: TButton;

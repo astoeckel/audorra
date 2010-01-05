@@ -73,8 +73,9 @@ type
       @returns(The position of the element in the list)}
       function Add(ADev: TAuDevice): integer;
   end;
-  
-    
+
+  {TAuAudio is the base class for audio output in Audorra. It manages the creation
+   of the backend device drivers and autoselects an output device.}    
   TAuAudio = class
     private
       FDriverName: string;
@@ -1017,8 +1018,10 @@ begin
         begin
           FOwnProtocol := true;
           if TAuURLProtocol(FProtocol).Open(AUrl) then
-            LoadFromProtocol(FProtocol)
-          else
+          begin
+            LoadFromProtocol(FProtocol);
+            break;
+          end else
             FreeAndNil(FProtocol);          
         end else
           FreeAndNil(FProtocol);

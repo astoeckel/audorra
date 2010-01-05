@@ -301,9 +301,6 @@ type
 
 implementation
 
-var
-  fs: TFileStream;
-
 { TAuFilter }
 
 constructor TAuFilter.Create(AParameters: TAuAudioParameters);
@@ -334,13 +331,13 @@ end;
 constructor TAuIdleThread.Create(ADriver: TAuStreamDriver;
   ACallback: TAuReadCallback);
 begin
+  inherited Create(false);
+
   FDriver := ADriver;
   FCallback := ACallback;
   FPlaying := false;
 
-  inherited Create(false);
-
-  //This thread has a very high priority in the whole application - it should
+  //This thread has a to have very high priority in the whole application - it should
   //always be able to gain new data - if it isn't able to do this, sound output
   //will start to stutter or stop
   Priority := tpHighest;
@@ -472,8 +469,6 @@ begin
 
     AuPCMFloatToInt(FDriver.Parameters, FFloatBuf, ABuf, AuBytesToSamples(result,
       FDriver.Parameters));
-
-    fs.Write(ABuf^, result);
   end;
 end;
 
@@ -600,14 +595,14 @@ end;
 constructor TAuDecoderThread.Create(ADecoder: TAuDecoder; ABuffer: TAcBuffer;
   ABufCritSect: TCriticalSection; ABufSize: integer);
 begin
+  inherited Create(false);
+
   FDecoder := ADecoder;
   FBuffer := ABuffer;
   FCritSect := ABufCritSect;
   FBufSize := ABufSize;
 
-  inherited Create(false);
-
-  Priority := tpHighest;
+  Priority := tpHigher;
 end;
 
 procedure TAuDecoderThread.Execute;
@@ -899,6 +894,8 @@ end;
 constructor TAuAnalyzeThread.Create(ASampleCount: integer;
   AParameters: TAuAudioParameters; ACallback: TAuAnalyzeCallback);
 begin
+  inherited Create(false);
+
   //Set thread parameters
   FSampleCount := ASampleCount;
   FParameters := AParameters;
@@ -908,8 +905,6 @@ begin
   //Create needed objects
   FCritSect := TCriticalSection.Create;
   FBuffer := TAcBuffer.Create;
-
-  inherited Create(false);
 end;
 
 destructor TAuAnalyzeThread.Destroy;
@@ -1145,11 +1140,5 @@ procedure TAuOutputFilter.Init(const AParameters: TAuAudioParameters);
 begin
   FParameters := AParameters;
 end;
-
-initialization
-  fs := TFileStream.Create('C:\test.raw', fmCreate);
-
-finalization
-  FreeAndNil(fs);
 
 end.

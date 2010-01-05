@@ -292,7 +292,7 @@ end;
 
 procedure TAu3DAudioRingBuffer.WriteSamples(ACount: Cardinal; ABuf: PSingle);
 var
-  i, j, smploffs, c, w: Integer;
+  i, smploffs, c, w: Integer;
   ps: PSingle;
   pt: PAuSplineData;
   v1, v2: Single;
@@ -363,24 +363,6 @@ begin
         w := w + 1;
         c := c - 1;
       end;
-
-      //Finalize the spline
-{      ps := ABuf;
-      for j := 0 to 1 do
-      begin
-        for i := 0 to FChannels - 1 do
-        begin
-          pt := buf[i];
-          inc(pt, w);
-
-          //Add the value to the spline
-          AuSplineFeed(FProcessors[i], ps^, pt);
-
-          //Increment the source position
-          inc(ps);
-        end;
-        w := w + 1;
-      end;    }
 
       //Write  the result data into the ring buffers
       for i := 0 to FChannels - 1 do

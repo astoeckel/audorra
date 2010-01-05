@@ -8,13 +8,8 @@ uses
 {$R *.res}
 
 begin
-  AllocConsole;
-
-  Writeln('Test');
-
   Application.Initialize;
   Application.CreateForm(TForm1, Form1);
-
-
+  
   Application.Run;
 end.

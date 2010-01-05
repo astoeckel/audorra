@@ -1,4 +1,4 @@
-{*******************************************************}
+﻿{*******************************************************}
 {                                                       }
 {       Audorra Digital Audio Library                   }
 {       Copyright (c) Andreas Stöckel, 2009             }
@@ -297,13 +297,13 @@ constructor TAuLibaoStreamingThread.Create(ADevice: Pao_device;
   ABuffer: TAcBuffer; AFormat: Tao_sample_format;
   ACritSect: TAcCriticalSection);
 begin
+  inherited Create(false);
+
   FBuffer := ABuffer;
   FFormat := AFormat;
   FCritSect := ACritSect;
   FDevice := ADevice;
   FPaused := true;
-
-  inherited Create(false);
 end;
 
 

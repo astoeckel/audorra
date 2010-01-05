@@ -47,6 +47,8 @@ uses
   AuUtils, AuTypes, AuProtocolClasses, AuDecoderClasses, AuWAV, AuWAVFormat;
 
 type
+  {TAuCDThread is used internally to read data from the CD drive to a buffer
+   without}
   TAuCDThread = class(TThread)
     private
       FBuf: TAcBuffer;

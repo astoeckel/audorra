@@ -45,9 +45,16 @@ uses
   AcPersistent;
 
 type
+  {TAuProtocolSeekMode is used to define the origin of a seek operation.}
   TAuProtocolSeekMode = (
+    {aupsFromBeginning defines the beginning of the stream as the origin for
+     the seek operation. Only positive seek offsets are allowed.}
     aupsFromBeginning = 0,
+    {aupsFromCurrent defines the current position of the stream as origin of the
+     seek operation. Positive and negative seek offsets are allowed.}
     aupsFromCurrent = 1,
+    {aupsFromEnd definces the end of the stream as origin of the seek operation.
+     Only negative offsets (or zero) are allowed.}
     aupsFromEnd = 2
   );
 
@@ -150,6 +157,8 @@ end;
 
 function TAuURLProtocol.Open(AUrl: string): boolean;
 begin
+  result := false;
+  
   FURL := AURL;
 end;
 
