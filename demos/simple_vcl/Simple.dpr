@@ -1,4 +1,4 @@
-program Simple;
+program simple;
 
 {$APPTYPE CONSOLE}
 

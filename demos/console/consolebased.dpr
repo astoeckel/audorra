@@ -46,6 +46,10 @@ program consolebased;
 
 {$I audorra_conf.inc}
 
+{$IFDEF WIN32}
+  {$R ..\icon.RES}
+{$ENDIF}
+
 uses
   SysUtils,
   Windows,

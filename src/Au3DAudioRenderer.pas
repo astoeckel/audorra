@@ -1,23 +1,36 @@
-{
-  Audorra Digital Audio Library - 3D Rendering Library
-  Copyright (C) 2009 Andreas Stöckel
+{*******************************************************}
+{                                                       }
+{       Audorra Digital Audio Library                   }
+{       Copyright (c) Andreas Stöckel, 2009             }
+{       Audorra is an "Andorra Suite" Project           }
+{                                                       }
+{*******************************************************}
 
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
+{The contents of this file are subject to the Mozilla Public License Version 1.1
+(the "License"); you may not use this file except in compliance with the
+License. You may obtain a copy of the License at http://www.mozilla.org/MPL/
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+Software distributed under the License is distributed on an "AS IS" basis,
+WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+the specific language governing rights and limitations under the License.
 
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+The Initial Developer of the Original Code is
+Andreas Stöckel. All Rights Reserved.
+
+Alternatively, the contents of this file may be used under the terms of the
+GNU General Public License license (the “GPL License”), in which case the provisions of
+GPL License are applicable instead of those above. If you wish to allow use
+of your version of this file only under the terms of the GPL License and not
+to allow others to use your version of this file under the MPL, indicate your
+decision by deleting the provisions above and replace them with the notice and
+other provisions required by the GPL License. If you do not delete the
+provisions above, a recipient may use your version of this file under either the
+MPL or the GPL License.
 
 File: Au3DAudioRenderer.pas
 Author: Andreas Stöckel
 }
+
 {This file contains an efficient 3d audio software renderer which is capable
  of calculating phase/dopplereffect, absorption and more.}
 unit Au3DAudioRenderer;
@@ -208,6 +221,7 @@ type
       procedure SetRolloff(AValue: Single);
       procedure SetMaxDistance(AValue: Single);
       procedure SetReferenceDistance(AValue: Single);
+      function GetGlobalEmitter: Boolean;
     protected
       FTimeOffset: TAuSamplestamp;
       FManualPositionChange: Boolean;
@@ -217,7 +231,7 @@ type
       constructor Create(ASound: TAu3DCustomSound);
       destructor Destroy;override;
 
-      procedure Move(ATimeGap: Extended);virtual;abstract;       
+      procedure Move(ATimeGap: Extended);virtual;
       function TimePosition64: TAuSampleStamp;virtual;abstract;
 
       function TellSecond: Single;
@@ -230,12 +244,13 @@ type
       property MaxDistance: Single read FMaxDistance write SetMaxDistance;
       property ReferenceDistance: Single read FReferenceDistance write SetReferenceDistance;
       property Pitch: Single read GetPitch write SetPitch;
-      property GlobalEmitter: Boolean read FGlobalEmitter write FGlobalEmitter;
+      property GlobalEmitter: Boolean read GetGlobalEmitter write FGlobalEmitter;
       property Active: Boolean read FActive write FActive;
       property TimeOffset64: TAuSamplestamp read FTimeOffset;
       property AutoFree: Boolean read FAutoFree write FAutoFree;
 
       property Properties: Byte read FProperties write FProperties;
+      property OnMove: TAu3DEmitterProc read FMoveProc write FMoveProc;
   end;
 
   TAu3DStreamedEmitter = class(TAu3DCustomEmitter)
@@ -246,7 +261,6 @@ type
       constructor Create(ASound: TAu3DStreamedSound);
       destructor Destroy;override;
 
-      procedure Move(ATimeGap: Extended);override;
       function TimePosition64: TAuSamplestamp;override;
   end;
 
@@ -335,12 +349,10 @@ type
 
   TAu3DListener = class;
 
-  TAu3DListenerProc = procedure(AListener: TAu3DListener; ATimeGap: Double);
+  TAu3DListenerProc = procedure(AListener: TAu3DListener; ATimeGap: Double) of object;
 
   TAu3DListener = class
     private
-      FPosition: TAuVector3;
-      FOrientation: TAuOrientation;
       FGain: Single;
       FSources: TAu3DEmitterPropsList;
       FProperties: Byte;
@@ -355,8 +367,6 @@ type
 
       procedure Move(ATimeGap: Double);
 
-      property Position: TAuVector3 read FPosition write FPosition;
-      property Orientation: TAuOrientation read FOrientation write FOrientation;
       property Gain: Single read FGain write FGain;
       property Sources: TAu3DEmitterPropsList read FSources;
       property Properites: Byte read FProperties write FProperties;
@@ -1482,6 +1492,17 @@ begin
   inherited;
 end;
 
+function TAu3DCustomEmitter.GetGlobalEmitter: Boolean;
+begin
+  result := FGlobalEmitter or (FSound.Parameters.Channels > 1);
+end;
+
+procedure TAu3DCustomEmitter.Move(ATimeGap: Extended);
+begin
+  if Assigned(FMoveProc) then
+    FMoveProc(self, ATimeGap);  
+end;
+
 procedure TAu3DCustomEmitter.SetGain(AValue: Single);
 begin
   if AValue >= 0 then
@@ -1533,11 +1554,6 @@ begin
   result := TAu3DStreamedSound(Sound).Pitch;
 end;
 
-procedure TAu3DStreamedEmitter.Move(ATimeGap: Extended);
-begin
-  //Do nothing.
-end;
-
 procedure TAu3DStreamedEmitter.SetPitch(AValue: Single);
 begin
   TAu3DStreamedSound(Sound).Pitch := AValue;
@@ -1567,6 +1583,8 @@ end;
 
 procedure TAu3DStaticEmitter.Move(ATimeGap: Extended);
 begin
+  inherited;
+  
   //If the sound is not stream, each emitter is reponsible for it's own
   //position time stamp.
   FTimePosition64 := FTimePosition64 +
