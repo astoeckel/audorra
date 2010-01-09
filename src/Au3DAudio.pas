@@ -85,7 +85,7 @@ type
 
   TAuStaticSound = class(TAuCustomAudioObject)
     private
-      FSound: TAu3DSound;
+      FSound: TAu3DStaticSound;
       FMs: TMemoryStream;
       FFormat: TAuAudioParametersEx;
       FLoop: boolean;
@@ -114,7 +114,7 @@ type
       property Owner: Pointer read FOwner write FOwner;
       property Format: TAuAudioParametersEx read FFormat;
       property DecodedData: TMemoryStream read FMs;
-      property Sound: TAu3DSound read FSound write FSound;
+      property Sound: TAu3DStaticSound read FSound write FSound;
   end;
 
   TAuSoundList = class(TList)
@@ -292,7 +292,7 @@ begin
   result := inherited GetLength;
 
   if FMs <> nil then
-    result := round((FMs.Size * 1000)/  AuBytesPerSecond(FFormat));
+    result := round((FMs.Size * 1000) /  AuBytesPerSecond(FFormat.Parameters));
 end;
 
 procedure TAuStaticSound_EnumDecoders(ASender: Pointer; AEntry: PAcRegisteredClassEntry);
@@ -358,9 +358,15 @@ end;
 function TAuStaticSound.CreateSoundObj: boolean;
 begin
   result := true;
-  FSound := TAu3DSound.Create(PByte(FMs.Memory),
+  FSound := TAu3DStaticSound.Create(PByte(FMs.Memory),
     FMs.Size div AuBytesPerSample(FFormat.Parameters), FFormat.Parameters);
-  F3DAudio.Renderer.Sounds.Add(FSound);
+    
+  F3DAudio.Lock;
+  try
+    F3DAudio.Renderer.Sounds.Add(FSound);
+  finally
+    F3DAudio.Unlock;
+  end;
 end;
 
 procedure TAuStaticSound.Close;

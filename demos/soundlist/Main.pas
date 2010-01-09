@@ -6,7 +6,7 @@ uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, ExtCtrls, XPMan, ImgList, ComCtrls,
 
-  AuDirectSound, AuWAV, AuAcinerella, AuAudio, Au3DAudio, Au3DAudioRenderer,
+  AuWASAPI, AuDirectSound, AuWAV, AuAcinerella, AuAudio, Au3DAudio, Au3DAudioRenderer,
   AuSyncUtils;
   
 type
@@ -55,18 +55,13 @@ var
 begin
   if OpenDialog1.Execute then
   begin
-    Au3DAudio.Lock;
-    try
-      for i := 0 to OpenDialog1.Files.Count - 1 do
+    for i := 0 to OpenDialog1.Files.Count - 1 do
+    begin
+      with AuSoundList.AddNew(ExtractFileName(OpenDialog1.Files[i])) do
       begin
-        with AuSoundList.AddNew(ExtractFileName(OpenDialog1.Files[i])) do
-        begin
-          LoadFromFile(OpenDialog1.Files[i]);
-          Open;
-        end;
+        LoadFromFile(OpenDialog1.Files[i]);
+        Open;
       end;
-    finally
-      Au3DAudio.Unlock;
     end;
 
     DisplayItems;
@@ -125,7 +120,7 @@ end;
 procedure TForm1.ListBox1DblClick(Sender: TObject);
 var
   sel: TAuStaticSound;
-  em: TAu3DEmitter;
+  em: TAu3DStaticEmitter;
 begin
   if ListView1.ItemIndex >= 0 then
   begin
@@ -134,7 +129,7 @@ begin
     begin
       Au3DAudio.Lock;
       try
-        em := TAu3DEmitter.Create(sel.Sound);
+        em := TAu3DStaticEmitter.Create(sel.Sound);
         em.OnStop := OnNotify;
         sel.Sound.Loop := CheckBox1.Checked;
       finally
@@ -152,14 +147,12 @@ var
 begin
   Au3DAudio.Lock;
   try
-    if (not CheckBox1.Checked) or (not TAu3DEmitter(Sender).Sound.Loop) then
-    begin
-      TAu3DEmitter(Sender).Free;
-    end;
+    if (not CheckBox1.Checked) or (not TAu3DStaticSound(TAu3DStaticEmitter(Sender).Sound).Loop) then
+      TAu3DStaticEmitter(Sender).Free;
 
     for i := 0 to AuSoundList.Count - 1 do
     begin
-      if AuSoundList[i].Sound = TAu3DEmitter(Sender).Sound then
+      if AuSoundList[i].Sound = TAu3DStaticEmitter(Sender).Sound then
         ListView1.Items[i].SubItems[1] := IntToStr(AuSoundList[i].Sound.Emitters.Count);
     end;
   finally

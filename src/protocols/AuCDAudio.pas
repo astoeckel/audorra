@@ -104,7 +104,7 @@ type
 
 const
   RIFF_CDDA = $41444443;
-  BUFFER_SIZE = 4; //In sectors á 2352 * sector_count Byte
+  BUFFER_SIZE = 16; //In sectors á 2352 * sector_count Byte
 
 implementation
 

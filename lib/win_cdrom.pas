@@ -78,7 +78,7 @@ const
 
 const
   sector_size = 2352;
-  sector_count = 20;
+  sector_count = 5;
 
 type
   Tcdrom_track = record

@@ -89,7 +89,7 @@ type
   TAu3DSoundFilterAdapter = class(TAuOutputFilter)
     private
       FRenderer: TAu3DSoundRenderer;
-      FSound: TAu3DSound;
+      FSound: TAu3DStreamedSound;
       FCallback: TAuReadCallback;
       FSyncDataList: TAuSyncDataList;
       FTime: Double;
@@ -121,7 +121,7 @@ type
       {Pointer on the 3d audio renderer.}
       property Renderer: TAu3DSoundRenderer read FRenderer;
       {Pointer on the sound object.}
-      property Sound: TAu3DSound read FSound;
+      property Sound: TAu3DStreamedSound read FSound;
   end;
 
   {TAu3DOutputFilterAdapter allows you to connect the output of an 3D audio renderer
@@ -237,9 +237,9 @@ begin
   FreeSound;
 
   //Create a new sound object
-  FSound := TAu3DSound.Create(ReadCallback, AParameters);
+  FSound := TAu3DStreamedSound.Create(ReadCallback, AParameters);
   //This sound object isn't playing
-  FSound.RingBuffer.Locked := true;
+  FSound.Active := false;
   //Add the sound to the renderer
   FRenderer.Sounds.Add(FSound);
 
