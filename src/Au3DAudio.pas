@@ -302,6 +302,7 @@ var
   pckg: TAuPacket;
   i: integer;
   s: Single;
+  buf: PByte;
 begin
   with TAuStaticSound(ASender) do
   begin
@@ -319,9 +320,10 @@ begin
             if res = audsHasFrame then
             begin
               decoder.GetPacket(pckg);
+              buf := pckg.Buffer;
               for i := 0 to (pckg.BufferSize div (Integer(FFormat.BitDepth) div 8)) - 1 do
               begin
-                s := AuReadSample(pckg.Buffer, FFormat.BitDepth);
+                s := AuReadSample(buf, FFormat.BitDepth);
                 FMs.Write(s, SizeOf(s));
               end;
             end;

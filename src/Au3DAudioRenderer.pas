@@ -333,9 +333,11 @@ type
     private
       FScale: Single;
       FSpeedOfSound: Single;
-      FDistanceModel: TAu3DDistanceModel;
+      FDistanceModel: TAu3DDistanceModel;    
+      FMinGain: Single;
       procedure SetScale(AValue: Single);
       procedure SetSpeedOfSound(AValue: Single);
+      procedure SetMinGain(AValue: Single);
     public
       constructor Create;
       destructor Destroy;override;
@@ -345,6 +347,7 @@ type
       property Scale: Single read FScale write SetScale;
       property SpeedOfSound: Single read FSpeedOfSound write SetSpeedOfSound;
       property DistanceModel: TAu3DDistanceModel read FDistanceModel write FDistanceModel;
+      property MinGain: Single read FMinGain write SetMinGain;
   end;
 
   TAu3DListener = class;
@@ -622,8 +625,11 @@ begin
       FSpeakerSetup.OutputChannelCount);
 
   if props and AU3DPROP_GAIN > 0 then
-    gain := AEmitter.Gain * AListener.Gain
-  else
+  begin
+    gain := AEmitter.Gain * AListener.Gain;
+    if gain < FEnvironment.MinGain then
+      exit;
+  end else
     gain := 1;
 
   if not Assigned(AObj^.GainValues) then
@@ -698,6 +704,8 @@ begin
       FEnvironment.DistanceGainFactor(
         dist * FEnvironment.Scale, AEmitter.MaxDistance, AEmitter.RolloffFactor,
         AEmitter.ReferenceDistance);
+    if gain < FEnvironment.MinGain then
+      exit;
     hasalpha := CalculateSoundAngle(pos4, alpha);
   end else
   begin
@@ -898,7 +906,8 @@ end;
 
 function TAu3DSpeakerSetup.MultFac(AChannel: integer; AAngle: Single): Single;
 begin
-  result := FSpeakerFactors[AChannel][round(FTableSize * (AAngle / (2 * PI)))];
+  //The use of "trunc()" is important here, as AAngle may reach values near 2*PI
+  result := FSpeakerFactors[AChannel][trunc(FTableSize * (AAngle / (2 * PI)))];
 end;
 
 { TAu3DSoundList }
@@ -1219,6 +1228,7 @@ begin
 
   FScale := 1;
   FSpeedOfSound := 343.3;
+  FMinGain := 0.0001;
   FDistanceModel := au3ddmInverseDistanceClamped;
 end;
 
@@ -1275,6 +1285,12 @@ begin
       result := (1 - ARolloff * (ADist - AReference) / (AMax - AReference));
     end;
   end;
+end;
+
+procedure TAu3DEnvironment.SetMinGain(AValue: Single);
+begin
+  if AValue >= 0 then
+    FMinGain := AValue;
 end;
 
 procedure TAu3DEnvironment.SetScale(AValue: Single);

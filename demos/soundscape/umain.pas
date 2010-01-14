@@ -8,9 +8,9 @@ uses
 
   uplaygroundclasses,
 
-  AcTypes,
+  AcTypes, 
 
-  AuWASAPI, AuDirectSound, AuAcinerella,
+  AuDirectSound, AuWAV,
   AuUtils, AuAudio, Au3DAudio, Au3DAudioRenderer;
 
 type
@@ -93,16 +93,36 @@ begin
   if audio.Initialize then
   begin
     audio3d := TAu3DAudio.Create(audio, au3dss51, 48000, 16);
-    audio3d.Initialize;
-    audio3d.Renderer.Environment.Scale := 0.1;
-  end;
+    if not audio3d.Initialize then
+    begin
+      ShowMessage('5.1 Sound is not available on the default output device. Falling back to stereo.');
+      FreeAndNil(audio3d);
+      audio3d := TAu3DAudio.Create(audio, au3dssStereo, 48000, 16);
+      if not audio3d.Initialize then
+      begin
+        FreeAndNil(audio3d);
+        ShowMessage('Output device couldn'' be opened.');
+      end;
+    end;
 
-  soundlist := TAuSoundList.Create(audio3d);
+    if audio3d <> nil then
+    begin
+      audio3d.Renderer.Environment.Scale := 0.1;
 
-  bmp := TBitmap.Create;
-  playground := TPlayground.Create;
-  listener := TListener.Create(playground, audio3d.Listener);
-  DoubleBuffered := true;
+      soundlist := TAuSoundList.Create(audio3d);
+
+      bmp := TBitmap.Create;
+      playground := TPlayground.Create;
+      listener := TListener.Create(playground, audio3d.Listener);
+      DoubleBuffered := true;
+
+      exit;
+    end;
+  end else
+    ShowMessage('The audio system couldn''t be initialized.');
+
+  FreeAndNil(audio3d);
+  FreeAndNil(audio);
 end;
 
 procedure Tfrmmain.FormDestroy(Sender: TObject);

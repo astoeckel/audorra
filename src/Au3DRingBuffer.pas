@@ -84,7 +84,7 @@ type
       constructor Create(ASampleCount: integer; AChannels: integer);
       destructor Destroy;override;
 
-      function GetSample(ATime: TAuSamplestamp; AChannel: Integer): Single;//!inline;
+      function GetSample(ATime: TAuSamplestamp; AChannel: Integer): Single; inline;
 
       procedure WriteSamples(ACount: Cardinal; ABuf: PSingle);
 

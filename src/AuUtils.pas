@@ -125,20 +125,20 @@ begin
   result := Power(10, ADez / 10);
 end;
 
-function AuReadSample(var AMem: PByte; ABitDepth: Cardinal): Single;inline;
+function AuReadSample(var AMem: PByte; ABitDepth: Cardinal): Single;
 begin
   result := 0;
 
   case ABitDepth of
     8:
     begin
-      result := PShortInt(AMem)^ / High(ShortInt);
-      Inc(AMem, SizeOf(ShortInt));
+      result := (PByte(AMem)^ - 127) / 127;
+      Inc(AMem, 1);
     end;
     16:
     begin
       result := PSmallInt(AMem)^ / High(SmallInt);
-      Inc(AMem, SizeOf(SmallInt));
+      Inc(AMem, 2);
     end;
     32:
     begin
@@ -148,7 +148,7 @@ begin
   end;
 end;
 
-function AuLimit(AVal: Single): Single;inline;
+function AuLimit(AVal: Single): Single;
 begin
   //Clamp the value to a range from 1 to -1
   if AVal > 1 then
@@ -165,13 +165,13 @@ begin
   case ABitDepth of
     8:
     begin
-      PByte(AMem)^ := trunc((AuLimit(AVal) + 1) / 2 * High(SmallInt));
-      Inc(AMem, SizeOf(ShortInt));
+      PByte(AMem)^ := trunc((AuLimit(AVal) + 1) / 2 * High(ShortInt));
+      Inc(AMem, 1);
     end;
     16:
     begin
       PSmallInt(AMem)^ := trunc(AuLimit(AVal) * High(SmallInt));
-      Inc(AMem, SizeOf(SmallInt));
+      Inc(AMem, 2);
     end;
     32:
     begin

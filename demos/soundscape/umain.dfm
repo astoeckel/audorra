@@ -88,6 +88,8 @@ object frmmain: Tfrmmain
         SmallImages = ImageList1
         TabOrder = 0
         ViewStyle = vsReport
+        ExplicitLeft = 5
+        ExplicitTop = 71
       end
       object ToolBar2: TToolBar
         Left = 4
