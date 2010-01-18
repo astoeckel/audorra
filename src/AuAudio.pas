@@ -88,41 +88,91 @@ type
       FInitialize: TAuNotifyEvent;
       FFinalize: TAuNotifyEvent;
       FLastError: string;
+      FMaxPriority: integer;
       procedure DeviceEnum(ADevice: TAuDevice);
       procedure DeviceEnum2(ADevice: TAuDevice);
       procedure SetDriverName(AValue: string);
       procedure FillDeviceList;
     public
+      {Creates a new instance of TAuAudio. TAuAudio will automatically try to
+       choose the best output driver (OpenAL, DirectSound, etc.).}
       constructor Create;
+      {Destroys this instance of TAuAudio. Important: Never free the TAuAuio
+       when any audio module using this instance is still running! Always free
+       all other audio modules which could be using this instance first.}
       destructor Destroy;override;
 
+      {Tries to initialize the device driver set in the "DriverName" property.
+       A device driver normally gets chosen when the class is created. Returns
+       "true" if the initialization was successful, "false" if anything went wrong.
+       Use the "GetLastError" function to get information about the error which
+       let the initialization fail.
+       @seealso(DriverName)
+       @see}
       function Initialize: boolean;
+      {Finalizes the device driver. Never do this when any audio module is still
+       using the current device driver.}
       procedure Finalize;
+      //!TODO: Notify Events
 
+      {This procedure automatically chooses an device driver (the audio backend),
+       prefering drivers with a high priority.}
       procedure AutoChooseDriver;
+      {This procedure automatically sets the "StandardDeviceID" property by choosing
+       the output device with the highest priority. Choosing an output device
+       is only possible when the driver has successfully been initialized.}
       procedure AutoChooseDevice;
 
+      {Returns the last error string.}
       function GetLastError: string;
 
+      {This property contans the standard device ID - the device which should be
+       used if no other device is specified. Remember that "DeviceIDs" are internally
+       created by the audio backend and do not represent their position in the devices
+       list.
+       @seealso(Devices)}
       property StandardDeviceID: integer read FStandardDeviceID write FStandardDeviceID;
+      {Contains the class name of the audio driver - set this class name to set
+       a specific audio driver or use the "AutoChooseDriver" function. This property
+       should be set before calling the "Initialize" function.
+       @seealso(Initialize)}
       property DriverName: string read FDriverName write SetDriverName;
+      {Pointer on the audio backend driver class.}
       property Driver: TAuDriver read FDriver;
+      {Describes whether the TAuAudio is initialized and a driver object is created.
+       TAuAudio can be initilized by calling the "Initialize" function.}
       property Initialized: boolean read FInitialized;
+      {"Devices" contans a list of all devices available within the current audio
+       backend.}
       property Devices: TAuDeviceList read FDevices;
 
+      {Notify event which is called on initialization.}
       property OnInitialize: TAuNotifyEvent read FInitialize write FInitialize;
+      {Notify event which is called on finalization.}
       property OnFinalize: TAuNotifyEvent read FFinalize write FFinalize;
   end;
 
+  {Describes the state of a TAuPlayer object.}
   TAuPlayerState = (
+    {The player is currently closed, no file has been opened.}
     aupsClosed,
+    {The player is in a state of loading a file, stream or protocol. This state
+     is used internally and should actually never occur outside TAuPlayer.}
     aupsLoading,
+    {The player has been loading a file, stream or protocol and is no waiting
+     for the "Open" command.}
     aupsLoaded,
+    {The player has successfuly been opened. This state means, that the player
+     is currently in a "stop" mode.}
     aupsOpened,
+    {The player is currently playing.}
     aupsPlaying,
+    {The player is currently paused.}
     aupsPaused
   );
 
+  {TAuCustomAudioObject is the base class for objects like TAuPlayer and TAuStaticSound
+   and provides basic file, stream, url, protocol and state management.}
   TAuCustomAudioObject = class
     private
       FState: TAuPlayerState;
@@ -132,12 +182,8 @@ type
       FOwnStream: boolean;
       FProtocol: TAuProtocol;
       FOwnProtocol: boolean;
-      FDeviceID: integer;
-      FSetDeviceID: boolean;
       FLock: TAcLock;
       FURL: string;
-      procedure SetDeviceID(AValue: integer);
-      function GetDeviceID: integer;
       procedure CallStateChange;
     protected
       FParent: TAuAudio;
@@ -151,23 +197,72 @@ type
       property OwnStream: boolean read FOwnStream write FOwnStream;
       property Lock: TAcLock read FLock;
     public
+      {Creates a new instance of TAuCustomAudioObject.
+       @param(AParent is a pointer on the parent TAuAudio object.)}
       constructor Create(AParent: TAuAudio);
+      {Destroys the instance of TAuCustomAudioObject. All opened files, streams,
+       protocols, etc. will be freed, if they were not user defined (by opening
+       a stream via "LoadFromStream" or a protocol via "LoadFromProtocol" and
+       "AOwnStream" is set to false).}
       destructor Destroy;override;
 
-      procedure LoadFromStream(AStream: TStream; AOwnStream: boolean = false);
-      procedure LoadFromFile(AFile: string);
-      procedure LoadFromURL(AURL: string);
-      procedure LoadFromProtocol(AProtocol: TAuProtocol; AOwnProtocol: boolean = false);
+      {Loads a stream and maps it to an Audorra protocol. The stream is not opened,
+       no data will be read. Like all LoadFrom* functions, this will only
+       set the data source for further operations.
+       @param(AStream is a pointer on the stream which should be opened.)
+       @param(AOwnStream defines whether the stream object should be owned by
+         the TAuCustomAudio instance. If this parameter is true, TAuCustomAudio
+         will cope with freeing the stream instance.)
+       @returns(true if loading the stream was successful.)}
+      function LoadFromStream(AStream: TStream; AOwnStream: boolean = false): Boolean;
+      {Loads a specified file. No data will be read from the specified file.
+       Like all LoadFrom* functions, this will only set the data source for further operations.
+       Note: To open URLs use the LoadFromURL function.
+       @param(AFile describes the file which should be opened.)
+       @returns(true if loading the file was successful.)}
+      function LoadFromFile(AFile: string): Boolean;
+      {Loads a specified URL. No data will be read from the desired URL. Like all
+       LoadFrom* functions, this will only set the data source for further operations.
+       Note: To open files, prefix "file://" to the URL or use the
+       LoadFromFile function.
+       @param(AURL describes the URL which should be opened.)
+       @returns(true if loading the URL was successful.)}
+      function LoadFromURL(AURL: string): Boolean;
+      {Loads the specified Audorra protocol. No data will be read from the protocol
+       when calling this function - like all LoadFrom* functions, this will only
+       set the data source for further operations.
+       Note: To open files, prefix "file://" to the URL or use the
+       LoadFromFile function.
+       @param(AFile describes the file which should be opened.)
+       @param(AOwnProtocol defines whether the protocol object should be owned by
+         the TAuCustomAudio instance. If this parameter is true, TAuCustomAudio
+         will cope with freeing the protocol instance.)
+       @returns(true if loading the protocol was successful, which should always
+         be the case.)}
+      function LoadFromProtocol(AProtocol: TAuProtocol; AOwnProtocol: boolean = false): Boolean;
 
+      {All classes derived from TAuCustomAudioObject have to implement the open function -
+       it should choose a decoder, fill all buffers and prepare everything for playback.
+       A data source has to be selected using the LoadFrom* functions before "Open" can
+       be called. If opening was successful, "Open" should return true.}
       function Open: boolean;virtual;abstract;
+      {All classes derived from TAuCustomAudioObject have to implement the close function.
+       They are ought to destroy all objects created in the "Open" function. The data source
+       specified in the LoadFrom* functions will be reseted to @nil.}
       procedure Close;virtual;abstract;
 
+      {Pointer on the parent TAuAudio object.}
       property Parent: TAuAudio read FParent;
+      {Defines the current audio object state.}
       property State: TAuPlayerState read FState;
-      property DeviceID: integer read GetDeviceID write SetDeviceID;
+      {Returns the length of the audio object or -1 if the length can - for whatever reason -
+       not be retrieved.}
       property Len: integer read GetLength;
 
+      {Notify event which is called when the "State" property of the object changes.}
       property OnStateChange: TAuNotifyEvent read FStateChangeEvent write FStateChangeEvent;
+      {Notify event which is called when the object is being destroyed. The event
+       is called after all objects owned by the instance have been destroyed.}
       property OnDestroy: TAuNotifyEvent read FDestroyEvent write FDestroyEvent;
   end;
   
@@ -178,7 +273,6 @@ type
       FOutput: TAuOutputFilter;
       FOwnTarget: boolean;
       FDecoder: TAuDecoder;
-      FDeviceID: integer;
       FSource: TAuCustomDecoderFilter;
       FOwnSource: boolean;
       FBufSize: integer;
@@ -190,6 +284,8 @@ type
       FAnalyzerList: TAuAnalyzerList;
       FHasDecoder: boolean;
       FReloadOnPlay: boolean;
+      FDeviceID: integer;
+      FSetDeviceID: boolean;
       procedure FreeComponents(ADestroySources: boolean);
       function BuildFilterGraph: boolean;
       procedure SetMasterVolume(AValue: single);
@@ -197,6 +293,8 @@ type
       function GetSeekable: boolean;
       procedure SetPosition(AValue: integer);
       procedure StopHandler(Sender: TObject);
+      procedure SetDeviceID(AValue: integer);
+      function GetDeviceID: integer;
     protected
       function GetLength: integer;override;
     public
@@ -223,6 +321,7 @@ type
       property VolumeFilter: TAuVolumeFilter read FVolume;
 
       property OnSongFinishes: TAuNotifyEvent read FSongFinishesEvent write FSongFinishesEvent;
+      property DeviceID: integer read GetDeviceID write SetDeviceID;
   end;
 
 implementation
@@ -278,13 +377,32 @@ begin
 end;
 
 procedure TAuAudio_EnumProc(ASender: Pointer; AEntry: PAcRegisteredClassEntry);
+var
+  inst: TAuDriver;
 begin
-  if TAuAudio(ASender).FDriverName = '' then  
+  with TAuAudio(ASender) do
+  begin
+    inst := TAuCreateDriverProc(AEntry^.ClassConstructor);
+    try
+      if (FDriverName = '') or (inst.Priority > FMaxPriority) then
+      begin
+        FDriverName := AEntry^.Name;
+        FMaxPriority := inst.Priority;
+      end;
+    finally
+      inst.Free;
+    end;
+  end;
+  if TAuAudio(ASender).FDriverName = '' then
     TAuAudio(ASender).FDriverName := AEntry.Name;
 end;
 
 procedure TAuAudio.AutoChooseDriver;
 begin
+  //Initialize the driver search
+  FMaxPriority := 0;
+  FDriverName := '';
+  
   AcRegSrv.EnumClasses(TAuDriver, TAuAudio_EnumProc, self);
 end;
 
@@ -362,6 +480,263 @@ begin
     Finalize;
   end else;
     raise EAudioDriver.CreateFmt(MsgDeviceDoesNotExist, [AValue]);
+end;
+
+{ TAuDeviceList }
+
+function TAuDeviceList.Add(ADev: TAuDevice): integer;
+var
+  ptr: PAuDevice;
+begin
+  new(ptr);
+  ptr^ := ADev;
+  result := inherited Add(ptr);
+end;
+
+function TAuDeviceList.GetItem(AIndex: integer): TAuDevice;
+begin
+  result := PAuDevice(inherited Items[AIndex])^;
+end;
+
+function TAuDeviceList.GetItemById(AIndex: integer): TAuDevice;
+var
+  i: integer;
+begin
+  FillChar(result, SizeOf(TAuDevice), 0);
+
+  for i := 0 to Count - 1 do
+    if Items[i].ID = AIndex then
+    begin
+      result := Items[i];
+      break;
+    end;
+end;
+
+procedure TAuDeviceList.Notify(ptr: Pointer; action: TListNotification);
+begin
+  if action = lnDeleted then
+    FreeMem(ptr, SizeOf(TAuDevice));
+end;
+
+procedure TAuDeviceList.SetItem(AIndex: integer; ADev: TAuDevice);
+begin
+  PAuDevice(inherited Items[AIndex])^ := ADev;
+end;
+
+{ TAuCustomAudioObject }
+
+constructor TAuCustomAudioObject.Create(AParent: TAuAudio);
+begin
+  inherited Create;
+
+  FParent := AParent;  
+  FState := aupsClosed;
+  FLock := TAcLock.Create;
+end;
+
+destructor TAuCustomAudioObject.Destroy;
+begin
+  FLock.Enter;
+  try
+    AuQueueRemove(self);
+
+    FreeObjects;
+  finally
+    FLock.Leave;
+  end;
+
+  if Assigned(FDestroyEvent) then
+    FDestroyEvent(self);
+
+  FreeAndNil(FLock);
+  
+  inherited;
+end;
+
+procedure TAuCustomAudioObject.CallStateChange;
+begin
+  if Assigned(FStateChangeEvent) then
+    FStateChangeEvent(self);
+end;
+
+procedure TAuCustomAudioObject.FreeObjects;
+begin
+  FLock.Enter;
+  try
+    //Free the protocol
+    if FOwnProtocol and (FProtocol <> nil) then
+      FProtocol.Free;
+
+    //Reset the protocol variables
+    FProtocol := nil;
+    FOwnProtocol := false;
+
+    //Free the stream
+    if FOwnStream and (FStream <> nil) then
+      FStream.Free;
+
+    //Reset the stream variables
+    FStream := nil;
+    FOwnStream := false;
+  finally
+    FLock.Leave;
+  end;
+end;
+
+function TAuCustomAudioObject.LoadFromFile(AFile: string): boolean;
+begin
+  result := false;
+  FLock.Enter;
+  try
+    //Close if not in the "loading" state
+    if FState <> aupsLoading then
+      Close;
+
+    //Switch to the "loading" state
+    SetState(aupsLoading);
+
+    FUrl := AFile;
+
+    try
+      //Create a file stream and open the file.
+      FStream := TFileStream.Create(AFile, fmOpenRead or fmShareDenyWrite);
+      FOwnStream := true;
+
+      result := LoadFromStream(FStream);
+    except
+      Close;
+      raise;
+    end;
+  finally
+    FLock.Leave;
+  end;
+end;
+
+function TAuCustomAudioObject.LoadFromProtocol(AProtocol: TAuProtocol;
+  AOwnProtocol: boolean = false): boolean;
+begin
+  FLock.Enter;
+  try
+    FOwnProtocol := FOwnProtocol or AOwnProtocol;
+    
+    //Close if not in the "loading" state
+    if FState <> aupsLoading then
+    begin
+      FURL := '';
+      Close;
+    end;
+
+    //If we've reached this line, the loading progress has been finished
+    SetState(aupsLoaded);
+    FProtocol := AProtocol;
+
+    result := true;
+  finally
+    FLock.Leave;
+  end;
+end;
+
+function TAuCustomAudioObject.LoadFromStream(AStream: TStream; AOwnStream: boolean): Boolean;
+begin
+  FLock.Enter;
+  try
+    FOwnStream := FOwnStream or AOwnStream;
+    
+    //Close and reset FURL if not in the "loading" state
+    if FState <> aupsLoading then
+    begin
+      FURL := '';
+      Close;
+    end;
+
+    SetState(aupsLoading);
+
+    //Create a stream protocol and connect it to the stream
+    FProtocol := TAuStreamProtocol.Create(AStream);
+
+    //If the stream has been loaded from a file, set the "URL" parameter.
+    TAuStreamProtocol(FProtocol).URL := FURL;
+
+    //This is our own protocol
+    FOwnProtocol := true;
+
+    //Try to open the protocol
+    result := LoadFromProtocol(FProtocol);
+  finally
+    FLock.Leave;
+  end;
+end;
+
+function TAuCustomAudioObject.LoadFromURL(AURL: string): boolean;
+var
+  Prot, User, Pass, Host, Port, Path, Para: string;
+  lst: TStringList;
+  i: integer;
+begin
+  result := false;
+  
+  FLock.Enter;
+  try
+    ParseURL(AUrl, Prot, User, Pass, Host, Port, Path, Para);
+
+    if Prot = '' then
+      LoadFromFile(AUrl)
+    else begin
+
+      //Close if not in the "loading" state
+      if FState <> aupsLoading then
+        Close;
+
+      //Switch to the "loading" state
+      SetState(aupsLoading);
+
+      //Enumerate all registered protocls
+      lst := TStringList.Create;
+      try
+        AcEnumRegClasses(TAuURLProtocol, lst);
+        for i := 0 to lst.Count - 1 do
+        begin
+          //Create an instance of the selected protocol
+          FProtocol := TAuCreateURLProtocolProc(AcRegSrv.GetEntry(lst[i])^.ClassConstructor);
+
+          //Check whether it supports the protocol identifier.
+          if TAuURLProtocol(FProtocol).SupportsProtocol(LowerCase(Prot)) then
+          begin
+            //Keep this instance of the protocol and try to open it
+            if TAuURLProtocol(FProtocol).Open(AUrl) then
+            begin
+              FOwnProtocol := true;
+              result := LoadFromProtocol(FProtocol);
+              break;
+            end else
+              FreeAndNil(FProtocol);
+          end else
+            FreeAndNil(FProtocol);
+        end;
+      finally
+        lst.Free;
+      end;
+    end;
+    
+  finally
+    FLock.Leave;
+  end;
+end;
+
+procedure TAuCustomAudioObject.SetState(AValue: TAuPlayerState; ACallEvent: boolean);
+begin
+  if AValue <> FState then
+  begin
+    FState := AValue;
+          
+    if ACallEvent then    
+      AuQueueCall(CallStateChange);
+  end;
+end;
+
+function TAuCustomAudioObject.GetLength: integer;
+begin
+  result := -1;
 end;
 
 { TAuPlayer }
@@ -813,255 +1188,18 @@ begin
   end;
 end;
 
-{ TAuDeviceList }
-
-function TAuDeviceList.Add(ADev: TAuDevice): integer;
-var
-  ptr: PAuDevice;
+procedure TAuPlayer.SetDeviceID(AValue: integer);
 begin
-  new(ptr);
-  ptr^ := ADev;
-  result := inherited Add(ptr);
+  FSetDeviceID := true;
+  FDeviceID := AValue;
 end;
 
-function TAuDeviceList.GetItem(AIndex: integer): TAuDevice;
-begin
-  result := PAuDevice(inherited Items[AIndex])^;
-end;
-
-function TAuDeviceList.GetItemById(AIndex: integer): TAuDevice;
-var
-  i: integer;
-begin
-  FillChar(result, SizeOf(TAuDevice), 0);
-
-  for i := 0 to Count - 1 do
-    if Items[i].ID = AIndex then
-    begin
-      result := Items[i];
-      break;
-    end;
-end;
-
-procedure TAuDeviceList.Notify(ptr: Pointer; action: TListNotification);
-begin
-  if action = lnDeleted then
-    FreeMem(ptr, SizeOf(TAuDevice));
-end;
-
-procedure TAuDeviceList.SetItem(AIndex: integer; ADev: TAuDevice);
-begin
-  PAuDevice(inherited Items[AIndex])^ := ADev;
-end;
-
-{ TAuCustomAudioObject }
-
-constructor TAuCustomAudioObject.Create(AParent: TAuAudio);
-begin
-  inherited Create;
-
-  FParent := AParent;  
-  FState := aupsClosed;
-  FLock := TAcLock.Create;
-end;
-
-destructor TAuCustomAudioObject.Destroy;
-begin
-  FLock.Enter;
-  try
-    AuQueueRemove(self);
-
-    FreeObjects;
-  finally
-    FLock.Leave;
-  end;
-
-  if Assigned(FDestroyEvent) then
-    FDestroyEvent(self);
-
-  FreeAndNil(FLock);
-  
-  inherited;
-end;
-
-procedure TAuCustomAudioObject.CallStateChange;
-begin
-  if Assigned(FStateChangeEvent) then
-    FStateChangeEvent(self);
-end;
-
-procedure TAuCustomAudioObject.FreeObjects;
-begin
-  FLock.Enter;
-  try
-    //Free the protocol
-    if FOwnProtocol and (FProtocol <> nil) then
-      FProtocol.Free;
-
-    //Reset the protocol variables
-    FProtocol := nil;
-    FOwnProtocol := false;
-
-    //Free the stream
-    if FOwnStream and (FStream <> nil) then
-      FStream.Free;
-
-    //Reset the stream variables
-    FStream := nil;
-    FOwnStream := false;
-  finally
-    FLock.Leave;
-  end;
-end;
-
-procedure TAuCustomAudioObject.LoadFromFile(AFile: string);
-begin
-  FLock.Enter;
-  try
-    //Close if not in the "loading" state
-    if FState <> aupsLoading then
-      Close;
-
-    //Switch to the "loading" state
-    SetState(aupsLoading);
-
-    FUrl := AFile;
-
-    try
-      //Create a file stream and open the file.
-      FStream := TFileStream.Create(AFile, fmOpenRead or fmShareDenyWrite);
-      FOwnStream := true;
-
-      LoadFromStream(FStream);
-    except
-      Close;
-      raise;
-    end;
-  finally
-    FLock.Leave;
-  end;
-end;
-
-procedure TAuCustomAudioObject.LoadFromProtocol(AProtocol: TAuProtocol; AOwnProtocol: boolean = false);
-begin
-  FLock.Enter;
-  try
-    FOwnProtocol := FOwnProtocol or AOwnProtocol;
-    
-    //Close if not in the "loading" state
-    if FState <> aupsLoading then
-    begin
-      FURL := '';
-      Close;
-    end;
-
-    //If we've reached this line, the loading progress has been finished
-    SetState(aupsLoaded);
-    FProtocol := AProtocol;
-  finally
-    FLock.Leave;
-  end;
-end;
-
-procedure TAuCustomAudioObject.LoadFromStream(AStream: TStream; AOwnStream: boolean);
-begin
-  FLock.Enter;
-  try
-    FOwnStream := FOwnStream or AOwnStream;
-    
-    //Close if not in the "loading" state
-    if FState <> aupsLoading then
-    begin
-      FURL := '';
-      Close;
-    end;
-
-    SetState(aupsLoading);
-
-    FProtocol := TAuStreamProtocol.Create(AStream);
-    TAuStreamProtocol(FProtocol).URL := FURL;
-    FOwnProtocol := true;
-
-    LoadFromProtocol(FProtocol);
-  finally
-    FLock.Leave;
-  end;
-end;
-
-procedure TAuCustomAudioObject.LoadFromURL(AURL: string);
-var
-  Prot, User, Pass, Host, Port, Path, Para: string;
-  lst: TStringList;
-  i: integer;
-begin
-  FLock.Enter;
-  try
-    ParseURL(AUrl, Prot, User, Pass, Host, Port, Path, Para);
-
-    if Prot = '' then
-      LoadFromFile(AUrl)
-    else begin
-
-      //Close if not in the "loading" state
-      if FState <> aupsLoading then
-        Close;
-
-      //Switch to the "loading" state
-      SetState(aupsLoading);
-
-      lst := TStringList.Create;
-      AcEnumRegClasses(TAuURLProtocol, lst);
-      for i := 0 to lst.Count - 1 do
-      begin
-        FProtocol := TAuCreateURLProtocolProc(AcRegSrv.GetEntry(lst[i])^.ClassConstructor);
-        if TAuURLProtocol(FProtocol).SupportsProtocol(LowerCase(Prot)) then
-        begin
-          FOwnProtocol := true;
-          if TAuURLProtocol(FProtocol).Open(AUrl) then
-          begin
-            LoadFromProtocol(FProtocol);
-            break;
-          end else
-            FreeAndNil(FProtocol);          
-        end else
-          FreeAndNil(FProtocol);
-      end;
-      lst.Free;
-    end;
-    
-  finally
-    FLock.Leave;
-  end;
-end;
-
-procedure TAuCustomAudioObject.SetState(AValue: TAuPlayerState; ACallEvent: boolean);
-begin
-  if AValue <> FState then
-  begin
-    FState := AValue;
-          
-    if ACallEvent then    
-      AuQueueCall(CallStateChange);
-  end;
-end;
-
-function TAuCustomAudioObject.GetDeviceID: integer;
+function TAuPlayer.GetDeviceID: integer;
 begin
   if (FSetDeviceID) or (FParent = nil) then
     result := FDeviceID
   else
     result := FParent.StandardDeviceID;
-end;
-
-function TAuCustomAudioObject.GetLength: integer;
-begin
-  result := -1;
-end;
-
-procedure TAuCustomAudioObject.SetDeviceID(AValue: integer);
-begin
-  FSetDeviceID := true;
-  FDeviceID := AValue;
 end;
 
 end.

@@ -122,6 +122,8 @@ constructor TAuDirectSoundDriver.Create;
 begin
   inherited Create;
 
+  FPriority := 50;
+
   //Enumerate all direct sound devices
   FDevices := TList.Create;
   EnumDev;

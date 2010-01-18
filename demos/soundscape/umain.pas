@@ -10,7 +10,7 @@ uses
 
   AcTypes, 
 
-  AuDirectSound, AuWAV,
+  AuWASAPI, AuDirectSound, AuAcinerella,
   AuUtils, AuAudio, Au3DAudio, Au3DAudioRenderer;
 
 type
@@ -45,6 +45,9 @@ type
     ImageList1: TImageList;
     Splitter1: TSplitter;
     XPManifest1: TXPManifest;
+    Label5: TLabel;
+    lblPitch: TLabel;
+    trbPitch: TTrackBar;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure PaintBox1Paint(Sender: TObject);
@@ -65,6 +68,7 @@ type
     procedure btnPlayAllClick(Sender: TObject);
     procedure btnPauseAllClick(Sender: TObject);
     procedure btnStopAllClick(Sender: TObject);
+    procedure trbPitchChange(Sender: TObject);
   private
     { Private-Deklarationen }
   public
@@ -200,10 +204,27 @@ begin
     lblGain.Caption := FormatFloat('0.0', trbGain.Position / 10)+'dB';
     audio3d.Lock;
     try
-      if playground.Selected is TSource then      
+      if playground.Selected is TSource then
         TSource(playground.Selected).Emitter.Gain := AuFromDezibel(trbGain.Position / 10)
       else if playground.Selected is TListener then
         TListener(playground.Selected).Listener.Gain := AuFromDezibel(trbGain.Position / 10)
+    finally
+      audio3d.Unlock;
+    end;
+  end;
+end;
+
+procedure Tfrmmain.trbPitchChange(Sender: TObject);
+begin
+  if (playground.Selected <> nil) then
+  begin
+    lblPitch.Caption := FormatFloat('0.00', trbPitch.Position / 100);
+    audio3d.Lock;
+    try
+      if playground.Selected is TSource then
+        TSource(playground.Selected).Emitter.Pitch := trbPitch.Position / 100
+      else if playground.Selected is TListener then
+        audio3d.Renderer.Environment.Pitch := trbPitch.Position / 100;
     finally
       audio3d.Unlock;
     end;
@@ -274,6 +295,7 @@ begin
     begin
       lblName.Caption := TSource(playground.Selected).Caption;
       trbGain.Position := Round(AuToDezibel(TSource(playground.Selected).Emitter.Gain) * 10);
+      trbPitch.Position := Round(TSource(playground.Selected).Emitter.Pitch * 100);
 
       if TSource(playground.Selected).Emitter.Active then
         lblState.Caption := 'Playing'
@@ -289,6 +311,7 @@ begin
       lblName.Caption := 'Listener';
       lblState.Caption := 'n.A.';
       trbGain.Position := Round(AuToDezibel(TListener(playground.Selected).Listener.Gain) * 10);
+      trbPitch.Position := Round(audio3d.Renderer.Environment.Pitch * 100);
 
       btnPlay.Enabled := false;
       btnPause.Enabled := false;
@@ -296,6 +319,7 @@ begin
     end;
 
     trbGainChange(nil);
+    trbPitchChange(nil);
 
     lblClass.Caption := playground.Selected.ClassName;
   end else

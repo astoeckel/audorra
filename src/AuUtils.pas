@@ -40,6 +40,8 @@ unit AuUtils;
 
 interface
 
+{$INCLUDE andorra.inc}
+
 uses
   Math,
   AuTypes;
@@ -50,11 +52,11 @@ uses
    is automatically incremented.)
  @param(ABitDepth is the bit depth the sample is in. Currently 8 and 16 bits are
    supported).}
-function AuReadSample(var AMem: PByte; ABitDepth: Cardinal): Single;
+function AuReadSample(var AMem: PByte; ABitDepth: Cardinal): Single;{$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
 {Writes a normalized single value AVal as a audio sample with the bit depth defined in
  ABitDepth to AMem. The single value is clipped to the range from -1 to 1. AMem
  is automatically incremented.}
-procedure AuWriteSample(var AMem: PByte; AVal: Single; ABitDepth: Cardinal);
+procedure AuWriteSample(var AMem: PByte; AVal: Single; ABitDepth: Cardinal);{$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
 {Convertes a normalized, positive single sample value to dB.}
 function AuToDezibel(AVal: Single): Single;
 {Convertes a dB value to the corresponding normalized sample value.}
@@ -165,7 +167,7 @@ begin
   case ABitDepth of
     8:
     begin
-      PByte(AMem)^ := trunc((AuLimit(AVal) + 1) / 2 * High(ShortInt));
+      PByte(AMem)^ := trunc((AuLimit(AVal) + 1) / 2 * High(Byte));
       Inc(AMem, 1);
     end;
     16:

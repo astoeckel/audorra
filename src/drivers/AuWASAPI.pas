@@ -76,6 +76,8 @@ implementation
 constructor TAuWASAPIDriver.Create;
 begin
   inherited Create;
+
+  FPriority := 100;
 end;
 
 function TAuWASAPIDriver.CreateStreamDriver(ADeviceID: integer;

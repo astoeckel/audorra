@@ -108,7 +108,6 @@ type
       FSyncDataBuf: array of TAuSyncData;
       FCurrentBlock: integer;
       FFreeBlocks: integer;
-      FParent: TAuOpenALDriver;
       function AllocBuffers: boolean;
       procedure DestroyBuffers;
     public
@@ -161,6 +160,8 @@ end;
 constructor TAuOpenALDriver.Create;
 begin
   inherited;
+
+  FPriority := 20;
 
   FDevices := TAuOpenALDeviceList.Create;
 

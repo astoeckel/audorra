@@ -333,11 +333,13 @@ type
     private
       FScale: Single;
       FSpeedOfSound: Single;
+      FPitch: Single;
       FDistanceModel: TAu3DDistanceModel;    
       FMinGain: Single;
       procedure SetScale(AValue: Single);
       procedure SetSpeedOfSound(AValue: Single);
       procedure SetMinGain(AValue: Single);
+      procedure SetPitch(AValue: Single);
     public
       constructor Create;
       destructor Destroy;override;
@@ -348,6 +350,7 @@ type
       property SpeedOfSound: Single read FSpeedOfSound write SetSpeedOfSound;
       property DistanceModel: TAu3DDistanceModel read FDistanceModel write FDistanceModel;
       property MinGain: Single read FMinGain write SetMinGain;
+      property Pitch: Single read FPitch write SetPitch;
   end;
 
   TAu3DListener = class;
@@ -361,6 +364,7 @@ type
       FProperties: Byte;
       FViewMatrix: TAcMatrix;
       FMoveProc: TAu3DListenerProc;
+      procedure SetGain(AValue: Single);
     public
       constructor Create;
       destructor Destroy;override;
@@ -370,7 +374,7 @@ type
 
       procedure Move(ATimeGap: Double);
 
-      property Gain: Single read FGain write FGain;
+      property Gain: Single read FGain write SetGain;
       property Sources: TAu3DEmitterPropsList read FSources;
       property Properites: Byte read FProperties write FProperties;
       property ViewMatrix: TAcMatrix read FViewMatrix;
@@ -532,6 +536,7 @@ procedure TAu3DSoundRenderer.Render(AListener: TAu3DListener;
 var
   i, j: integer;
   pobj: PAu3DEmitterProps;
+  tp: Extended;
 begin
   FWroteData := false;
 
@@ -543,13 +548,15 @@ begin
   try
     AListener.Sources.BeginScene;
 
-    AListener.Move(ASampleCount / Frequency);
+    tp := ASampleCount / Frequency * FEnvironment.Pitch; 
+
+    AListener.Move(tp);
 
     for i := 0 to FSounds.Count - 1 do
     begin
       if FSounds[i].Active then
       begin
-        FSounds[i].Move(ASampleCount / FFrequency);
+        FSounds[i].Move(tp);
 
         for j := 0 to FSounds[i].Emitters.Count - 1 do
         begin
@@ -558,7 +565,7 @@ begin
             //Get the listener information attached to the sound
             AListener.Sources.GetSourceObj(FSounds[i].Emitters[j], pobj);
 
-            FSounds[i].Emitters[j].Move(ASampleCount / FFrequency);
+            FSounds[i].Emitters[j].Move(tp);
 
             //Do the actual rendering
             if not FSounds[i].Emitters[j].GlobalEmitter then
@@ -1210,6 +1217,12 @@ begin
     FMoveProc(self, ATimeGap);
 end;
 
+procedure TAu3DListener.SetGain(AValue: Single);
+begin
+  if AValue >= 0 then
+    FGain := AValue;
+end;
+
 procedure TAu3DListener.Setup3DScene(const APos, ADir, AUp: TAcVector3);
 begin
   FViewMatrix := AcMatrix_View_LookAt(APos, ADir, AUp);
@@ -1229,6 +1242,7 @@ begin
   FScale := 1;
   FSpeedOfSound := 343.3;
   FMinGain := 0.0001;
+  FPitch := 1;
   FDistanceModel := au3ddmInverseDistanceClamped;
 end;
 
@@ -1291,6 +1305,12 @@ procedure TAu3DEnvironment.SetMinGain(AValue: Single);
 begin
   if AValue >= 0 then
     FMinGain := AValue;
+end;
+
+procedure TAu3DEnvironment.SetPitch(AValue: Single);
+begin
+  if AValue > 0 then
+    FPitch := AValue;
 end;
 
 procedure TAu3DEnvironment.SetScale(AValue: Single);

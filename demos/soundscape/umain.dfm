@@ -88,8 +88,6 @@ object frmmain: Tfrmmain
         SmallImages = ImageList1
         TabOrder = 0
         ViewStyle = vsReport
-        ExplicitLeft = 5
-        ExplicitTop = 71
       end
       object ToolBar2: TToolBar
         Left = 4
@@ -129,14 +127,14 @@ object frmmain: Tfrmmain
       Left = 5
       Top = 332
       Width = 263
-      Height = 208
+      Height = 245
       Align = alTop
       Caption = 'Selected Element'
       TabOrder = 1
       Visible = False
       DesignSize = (
         263
-        208)
+        245)
       object Label1: TLabel
         Left = 16
         Top = 24
@@ -198,8 +196,8 @@ object frmmain: Tfrmmain
         Caption = 'lblGain'
       end
       object Label4: TLabel
-        Left = 16
-        Top = 159
+        Left = 18
+        Top = 199
         Width = 80
         Height = 13
         Caption = 'Current State:'
@@ -211,11 +209,31 @@ object frmmain: Tfrmmain
         ParentFont = False
       end
       object lblState: TLabel
-        Left = 60
-        Top = 178
+        Left = 62
+        Top = 218
         Width = 36
         Height = 13
         Caption = 'lblState'
+      end
+      object Label5: TLabel
+        Left = 16
+        Top = 110
+        Width = 31
+        Height = 13
+        Caption = 'Pitch:'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        ParentFont = False
+      end
+      object lblPitch: TLabel
+        Left = 63
+        Top = 110
+        Width = 33
+        Height = 13
+        Caption = 'lblPitch'
       end
       object trbGain: TTrackBar
         Left = 63
@@ -232,7 +250,7 @@ object frmmain: Tfrmmain
       end
       object btnPlay: TButton
         Left = 16
-        Top = 128
+        Top = 168
         Width = 75
         Height = 25
         Caption = 'Play'
@@ -241,7 +259,7 @@ object frmmain: Tfrmmain
       end
       object btnPause: TButton
         Left = 97
-        Top = 128
+        Top = 168
         Width = 75
         Height = 25
         Caption = 'Pause'
@@ -250,12 +268,26 @@ object frmmain: Tfrmmain
       end
       object btnStop: TButton
         Left = 178
-        Top = 128
+        Top = 168
         Width = 75
         Height = 25
         Caption = 'Stop'
         TabOrder = 3
         OnClick = btnStopClick
+      end
+      object trbPitch: TTrackBar
+        Left = 63
+        Top = 129
+        Width = 190
+        Height = 32
+        Anchors = [akLeft, akTop, akRight]
+        Max = 250
+        Min = 1
+        Position = 100
+        TabOrder = 4
+        TickMarks = tmBoth
+        TickStyle = tsNone
+        OnChange = trbPitchChange
       end
     end
     object GroupBox2: TGroupBox

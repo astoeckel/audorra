@@ -98,6 +98,11 @@ type
       property State: TAuAudioDriverState read FState;
   end;
 
+  {TAuStreamDriver represents a single audio stream. It is capable of transporting
+   audio data from the application to the audio hardware and implements all functions
+   derived from TAuAudioDriver. Befor using a TAuStreamDriver, you have to call the
+   "Open" function. TAuStreamDrivers are created by calling the "CreateStreamDriver"
+   function of the TAuDriver class.}
   TAuStreamDriver = class(TAuAudioDriver)
     protected
       FSyncData: TAuSyncData;
@@ -109,11 +114,16 @@ type
       property Delay: Cardinal read FDelay;
   end;
 
+  //TAuDeviceShareMode = (audsExclusive, audsShared);
+  //TAuDeviceShareModes = set of TAuDeviceShare;
+
   {TAuDriver is the base abstract audio output managing class. If you want to implement
    a new audio output system, you have to derive a class from TAuDriver. TAuDriver
    copes with creating the corresponding audio output objects and enumerating
    available output devices.}
   TAuDriver = class(TAcPersistent)
+    protected
+      FPriority: integer;
     public
       {Calls the given callback function for each device and returns information
        about them.}
@@ -128,6 +138,13 @@ type
        @seealso(TAuStreamDriver)}
       function CreateStreamDriver(ADeviceID: integer;
         AParameters: TAuAudioParametersEx): TAuStreamDriver;virtual;abstract;
+
+      property Priority: integer read FPriority;
+
+      {TODO: Share mode settings}
+      //function GetAvailableDeviceShareModes(ADevice: integer): TAuDeviceShareModes;
+      //procedure SetDeviceShareMode(ADevice: integer; AMode: TAuDeviceShareMode);
+      //function GetDefaultFormat: TAuAudioPrametersEx;
   end;
 
   TAuCreateDriverProc = function: TAuDriver;

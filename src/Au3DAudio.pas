@@ -258,41 +258,56 @@ end;
 
 destructor TAuStaticSound.Destroy;
 begin
-  SetState(aupsClosed, false);
-  Close;
-  inherited;
+  Lock.Enter;
+  try
+    SetState(aupsClosed, false);
+    Close;
+    inherited;
+  finally
+    Lock.Leave;
+  end;
 end;
 
 procedure TAuStaticSound.FreeComponents;
 begin
-  //Free the 3d sound object
-  if FSound <> nil then
-  begin
-    F3DAudio.Lock;
-    try
-      //FSound is automatically freed
-      FSound.AutoFree := true;
-      F3DAudio.Renderer.Sounds.Remove(FSound);
-      FSound := nil;
-    finally
-      F3DAudio.Unlock;
+  Lock.Enter;
+  try
+    //Free the 3d sound object
+    if FSound <> nil then
+    begin
+      F3DAudio.Lock;
+      try
+        //FSound is automatically freed
+        FSound.AutoFree := true;
+        F3DAudio.Renderer.Sounds.Remove(FSound);
+        FSound := nil;
+      finally
+        F3DAudio.Unlock;
+      end;
     end;
+
+
+    //Free the memory stream if it was our own
+    FreeAndNil(FMs);
+
+    //Free all objects which were delivered by the parent class
+    FreeObjects;
+  finally
+    Lock.Leave;
   end;
-
-
-  //Free the memory stream if it was our own
-  FreeAndNil(FMs);
-
-  //Free all objects which were delivered by the parent class
-  FreeObjects;
 end;
 
 function TAuStaticSound.GetLength: integer;
 begin
-  result := inherited GetLength;
+  Lock.Enter;
+  try
+    result := inherited GetLength;
 
-  if FMs <> nil then
-    result := round((FMs.Size * 1000) /  AuBytesPerSecond(FFormat.Parameters));
+    if FMs <> nil then
+      result := round((FMs.Size * 1000) /  AuBytesPerSecond(FFormat.Parameters));
+  finally
+    Lock.Leave;
+  end;
 end;
 
 procedure TAuStaticSound_EnumDecoders(ASender: Pointer; AEntry: PAcRegisteredClassEntry);
@@ -349,11 +364,16 @@ end;
 
 function TAuStaticSound.Open: boolean;
 begin
-  result := false;
-  if (State = aupsLoaded) and (DecodeStream) then
-  begin
-    result := CreateSoundObj;
-    SetState(aupsOpened);
+  Lock.Enter;
+  try
+    result := false;
+    if (State = aupsLoaded) and (DecodeStream) then
+    begin
+      result := CreateSoundObj;
+      SetState(aupsOpened);
+    end;
+  finally
+    Lock.Leave;
   end;
 end;
 
@@ -373,15 +393,25 @@ end;
 
 procedure TAuStaticSound.Close;
 begin
-  SetState(aupsClosed);
-  FreeComponents;
+  Lock.Enter;
+  try
+    SetState(aupsClosed);
+    FreeComponents;
+  finally
+    Lock.Leave;
+  end;
 end;
 
 procedure TAuStaticSound.SetLoop(AValue: boolean);
 begin
-  FLoop := AValue;
-  if FSound <> nil then
-    FSound.Loop := FLoop;
+  Lock.Enter;
+  try
+    FLoop := AValue;
+    if FSound <> nil then
+      FSound.Loop := FLoop;
+  finally
+    Lock.Leave;
+  end;
 end;
 
 procedure TAuStaticSound.LoadItemFromStore(AStore: TAcStoreNode);
@@ -389,34 +419,39 @@ var
   fmt_node: TAcStoreNode;
   strm_node: TAcStreamNode;
 begin
-  Close;
+  Lock.Enter;
+  try
+    Close;
 
-  FName := AStore.StringValue('name');
+    FName := AStore.StringValue('name');
 
-  fmt_node := AStore.Nodes.ItemNamed['fmt'];
-  FillChar(FFormat, SizeOf(FFormat), 0);
-  if fmt_node <> nil then
-  begin
-    FFormat.Frequency := fmt_node.IntValue('freq', 44100);
-    FFormat.BitDepth := fmt_node.IntValue('bits', 16);
-    FFormat.Channels := fmt_node.IntValue('chan', 2);
-  end;
-
-  strm_node := TAcStreamNode(AStore.Nodes.ItemNamed['data']);
-  if (strm_node <> nil) and (strm_node is TAcStreamNode) then
-  begin
-    strm_node.Open(acsoRead);
-    try
-      FMs := TMemoryStream.Create;
-      FMs.CopyFrom(strm_node.Stream, 0);
-      FMs.Position := 0;
-    finally
-      strm_node.Close;
+    fmt_node := AStore.Nodes.ItemNamed['fmt'];
+    FillChar(FFormat, SizeOf(FFormat), 0);
+    if fmt_node <> nil then
+    begin
+      FFormat.Frequency := fmt_node.IntValue('freq', 44100);
+      FFormat.BitDepth := fmt_node.IntValue('bits', 16);
+      FFormat.Channels := fmt_node.IntValue('chan', 2);
     end;
-  end;
 
-  if CreateSoundObj then
-    SetState(aupsOpened);
+    strm_node := TAcStreamNode(AStore.Nodes.ItemNamed['data']);
+    if (strm_node <> nil) and (strm_node is TAcStreamNode) then
+    begin
+      strm_node.Open(acsoRead);
+      try
+        FMs := TMemoryStream.Create;
+        FMs.CopyFrom(strm_node.Stream, 0);
+        FMs.Position := 0;
+      finally
+        strm_node.Close;
+      end;
+    end;
+
+    if CreateSoundObj then
+      SetState(aupsOpened);
+  finally
+    Lock.Leave;
+  end;
 end;
 
 function TAuStaticSound.SaveItemToStore(AStore: TAcStoreNode): TAcStoreNode;
@@ -424,26 +459,31 @@ var
   node, fmt_node: TAcStoreNode;
   strm_node: TAcStreamNode;
 begin
-  node := AStore.Add('sound');
-  node.Add('name', FName);
+  Lock.Enter;
+  try
+    node := AStore.Add('sound');
+    node.Add('name', FName);
 
-  fmt_node := node.Add('fmt');
-  fmt_node.Add('freq', FFormat.Frequency);
-  fmt_node.Add('bits', FFormat.BitDepth);
-  fmt_node.Add('chan', FFormat.Channels);
+    fmt_node := node.Add('fmt');
+    fmt_node.Add('freq', FFormat.Frequency);
+    fmt_node.Add('bits', FFormat.BitDepth);
+    fmt_node.Add('chan', FFormat.Channels);
 
-  if FMs <> nil then
-  begin
-    strm_node := TAcStreamNode(node.Add('data', TAcStreamNode));
-    strm_node.Open(acsoWrite);
-    try
-      strm_node.Stream.CopyFrom(FMs, 0);
-    finally
-      strm_node.Close;
+    if FMs <> nil then
+    begin
+      strm_node := TAcStreamNode(node.Add('data', TAcStreamNode));
+      strm_node.Open(acsoWrite);
+      try
+        strm_node.Stream.CopyFrom(FMs, 0);
+      finally
+        strm_node.Close;
+      end;
     end;
-  end;
 
-  result := node;
+    result := node;
+  finally
+    Lock.Leave;
+  end;
 end;
 
 { TAu3DSoundList }

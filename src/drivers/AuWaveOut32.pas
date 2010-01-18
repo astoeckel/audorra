@@ -48,6 +48,8 @@ uses
 type
   TAuWaveOutDriver = class(TAuDriver)
     public
+      constructor Create;
+
       procedure EnumDevices(ACallback: TAuEnumDeviceProc);override;
 
       function CreateStreamDriver(ADeviceID: integer;
@@ -104,6 +106,13 @@ begin
 end;
 
 { TAuWaveOutDriver }
+
+constructor TAuWaveOutDriver.Create;
+begin
+  inherited;
+
+  FPriority := 10;
+end;
 
 procedure TAuWaveOutDriver.EnumDevices(ACallback: TAuEnumDeviceProc);
 var
