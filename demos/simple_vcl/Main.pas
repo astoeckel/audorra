@@ -9,8 +9,10 @@ uses
   wnd_OpenURL,
 
   AcPersistent, AcDLLExplorer, AcStrUtils,
-  AuHTTP, AuCDAudio, AuWASAPI, AuAcinerella, AuDirectSound, AuUtils, AuTypes, AuAudio, AuAnalyzers, AuComplex,
-  AuVisualisations;
+  AuUtils, AuTypes, AuAudio, AuComplex,
+  AuCDAudio, AuAcinerella,
+  {AuHTTP,} AuWASAPI, AuDirectSound,
+  AuAnalyzers, AuVisualisations;
 
 type
   TfrmPlayer = class(TForm)

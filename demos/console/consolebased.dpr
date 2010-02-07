@@ -58,8 +58,8 @@ uses
   AuWASAPI,
   AuDirectSound,
   AuAnalyzers,
-  AuWAV,
-  AuMPG123;
+  AuCDAudio,
+  AuAcinerella;
 
 var
   AuAudio: TAuAudio;

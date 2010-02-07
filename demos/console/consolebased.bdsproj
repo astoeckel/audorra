@@ -123,9 +123,9 @@
 			<Directories Name="UnitOutputDir">..\..\src\dcu\</Directories>
 			<Directories Name="PackageDLLOutputDir"></Directories>
 			<Directories Name="PackageDCPOutputDir"></Directories>
-			<Directories Name="SearchPath">..\..\src\;..\..\src\drivers\;..\..\src\decoders\;..\..\lib\</Directories>
+			<Directories Name="SearchPath">..\..\src\;..\..\src\drivers\;..\..\src\decoders\;..\..\src\protocols\;..\..\lib\;..\..\common\</Directories>
 			<Directories Name="Packages"></Directories>
-			<Directories Name="Conditionals"></Directories>
+			<Directories Name="Conditionals">DO_NOT_USE_VCL</Directories>
 			<Directories Name="DebugSourceDirs"></Directories>
 			<Directories Name="UsePackages">False</Directories>
 		</Directories>
