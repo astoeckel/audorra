@@ -5,11 +5,12 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, ComCtrls, ImgList, ToolWin, StdCtrls, ExtCtrls, Menus, Math, XPMan, FileCtrl,
+  Buttons,
   wnd_OpenURL,
 
   AcPersistent, AcDLLExplorer, AcStrUtils,
-  AuHTTP, AuVorbis, AuCDAudio, AuWASAPI, AuDirectSound, AuUtils, AuTypes, AuAudio, AuAnalyzers, AuComplex,
-  AuVisualisations, Tabs, Buttons;
+  AuHTTP, AuCDAudio, AuWASAPI, AuAcinerella, AuDirectSound, AuUtils, AuTypes, AuAudio, AuAnalyzers, AuComplex,
+  AuVisualisations;
 
 type
   TfrmPlayer = class(TForm)

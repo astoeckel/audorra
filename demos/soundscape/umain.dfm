@@ -59,78 +59,14 @@ object frmmain: Tfrmmain
     Color = clWindow
     ParentBackground = False
     TabOrder = 1
-    object TabControl1: TTabControl
-      Left = 5
-      Top = 5
-      Width = 263
-      Height = 263
-      Align = alTop
-      TabOrder = 0
-      Tabs.Strings = (
-        'Static Sounds')
-      TabIndex = 0
-      object lstStaticSounds: TListView
-        Left = 4
-        Top = 65
-        Width = 255
-        Height = 194
-        Align = alClient
-        Columns = <
-          item
-            Caption = 'Name'
-            Width = 150
-          end
-          item
-            Caption = 'Length'
-          end>
-        MultiSelect = True
-        RowSelect = True
-        SmallImages = ImageList1
-        TabOrder = 0
-        ViewStyle = vsReport
-      end
-      object ToolBar2: TToolBar
-        Left = 4
-        Top = 24
-        Width = 255
-        Height = 41
-        ButtonHeight = 36
-        ButtonWidth = 85
-        Caption = 'ToolBar2'
-        Images = ImageList1
-        ShowCaptions = True
-        TabOrder = 1
-        object btnAddStaticSound: TToolButton
-          Left = 0
-          Top = 0
-          Caption = 'Add'
-          ImageIndex = 4
-          OnClick = btnAddStaticSoundClick
-        end
-        object btnDeleteStaticSound: TToolButton
-          Left = 85
-          Top = 0
-          Caption = 'Delete'
-          ImageIndex = 3
-          OnClick = btnDeleteStaticSoundClick
-        end
-        object btnStaticSoundCreateInstance: TToolButton
-          Left = 170
-          Top = 0
-          Caption = 'Create Instance'
-          ImageIndex = 5
-          OnClick = btnStaticSoundCreateInstanceClick
-        end
-      end
-    end
     object GroupBox1: TGroupBox
       Left = 5
-      Top = 332
+      Top = 311
       Width = 263
       Height = 245
       Align = alTop
       Caption = 'Selected Element'
-      TabOrder = 1
+      TabOrder = 0
       Visible = False
       DesignSize = (
         263
@@ -292,12 +228,12 @@ object frmmain: Tfrmmain
     end
     object GroupBox2: TGroupBox
       Left = 5
-      Top = 268
+      Top = 247
       Width = 263
       Height = 64
       Align = alTop
       Caption = 'Global Playback Control'
-      TabOrder = 2
+      TabOrder = 1
       object btnPlayAll: TButton
         Left = 16
         Top = 24
@@ -324,6 +260,180 @@ object frmmain: Tfrmmain
         Caption = 'Pause All'
         TabOrder = 2
         OnClick = btnPauseAllClick
+      end
+    end
+    object PageControl1: TPageControl
+      Left = 5
+      Top = 5
+      Width = 263
+      Height = 242
+      ActivePage = TabSheet1
+      Align = alTop
+      TabOrder = 2
+      object TabSheet1: TTabSheet
+        Caption = 'Static Sounds'
+        object ToolBar2: TToolBar
+          Left = 0
+          Top = 0
+          Width = 255
+          Height = 41
+          ButtonHeight = 36
+          ButtonWidth = 85
+          Caption = 'ToolBar2'
+          Images = ImageList1
+          ShowCaptions = True
+          TabOrder = 0
+          object btnAddStaticSound: TToolButton
+            Left = 0
+            Top = 0
+            Caption = 'Add'
+            ImageIndex = 4
+            OnClick = btnAddStaticSoundClick
+          end
+          object btnDeleteStaticSound: TToolButton
+            Left = 85
+            Top = 0
+            Caption = 'Delete'
+            ImageIndex = 3
+            OnClick = btnDeleteStaticSoundClick
+          end
+          object btnStaticSoundCreateInstance: TToolButton
+            Left = 170
+            Top = 0
+            Caption = 'Create Instance'
+            ImageIndex = 5
+            OnClick = btnStaticSoundCreateInstanceClick
+          end
+        end
+        object lstStaticSounds: TListView
+          Left = 0
+          Top = 41
+          Width = 255
+          Height = 173
+          Align = alClient
+          Columns = <
+            item
+              Caption = 'Name'
+              Width = 150
+            end
+            item
+              Caption = 'Length'
+            end>
+          MultiSelect = True
+          RowSelect = True
+          SmallImages = ImageList1
+          TabOrder = 1
+          ViewStyle = vsReport
+          OnDblClick = lstStaticSoundsDblClick
+        end
+      end
+      object TabSheet2: TTabSheet
+        Caption = 'Streamed Sounds'
+        ImageIndex = 1
+        object Label6: TLabel
+          Left = 0
+          Top = 178
+          Width = 255
+          Height = 13
+          Align = alBottom
+          Caption = 'Streamed sound playback control:'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+          ExplicitWidth = 193
+        end
+        object ToolBar1: TToolBar
+          Left = 0
+          Top = 0
+          Width = 255
+          Height = 41
+          ButtonHeight = 36
+          ButtonWidth = 85
+          Caption = 'ToolBar2'
+          Images = ImageList1
+          ShowCaptions = True
+          TabOrder = 0
+          object btnAddStreamedSound: TToolButton
+            Left = 0
+            Top = 0
+            Caption = 'Add'
+            ImageIndex = 4
+            OnClick = btnAddStreamedSoundClick
+          end
+          object btnDeleteStreamedSound: TToolButton
+            Left = 85
+            Top = 0
+            Caption = 'Delete'
+            ImageIndex = 3
+            OnClick = btnDeleteStreamedSoundClick
+          end
+          object btnStreamedSoundCreateInstance: TToolButton
+            Left = 170
+            Top = 0
+            Caption = 'Create Instance'
+            ImageIndex = 5
+            OnClick = btnStreamedSoundCreateInstanceClick
+          end
+        end
+        object lstStreamedSounds: TListView
+          Left = 0
+          Top = 41
+          Width = 255
+          Height = 137
+          Align = alClient
+          Columns = <
+            item
+              Caption = 'Name'
+              Width = 150
+            end
+            item
+              Caption = 'Length'
+            end>
+          MultiSelect = True
+          RowSelect = True
+          SmallImages = ImageList1
+          TabOrder = 1
+          ViewStyle = vsReport
+          OnDblClick = lstStreamedSoundsDblClick
+          OnMouseDown = lstStreamedSoundsMouseDown
+        end
+        object ToolBar3: TToolBar
+          Left = 0
+          Top = 191
+          Width = 255
+          Height = 23
+          Align = alBottom
+          Caption = 'ToolBar3'
+          Images = ImageList1
+          TabOrder = 2
+          object btnStreamedSoundPlay: TToolButton
+            Left = 0
+            Top = 0
+            Caption = 'btnStreamedSoundPlay'
+            Enabled = False
+            ImageIndex = 0
+            OnClick = btnStreamedSoundPlayClick
+          end
+          object btnStreamedSoundPause: TToolButton
+            Left = 23
+            Top = 0
+            Caption = 'btnStreamedSoundPause'
+            Enabled = False
+            ImageIndex = 1
+            OnClick = btnStreamedSoundPauseClick
+          end
+          object btnStreamedSoundStop: TToolButton
+            Left = 46
+            Top = 0
+            Caption = 'btnStreamedSoundStop'
+            Enabled = False
+            ImageIndex = 2
+            OnClick = btnStreamedSoundStopClick
+          end
+        end
       end
     end
   end

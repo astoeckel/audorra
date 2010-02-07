@@ -87,17 +87,19 @@ type
 
   TSource = class(TObj)
     private
-      FEmitter: TAu3DStaticEmitter;
+      FEmitter: TAu3DCustomEmitter;
       FCaption: string;
+      FColor: TColor;
       procedure EmitterMove(AEmitter: TAu3DCustomEmitter; ATimeGap: Double);
     protected
       procedure DoDraw(ACanvas: TCanvas);override;
     public
-      constructor Create(AParent: TPlayground; AEmitter: TAu3DStaticEmitter);
+      constructor Create(AParent: TPlayground; AEmitter: TAu3DCustomEmitter);
       destructor Destroy;override;
 
       property Caption: string read FCaption write FCaption;
-      property Emitter: TAu3DStaticEmitter read FEmitter;
+      property Emitter: TAu3DCustomEmitter read FEmitter;
+      property Color: TColor read FColor write FColor;
   end;
   
 
@@ -340,12 +342,14 @@ end;
 
 procedure TListener.ListenerMove(AListener: TAu3DListener; ATimeGap: Double);
 begin
+  //Don't do this when writing a game - you should always interpolate between the
+  //object positions using the "ATimeGap" factor to evade weird stutters.
   AListener.Setup3DScene(AcVector3(FX, FY, 0), AcVector3(FX, FY, -1), AcVector3(0, 1, 0));
 end;
 
 { TSource }
 
-constructor TSource.Create(AParent: TPlayground; AEmitter: TAu3DStaticEmitter);
+constructor TSource.Create(AParent: TPlayground; AEmitter: TAu3DCustomEmitter);
 begin
   inherited Create(AParent);
 
@@ -354,6 +358,8 @@ begin
 
   FEmitter := AEmitter;
   FEmitter.OnMove := EmitterMove;
+
+  FColor := clWebDarkBlue;
 end;
 
 destructor TSource.Destroy;
@@ -368,7 +374,7 @@ begin
     Pen.Style := psSolid;
     Brush.Style := bsSolid;
     Pen.Color := clBlack;
-    Brush.Color := clWebDarkBlue;
+    Brush.Color := FColor;
     Ellipse(BoundsRect);
 
     Brush.Style := bsClear;
@@ -383,6 +389,8 @@ end;
 
 procedure TSource.EmitterMove(AEmitter: TAu3DCustomEmitter; ATimeGap: Double);
 begin
+  //Don't do this when writing a game - you should always interpolate between the
+  //object positions using the "ATimeGap" factor to evade weird stutters.
   AEmitter.Position := AcVector3(FX, FY, 0);
 end;
 

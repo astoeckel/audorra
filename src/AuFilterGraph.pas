@@ -44,8 +44,7 @@ uses
   SysUtils, Classes, SyncObjs,
   AcBuffer, AcSysUtils,
   AuTypes, AuDriverClasses, AuDecoderClasses, AuUtils,
-  AuSyncUtils,
-  AuAnalyzerClasses;
+  AuSyncUtils, AuAnalyzerClasses, AuEffects;
 
 type
   TAuOutputFilter = class;
@@ -220,6 +219,8 @@ type
       function ReadCallback(ABuf: PByte; ASize: Cardinal;
         var ASyncData: TAuSyncData):Cardinal;override;
     public
+      constructor Create(AParameters: TAuAudioParameters);
+      destructor Destroy;override;
       procedure Reset;
       property Master: Single read FMaster write FMaster;
       property Volume[AChannel: Cardinal]: Single read GetVolume write SetVolume;
@@ -757,8 +758,8 @@ end;
 function TAuVolumeFilter.ReadCallback(ABuf: PByte; ASize: Cardinal;
   var ASyncData: TAuSyncData): Cardinal;
 var
+  i: integer;
   mem: PSingle;
-  i: Integer;
 begin
   result := 0;
   if Assigned(Callback) then
@@ -810,6 +811,27 @@ begin
         FChannels[i] := 1;
     end;
   end;  
+end;
+
+const
+  alpha_kernel: array[0..2] of Single = (
+    1, 2, 1
+  );
+
+  beta_kernel: array[0..1] of Single = (
+    -0.9391454766, 1.9378718952
+  );
+
+  gain = 1/3.140749294e+03;
+
+constructor TAuVolumeFilter.Create(AParameters: TAuAudioParameters);
+begin
+  inherited;
+end;
+
+destructor TAuVolumeFilter.Destroy;
+begin
+  inherited;
 end;
 
 function TAuVolumeFilter.GetVolume(AChannel: Cardinal): Single;

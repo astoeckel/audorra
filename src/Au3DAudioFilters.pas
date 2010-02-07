@@ -170,9 +170,14 @@ end;
 
 destructor TAu3DSoundFilterAdapter.Destroy;
 begin
-  FSyncDataList.Free;
-  FreeSound;
-  inherited;
+  FRenderer.Lock;
+  try
+    FSyncDataList.Free;
+    FreeSound;
+    inherited;
+  finally
+    FRenderer.Unlock;
+  end;
 end;
 
 procedure TAu3DSoundFilterAdapter.FreeSound;

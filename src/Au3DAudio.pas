@@ -117,6 +117,21 @@ type
       property Sound: TAu3DStaticSound read FSound write FSound;
   end;
 
+  TAuStreamedSound = class(TAuPlayer)
+    private
+      FFilterAdapter: TAu3DSoundFilterAdapter;
+      FParent: TAu3DAudio;
+      FName: AnsiString;
+      function GetSound: TAu3DStreamedSound;
+    public
+      constructor Create(A3DAudio: TAu3DAudio);
+      destructor Destroy;override;
+
+      property Name: AnsiString read FName write FName;
+      property Adapter: TAu3DSoundFilterAdapter read FFilterAdapter;
+      property Sound: TAu3DStreamedSound read GetSound;
+  end;
+
   TAuSoundList = class(TList)
     private
       F3DAudio: TAu3DAudio;
@@ -648,5 +663,27 @@ begin
   end;
 end;
 
+
+{ TAuStreamedSound }
+
+constructor TAuStreamedSound.Create(A3DAudio: TAu3DAudio);
+begin
+  FParent := A3DAudio;
+  FFilterAdapter := TAu3DSoundFilterAdapter.Create(FParent.Renderer);
+  inherited Create(FParent.Audio, FFilterAdapter);
+end;
+
+destructor TAuStreamedSound.Destroy;
+begin
+  inherited;
+  FreeAndNil(FFilterAdapter);
+end;
+
+function TAuStreamedSound.GetSound: TAu3DStreamedSound;
+begin
+  result := nil;
+  if FFilterAdapter <> nil then
+    result := FFilterAdapter.Sound;
+end;
 
 end.

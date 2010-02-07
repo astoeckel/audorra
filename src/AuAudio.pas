@@ -265,7 +265,24 @@ type
        is called after all objects owned by the instance have been destroyed.}
       property OnDestroy: TAuNotifyEvent read FDestroyEvent write FDestroyEvent;
   end;
-  
+
+  {TAuPlayer is a simple solution for playing back audio using the filter graph
+   environment. TAuPlayer let's you Load, Open and Play audio files. Additionally
+   you're able to add analyzers (visualisations) and change the playback volume.
+   A limiter filter is included in TAuPlayer's filtergraph environment to prevent
+   the audio from clipping.
+
+   The "source" and "target" filtergraph blocks can be replaced by setting own
+   instances in the constructor. When integrating the TAuPlayer class into the
+   3D-Audio environment, use an instance of TAu3DSoundFilterAdapter from the unit
+   TAu3DAudioFilters and set this filter as a target.
+
+   Remember that changing the player's volume may take a certain time - this depends
+   on the latency of the audio driver. When using the 3D-Audio environment as
+   described above, the latency time may be very huge, so you should use the corresponding
+   properties of the 3D-Audio environment instead.
+
+   TAuPlayer uses all registered, additional modules.}
   TAuPlayer = class(TAuCustomAudioObject)
     private
       FTarget: TAuFilter;
@@ -298,29 +315,68 @@ type
     protected
       function GetLength: integer;override;
     public
+      {Creates a new instance of TAuPlayer.
+       @param(AAudio is a pointer on the parent TAuAudio instance)
+       @param(ATarget is an optional parameter, which can be used to replace
+         the output filter with the given filter instance.
+       @param(ASource is an optional parameter, which can be used to replace
+         the source decoder filter.}
       constructor Create(AAudio: TAuAudio; ATarget: TAuFilter = nil;
         ASource: TAuCustomDecoderFilter = nil);
+      {Destroys the TAuPlayer instance.}
       destructor Destroy;override;
 
+      {Adds a certain analyzer instance to the analyzer filter.}
       procedure AddAnalzyer(AAnalyzer: TAuAnalyzer);
+      {Removes a previously registered analyter from the analyzer filter.}
       procedure RemoveAnalyzer(AAnalyzer: TAuAnalyzer);
 
+      {Opens the previously loaded file. If the file couldn't be opend, e.g. because
+       the format is unknown, "Open" returns false.}
       function Open: boolean;override;
+      {Closes the previously opened file.}
       procedure Close;override;
+
+      {Starts playback.}
       procedure Play;
+      {Pauses playback.}
       procedure Pause;
+      {Pauses playback and seeks back to the beginning of the file.}
       procedure Stop;
 
+      {The buffer size in bytes. //!TODO: What the heck is this?? And why is it writable}
       property BufSize: integer read FBufSize write FBufSize;
+
+      {Set this to a value greater or equal to zero to change the master volume.
+       A value of zero will mute the audio output (-INF dB), a value of one will
+       output the audio with it's original volume (0 dB). Remember that amplifing
+       the audio with values greater than one might distort the audio output.
+
+       Use the "VolumeFilter" property to set the volume for each audio channel
+       independently.
+
+       @seealso(VolumeFilter)}
       property MasterVolume: Single read FMasterVolume write SetMasterVolume;
+      {Indicates the current playback position of the TAuPlayer component in milliseconds.
+       Set this property to seek to a certain position.}
       property Position: integer read GetPosition write SetPosition;
+      {Returns whether the current instance of TAuPlayer, with the current media stream
+       opened, is seekable.}
       property Seekable: boolean read GetSeekable;
 
+      {Pointer to the stream driver class. May be @nil if ATarget is set manually.}
       property Driver: TAuStreamDriver read FDriver;
 
+      {Pointer to the internally used volume filter. May be @nil if no media file
+       is opened.}
       property VolumeFilter: TAuVolumeFilter read FVolume;
 
+      {Callback function, which indicates that the current media stream has finished.
+       The callback is called within the context of the main thread/the audorra
+       internal notify thread.}
       property OnSongFinishes: TAuNotifyEvent read FSongFinishesEvent write FSongFinishesEvent;
+
+      {The current output device id.}
       property DeviceID: integer read GetDeviceID write SetDeviceID;
   end;
 
