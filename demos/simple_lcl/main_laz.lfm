@@ -4,22 +4,21 @@ object frmMain: TfrmMain
   Top = 162
   Width = 520
   Caption = 'Audorra Simple Player Demo'
-  ClientHeight = 271
+  ClientHeight = 278
   ClientWidth = 520
   Menu = MainMenu1
   OnActivate = FormActivate
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  LCLVersion = '0.9.26.2'
+  LCLVersion = '0.9.28.2'
   object lstPlaylist: TListView
     Left = 0
-    Height = 182
+    Height = 189
     Top = 66
     Width = 520
     Align = alClient
     Columns = <    
       item
-        AutoSize = False
         Caption = 'Filename'
         MinWidth = 500
         Width = 500
@@ -28,8 +27,6 @@ object frmMain: TfrmMain
     MultiSelect = True
     RowSelect = True
     SmallImages = imgl_state
-    SortColumn = 0
-    SortType = stNone
     TabOrder = 0
     ViewStyle = vsReport
     OnDblClick = lstPlaylistDblClick
@@ -38,7 +35,7 @@ object frmMain: TfrmMain
   object StatusBar1: TStatusBar
     Left = 0
     Height = 23
-    Top = 248
+    Top = 255
     Width = 520
     Panels = <>
   end
@@ -62,7 +59,6 @@ object frmMain: TfrmMain
       ButtonHeight = 30
       ButtonWidth = 32
       Caption = 'ToolBar1'
-      Ctl3D = False
       EdgeBorders = []
       Images = imgl_24
       TabOrder = 0
@@ -199,13 +195,11 @@ object frmMain: TfrmMain
       Position = 0
       TickStyle = tsNone
       Align = alClient
-      Ctl3D = False
       TabOrder = 1
     end
   end
   object imgl_24: TImageList
     Height = 24
-    Masked = False
     Width = 24
     left = 8
     top = 160
@@ -1012,7 +1006,6 @@ object frmMain: TfrmMain
     object act_open: TAction
       Category = 'File'
       Caption = 'Open media file...'
-      DisableIfNoHandler = True
       Hint = 'Opens a media file on the harddisk'
       ImageIndex = 1
       OnExecute = act_openExecute
@@ -1020,20 +1013,17 @@ object frmMain: TfrmMain
     object act_open_url: TAction
       Category = 'File'
       Caption = 'Open URL...'
-      DisableIfNoHandler = True
       Hint = 'Loads a media file from the given url'
     end
     object act_quit: TAction
       Category = 'File'
       Caption = 'Quit'
-      DisableIfNoHandler = True
       Hint = 'Quits this program'
       OnExecute = act_quitExecute
     end
     object act_ply_addfiles: TAction
       Category = 'Playlist'
       Caption = 'Add files to playlist'
-      DisableIfNoHandler = True
       Hint = 'Adds new files to the playlist'
       ImageIndex = 0
       OnExecute = act_ply_addfilesExecute
@@ -1041,7 +1031,6 @@ object frmMain: TfrmMain
     object act_ply_removefiles: TAction
       Category = 'Playlist'
       Caption = 'Remove files from playlist'
-      DisableIfNoHandler = True
       Hint = 'Removes the selected files from the playlist'
       ImageIndex = 6
       OnExecute = act_ply_removefilesExecute
@@ -1049,7 +1038,6 @@ object frmMain: TfrmMain
     object act_play: TAction
       Category = 'Playback'
       Caption = 'Play'
-      DisableIfNoHandler = True
       Hint = 'Resumes playback'
       ImageIndex = 4
       OnExecute = act_playExecute
@@ -1057,7 +1045,6 @@ object frmMain: TfrmMain
     object act_pause: TAction
       Category = 'Playback'
       Caption = 'Pause'
-      DisableIfNoHandler = True
       Hint = 'Pauses playback'
       ImageIndex = 3
       OnExecute = act_pauseExecute
@@ -1065,7 +1052,6 @@ object frmMain: TfrmMain
     object act_stop: TAction
       Category = 'Playback'
       Caption = 'Stop'
-      DisableIfNoHandler = True
       Hint = 'Stops playback'
       ImageIndex = 10
       OnExecute = act_stopExecute
@@ -1073,7 +1059,6 @@ object frmMain: TfrmMain
     object act_next: TAction
       Category = 'Playback'
       Caption = 'Next'
-      DisableIfNoHandler = True
       Hint = 'Switches to the next song in the playlist'
       ImageIndex = 2
       OnExecute = act_nextExecute
@@ -1081,7 +1066,6 @@ object frmMain: TfrmMain
     object act_prev: TAction
       Category = 'Playback'
       Caption = 'Previous'
-      DisableIfNoHandler = True
       Hint = 'Goes back to the previous song in the playlist'
       ImageIndex = 7
       OnExecute = act_prevExecute
@@ -1089,7 +1073,6 @@ object frmMain: TfrmMain
     object act_mute: TAction
       Category = 'Playback'
       Caption = 'Switch mute'
-      DisableIfNoHandler = True
       GroupIndex = 1
       Hint = 'Mutes/Unmutes the playback'
       ImageIndex = 8
@@ -1405,7 +1388,6 @@ object frmMain: TfrmMain
     end
   end
   object imgl_16: TImageList
-    Masked = False
     left = 40
     top = 120
     Bitmap = {
@@ -1770,7 +1752,6 @@ object frmMain: TfrmMain
     top = 160
   end
   object imgl_state: TImageList
-    Masked = False
     left = 8
     top = 84
     Bitmap = {

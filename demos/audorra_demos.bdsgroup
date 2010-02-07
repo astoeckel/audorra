@@ -1,16 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <BorlandProject>
-  <PersonalityInfo>
-    <Option>
-      <Option Name="Personality">Default.Personality</Option>
-      <Option Name="ProjectType"></Option>
-      <Option Name="Version">1.0</Option>
-      <Option Name="GUID">{9EB50C38-0066-477B-9218-B21E5CED3D29}</Option>
-    </Option>
-  </PersonalityInfo>
-  <Default.Personality>
-    
-    <Projects>
+	<PersonalityInfo>
+		<Option>
+			<Option Name="Personality">Default.Personality</Option>
+			<Option Name="ProjectType"></Option>
+			<Option Name="Version">1.0</Option>
+			<Option Name="GUID">{9EB50C38-0066-477B-9218-B21E5CED3D29}</Option>
+		</Option>
+	</PersonalityInfo>
+	<Default.Personality>  <Projects>
       <Projects Name="consolebased.exe">console\consolebased.bdsproj</Projects>
       <Projects Name="simple.exe">simple_vcl\Simple.bdsproj</Projects>
       <Projects Name="soundlist.exe">soundlist\soundlist.bdsproj</Projects>

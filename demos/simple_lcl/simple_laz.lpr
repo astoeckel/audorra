@@ -18,7 +18,6 @@ uses
 {$IFDEF WINDOWS}{$R simple_laz.rc}{$ENDIF}
 
 begin
-  {$I simple_laz.lrs}
   Application.Initialize;
   Application.CreateForm(TfrmMain, frmMain);
   Application.Run;

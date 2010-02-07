@@ -11,7 +11,7 @@ uses
 
   AuAudio, AuTypes, AuUtils, AuAcinerella, AuAnalyzers,
   {$IFDEF WIN32}
-  AuWaveOut32Driver;
+  AuWaveOut32;
   {$ELSE}
   AuOpenAL;
   {$ENDIF}
@@ -209,6 +209,7 @@ begin
     AuPlayer.OnSongFinishes := @PlayerStop;
 
     AuPeaks := TAuPeakMeter.Create;
+    AuPeaks.Active := true;
     AuPlayer.AddAnalzyer(AuPeaks);
   end;
 
