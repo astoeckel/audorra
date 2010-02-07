@@ -41,6 +41,9 @@ interface
 
 uses
   AcSysUtils;
+  
+const
+  default_libname = 'libao.so.2';  
 
 const
   AO_TYPE_LIVE = 1;
@@ -138,9 +141,6 @@ var
   ao_driver_info_list: function(driver_count: PInteger): PPao_info;cdecl;
   ao_file_extension: function(driver_id: Integer): PAnsiChar;cdecl;
   ao_is_big_endian: function(): integer;cdecl;
-
-const
-  default_libname = 'libao.so.2';
 
 function init_libao(libname: string = ''): boolean;
 procedure finalize_libao();
