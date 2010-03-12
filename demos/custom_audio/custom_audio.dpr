@@ -90,6 +90,8 @@ begin
     Writeln(FAudio.GetLastError);
 end;
 
+{$R ..\icon.rc}
+
 var
   app: TAuApp;
 begin
