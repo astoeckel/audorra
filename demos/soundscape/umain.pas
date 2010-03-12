@@ -10,7 +10,7 @@ uses
 
   AcTypes, AcSysUtils, 
 
-  AuWASAPI, AuDirectSound, AuAcinerella,
+  AuWASAPI, AuDirectSound, AuWAV, AuAcinerella,
   AuUtils, AuAudio, Au3DAudio, Au3DAudioRenderer;
 
 type

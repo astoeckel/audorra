@@ -41,6 +41,8 @@ unit Au3DRingBuffer;
 
 interface
 
+{$I andorra.inc}
+
 uses
   SysUtils, Classes,
   AuTypes, AuUtils, AuAudioSpline;
@@ -84,7 +86,7 @@ type
       constructor Create(ASampleCount: integer; AChannels: integer);
       destructor Destroy;override;
 
-      function GetSample(ATime: TAuSamplestamp; AChannel: Integer): Single; inline;
+      function GetSample(ATime: TAuSamplestamp; AChannel: Integer): Single;{$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
 
       procedure WriteSamples(ACount: Cardinal; ABuf: PSingle);
 

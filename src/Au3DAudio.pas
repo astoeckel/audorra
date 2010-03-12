@@ -43,7 +43,7 @@ uses
   SysUtils, Classes,
   AcDataStore, AcPersistent, AcRegUtils,
   AuTypes, AuUtils, AuDriverClasses, AuDecoderClasses,
-  AuAudio, AuFilterGraph, AuSyncUtils,
+  AuAudio, AuFilterGraph, AuSyncUtils, AuProtocolClasses,
   Au3DAudioRenderer, Au3DAudioFilters;
 
 type
@@ -231,9 +231,12 @@ end;
 
 procedure TAu3DAudio.Finalize;
 begin
+  if FOutputAdapter <> nil then
+    FOutputAdapter.Target := nil;
+    
   FreeAndNil(FDriverFilter);
-  FreeAndNil(FDriver);
   FreeAndNil(FOutputAdapter);
+  FreeAndNil(FDriver);
   FreeAndNil(FRenderer);
 end;
 
@@ -338,6 +341,10 @@ begin
   begin
     if not FFinished then
     begin
+      //Bugfix by littleDave
+      if Protocol.Seekable then
+         Protocol.Seek(aupsFromBeginning, 0 );
+
       decoder := TAuCreateDecoderProc(AEntry.ClassConstructor)(Protocol);
       try
         if decoder.OpenDecoder then

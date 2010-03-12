@@ -162,7 +162,7 @@ begin
 end;
 
 
-procedure AuWriteSample(var AMem: PByte; AVal: Single; ABitDepth: Cardinal);inline;
+procedure AuWriteSample(var AMem: PByte; AVal: Single; ABitDepth: Cardinal);{$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
 begin
   case ABitDepth of
     8:

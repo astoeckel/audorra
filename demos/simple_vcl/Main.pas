@@ -10,7 +10,7 @@ uses
 
   AcPersistent, AcDLLExplorer, AcStrUtils,
   AuUtils, AuTypes, AuAudio, AuComplex,
-  AuCDAudio, 
+  AuCDAudio, AuAcinerella,
   {AuHTTP,} AuWASAPI, AuDirectSound,
   AuAnalyzers, AuVisualisations;
 

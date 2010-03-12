@@ -40,6 +40,8 @@ unit AuAudioSpline;
 
 interface
 
+{$I andorra.inc}
+
 type
   {This record contains the cubic spline factors and can be used to interpolate
    between two values v1 and v2. The spline function is f(t) = a*t^3 + b*t^2 +
@@ -78,7 +80,7 @@ type
  factors are written in the "data" record. "t" should be a value between 0 and 1.
  A "data" record can be created using the AuSplineFeed function. 
  @seealso(AuSplineFeed)}
-function AuSplineCalcValue(const t: Single; const data: PAuSplineData): Single; inline;
+function AuSplineCalcValue(const t: Single; const data: PAuSplineData): Single;{$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
 
 {Creates a new TAuSplineProcessor. v1 and v2 are the first two values of the spline.
  Every spline processor should be destroyed using the AuSplineStop function.
@@ -98,7 +100,7 @@ procedure AuSplineStop(const processor: PAuSplineProcessor);
  @seealso(TAuSplineData)
  @seealso(TAuSplineProcessor)}
 procedure AuSplineFeed(const processor: PAuSplineProcessor;
-  const v: Single; const data: PAuSplineData); inline;
+  const v: Single; const data: PAuSplineData);{$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
 
 implementation
 

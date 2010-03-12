@@ -41,6 +41,8 @@ unit Au3DAudioRenderer;
 
 interface
 
+{$I andorra.inc}
+
 uses
   SysUtils, Classes, Math,
   AcMath, AcTypes, AcSyncObjs,
@@ -421,12 +423,12 @@ implementation
 
 //Helper functions
 
-function LinInt(av1, av2, ap: Single): Single;inline;
+function LinInt(av1, av2, ap: Single): Single;{$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
 begin
   result := av1 * (1 - ap) + av2 * ap;
 end;
 
-function LinIntExt(av1, av2: Extended; ap: Single): Extended;inline;
+function LinIntExt(av1, av2: Extended; ap: Single): Extended;{$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
 begin
   result := av1 * (1 - ap) + av2 * ap;
 end;

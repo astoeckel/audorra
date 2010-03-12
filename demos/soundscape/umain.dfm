@@ -330,10 +330,14 @@ object frmmain: Tfrmmain
       object TabSheet2: TTabSheet
         Caption = 'Streamed Sounds'
         ImageIndex = 1
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         object Label6: TLabel
           Left = 0
           Top = 178
-          Width = 255
+          Width = 193
           Height = 13
           Align = alBottom
           Caption = 'Streamed sound playback control:'
@@ -343,7 +347,6 @@ object frmmain: Tfrmmain
           Font.Name = 'Tahoma'
           Font.Style = [fsBold]
           ParentFont = False
-          ExplicitWidth = 193
         end
         object ToolBar1: TToolBar
           Left = 0

@@ -56,6 +56,8 @@ type
       constructor Create(AParameters: TAuAudioParameters);
       destructor Destroy;override;
 
+      procedure BeforeDestruction;override;
+
       function GetOutputFilter: TAuOutputFilter;virtual;
 
       function AddSource(ACallback: TAuReadCallback): boolean;virtual;abstract;
@@ -303,6 +305,13 @@ type
 implementation
 
 { TAuFilter }
+
+procedure TAuFilter.BeforeDestruction;
+begin
+  inherited;
+
+  AuQueueRemove(self);
+end;
 
 constructor TAuFilter.Create(AParameters: TAuAudioParameters);
 begin
