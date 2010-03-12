@@ -13,7 +13,8 @@
       <Projects Name="simple.exe">simple_vcl\Simple.bdsproj</Projects>
       <Projects Name="soundlist.exe">soundlist\soundlist.bdsproj</Projects>
       <Projects Name="soundscape.exe">soundscape\soundscape.bdsproj</Projects>
-      <Projects Name="Targets">consolebased.exe simple.exe soundlist.exe soundscape.exe</Projects>
+      <Projects Name="custom_audio.exe">custom_audio\custom_audio.bdsproj</Projects>
+      <Projects Name="Targets">consolebased.exe simple.exe soundlist.exe soundscape.exe custom_audio.exe</Projects>
     </Projects>
     <Dependencies/>
   </Default.Personality>
