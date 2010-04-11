@@ -31,7 +31,7 @@ File: AuLibao.pas
 Author: Andreas Stöckel
 }
 
-{Contains the OpenAL driver for Audorra.}
+{Contains the LibAO driver for Audorra.}
 unit AuLibao;
 
 {$IFDEF FPC}
@@ -304,8 +304,7 @@ begin
   FCritSect := ACritSect;
   FDevice := ADevice;
   FPaused := true;
-end;
-
+end;      
 
 procedure TAuLibaoStreamingThread.Execute;
 var

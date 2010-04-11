@@ -17,9 +17,9 @@ object frmmain: Tfrmmain
   PixelsPerInch = 96
   TextHeight = 13
   object PaintBox1: TPaintBox
-    Left = 276
+    Left = 292
     Top = 0
-    Width = 434
+    Width = 418
     Height = 614
     Align = alClient
     OnMouseDown = PaintBox1MouseDown
@@ -32,7 +32,7 @@ object frmmain: Tfrmmain
     ExplicitHeight = 585
   end
   object Splitter1: TSplitter
-    Left = 273
+    Left = 289
     Top = 0
     Height = 614
     Color = clGray
@@ -48,299 +48,244 @@ object frmmain: Tfrmmain
     Height = 19
     Panels = <>
   end
-  object Panel1: TPanel
+  object PageControl2: TPageControl
     Left = 0
     Top = 0
-    Width = 273
+    Width = 289
     Height = 614
+    ActivePage = TabSheet4
     Align = alLeft
-    BevelOuter = bvNone
-    BorderWidth = 5
-    Color = clWindow
-    ParentBackground = False
     TabOrder = 1
-    object GroupBox1: TGroupBox
-      Left = 5
-      Top = 311
-      Width = 263
-      Height = 245
-      Align = alTop
-      Caption = 'Selected Element'
-      TabOrder = 0
-      Visible = False
-      DesignSize = (
-        263
-        245)
-      object Label1: TLabel
-        Left = 16
-        Top = 24
-        Width = 35
-        Height = 13
-        Caption = 'Name:'
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -11
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        ParentFont = False
-      end
-      object Label2: TLabel
-        Left = 16
-        Top = 43
-        Width = 32
-        Height = 13
-        Caption = 'Class:'
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -11
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        ParentFont = False
-      end
-      object Label3: TLabel
-        Left = 16
-        Top = 62
-        Width = 28
-        Height = 13
-        Caption = 'Gain:'
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -11
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        ParentFont = False
-      end
-      object lblName: TLabel
-        Left = 63
-        Top = 24
-        Width = 37
-        Height = 13
-        Caption = 'lblName'
-      end
-      object lblClass: TLabel
-        Left = 63
-        Top = 43
-        Width = 35
-        Height = 13
-        Caption = 'lblClass'
-      end
-      object lblGain: TLabel
-        Left = 63
-        Top = 62
-        Width = 31
-        Height = 13
-        Caption = 'lblGain'
-      end
-      object Label4: TLabel
-        Left = 18
-        Top = 199
-        Width = 80
-        Height = 13
-        Caption = 'Current State:'
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -11
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        ParentFont = False
-      end
-      object lblState: TLabel
-        Left = 62
-        Top = 218
-        Width = 36
-        Height = 13
-        Caption = 'lblState'
-      end
-      object Label5: TLabel
-        Left = 16
-        Top = 110
-        Width = 31
-        Height = 13
-        Caption = 'Pitch:'
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -11
-        Font.Name = 'Tahoma'
-        Font.Style = [fsBold]
-        ParentFont = False
-      end
-      object lblPitch: TLabel
-        Left = 63
-        Top = 110
-        Width = 33
-        Height = 13
-        Caption = 'lblPitch'
-      end
-      object trbGain: TTrackBar
-        Left = 63
-        Top = 81
-        Width = 190
-        Height = 32
-        Anchors = [akLeft, akTop, akRight]
-        Max = 100
-        Min = -300
+    object TabSheet3: TTabSheet
+      Caption = 'Playback and Sounds'
+      object PageControl1: TPageControl
+        Left = 0
+        Top = 0
+        Width = 281
+        Height = 242
+        ActivePage = TabSheet1
+        Align = alTop
         TabOrder = 0
-        TickMarks = tmBoth
-        TickStyle = tsNone
-        OnChange = trbGainChange
-      end
-      object btnPlay: TButton
-        Left = 16
-        Top = 168
-        Width = 75
-        Height = 25
-        Caption = 'Play'
-        TabOrder = 1
-        OnClick = btnPlayClick
-      end
-      object btnPause: TButton
-        Left = 97
-        Top = 168
-        Width = 75
-        Height = 25
-        Caption = 'Pause'
-        TabOrder = 2
-        OnClick = btnPauseClick
-      end
-      object btnStop: TButton
-        Left = 178
-        Top = 168
-        Width = 75
-        Height = 25
-        Caption = 'Stop'
-        TabOrder = 3
-        OnClick = btnStopClick
-      end
-      object trbPitch: TTrackBar
-        Left = 63
-        Top = 129
-        Width = 190
-        Height = 32
-        Anchors = [akLeft, akTop, akRight]
-        Max = 250
-        Min = 1
-        Position = 100
-        TabOrder = 4
-        TickMarks = tmBoth
-        TickStyle = tsNone
-        OnChange = trbPitchChange
-      end
-    end
-    object GroupBox2: TGroupBox
-      Left = 5
-      Top = 247
-      Width = 263
-      Height = 64
-      Align = alTop
-      Caption = 'Global Playback Control'
-      TabOrder = 1
-      object btnPlayAll: TButton
-        Left = 16
-        Top = 24
-        Width = 75
-        Height = 25
-        Caption = 'Play All'
-        TabOrder = 0
-        OnClick = btnPlayAllClick
-      end
-      object btnStopAll: TButton
-        Left = 178
-        Top = 24
-        Width = 75
-        Height = 25
-        Caption = 'Stop All'
-        TabOrder = 1
-        OnClick = btnStopAllClick
-      end
-      object btnPauseAll: TButton
-        Left = 97
-        Top = 24
-        Width = 75
-        Height = 25
-        Caption = 'Pause All'
-        TabOrder = 2
-        OnClick = btnPauseAllClick
-      end
-    end
-    object PageControl1: TPageControl
-      Left = 5
-      Top = 5
-      Width = 263
-      Height = 242
-      ActivePage = TabSheet1
-      Align = alTop
-      TabOrder = 2
-      object TabSheet1: TTabSheet
-        Caption = 'Static Sounds'
-        object ToolBar2: TToolBar
-          Left = 0
-          Top = 0
-          Width = 255
-          Height = 41
-          ButtonHeight = 36
-          ButtonWidth = 85
-          Caption = 'ToolBar2'
-          Images = ImageList1
-          ShowCaptions = True
-          TabOrder = 0
-          object btnAddStaticSound: TToolButton
+        object TabSheet1: TTabSheet
+          Caption = 'Static Sounds'
+          object ToolBar2: TToolBar
             Left = 0
             Top = 0
-            Caption = 'Add'
-            ImageIndex = 4
-            OnClick = btnAddStaticSoundClick
+            Width = 273
+            Height = 41
+            ButtonHeight = 36
+            ButtonWidth = 85
+            Caption = 'ToolBar2'
+            Images = ImageList1
+            ShowCaptions = True
+            TabOrder = 0
+            object btnAddStaticSound: TToolButton
+              Left = 0
+              Top = 0
+              Caption = 'Add'
+              ImageIndex = 4
+              OnClick = btnAddStaticSoundClick
+            end
+            object btnDeleteStaticSound: TToolButton
+              Left = 85
+              Top = 0
+              Caption = 'Delete'
+              ImageIndex = 3
+              OnClick = btnDeleteStaticSoundClick
+            end
+            object btnStaticSoundCreateInstance: TToolButton
+              Left = 170
+              Top = 0
+              Caption = 'Create Instance'
+              ImageIndex = 5
+              OnClick = btnStaticSoundCreateInstanceClick
+            end
           end
-          object btnDeleteStaticSound: TToolButton
-            Left = 85
-            Top = 0
-            Caption = 'Delete'
-            ImageIndex = 3
-            OnClick = btnDeleteStaticSoundClick
-          end
-          object btnStaticSoundCreateInstance: TToolButton
-            Left = 170
-            Top = 0
-            Caption = 'Create Instance'
-            ImageIndex = 5
-            OnClick = btnStaticSoundCreateInstanceClick
+          object lstStaticSounds: TListView
+            Left = 0
+            Top = 41
+            Width = 273
+            Height = 173
+            Align = alClient
+            Columns = <
+              item
+                Caption = 'Name'
+                Width = 150
+              end
+              item
+                Caption = 'Length'
+              end>
+            MultiSelect = True
+            RowSelect = True
+            SmallImages = ImageList1
+            TabOrder = 1
+            ViewStyle = vsReport
+            OnDblClick = lstStaticSoundsDblClick
           end
         end
-        object lstStaticSounds: TListView
-          Left = 0
-          Top = 41
-          Width = 255
-          Height = 173
-          Align = alClient
-          Columns = <
-            item
-              Caption = 'Name'
-              Width = 150
+        object TabSheet2: TTabSheet
+          Caption = 'Streamed Sounds'
+          ImageIndex = 1
+          object Label6: TLabel
+            Left = 0
+            Top = 178
+            Width = 273
+            Height = 13
+            Align = alBottom
+            Caption = 'Streamed sound playback control:'
+            Font.Charset = DEFAULT_CHARSET
+            Font.Color = clWindowText
+            Font.Height = -11
+            Font.Name = 'Tahoma'
+            Font.Style = [fsBold]
+            ParentFont = False
+            ExplicitWidth = 193
+          end
+          object ToolBar1: TToolBar
+            Left = 0
+            Top = 0
+            Width = 273
+            Height = 41
+            ButtonHeight = 36
+            ButtonWidth = 85
+            Caption = 'ToolBar2'
+            Images = ImageList1
+            ShowCaptions = True
+            TabOrder = 0
+            object btnAddStreamedSound: TToolButton
+              Left = 0
+              Top = 0
+              Caption = 'Add'
+              ImageIndex = 4
+              OnClick = btnAddStreamedSoundClick
             end
-            item
-              Caption = 'Length'
-            end>
-          MultiSelect = True
-          RowSelect = True
-          SmallImages = ImageList1
-          TabOrder = 1
-          ViewStyle = vsReport
-          OnDblClick = lstStaticSoundsDblClick
+            object btnDeleteStreamedSound: TToolButton
+              Left = 85
+              Top = 0
+              Caption = 'Delete'
+              ImageIndex = 3
+              OnClick = btnDeleteStreamedSoundClick
+            end
+            object btnStreamedSoundCreateInstance: TToolButton
+              Left = 170
+              Top = 0
+              Caption = 'Create Instance'
+              ImageIndex = 5
+              OnClick = btnStreamedSoundCreateInstanceClick
+            end
+          end
+          object lstStreamedSounds: TListView
+            Left = 0
+            Top = 41
+            Width = 273
+            Height = 137
+            Align = alClient
+            Columns = <
+              item
+                Caption = 'Name'
+                Width = 150
+              end
+              item
+                Caption = 'Length'
+              end>
+            MultiSelect = True
+            RowSelect = True
+            SmallImages = ImageList1
+            TabOrder = 1
+            ViewStyle = vsReport
+            OnDblClick = lstStreamedSoundsDblClick
+            OnMouseDown = lstStreamedSoundsMouseDown
+          end
+          object ToolBar3: TToolBar
+            Left = 0
+            Top = 191
+            Width = 273
+            Height = 23
+            Align = alBottom
+            Caption = 'ToolBar3'
+            Images = ImageList1
+            TabOrder = 2
+            object btnStreamedSoundPlay: TToolButton
+              Left = 0
+              Top = 0
+              Caption = 'btnStreamedSoundPlay'
+              Enabled = False
+              ImageIndex = 0
+              OnClick = btnStreamedSoundPlayClick
+            end
+            object btnStreamedSoundPause: TToolButton
+              Left = 23
+              Top = 0
+              Caption = 'btnStreamedSoundPause'
+              Enabled = False
+              ImageIndex = 1
+              OnClick = btnStreamedSoundPauseClick
+            end
+            object btnStreamedSoundStop: TToolButton
+              Left = 46
+              Top = 0
+              Caption = 'btnStreamedSoundStop'
+              Enabled = False
+              ImageIndex = 2
+              OnClick = btnStreamedSoundStopClick
+            end
+          end
         end
       end
-      object TabSheet2: TTabSheet
-        Caption = 'Streamed Sounds'
-        ImageIndex = 1
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
-        object Label6: TLabel
-          Left = 0
-          Top = 178
-          Width = 193
+      object GroupBox2: TGroupBox
+        Left = 0
+        Top = 242
+        Width = 281
+        Height = 64
+        Align = alTop
+        Caption = 'Global Playback Control'
+        TabOrder = 1
+        object btnPlayAll: TButton
+          Left = 16
+          Top = 24
+          Width = 75
+          Height = 25
+          Caption = 'Play All'
+          TabOrder = 0
+          OnClick = btnPlayAllClick
+        end
+        object btnStopAll: TButton
+          Left = 178
+          Top = 24
+          Width = 75
+          Height = 25
+          Caption = 'Stop All'
+          TabOrder = 1
+          OnClick = btnStopAllClick
+        end
+        object btnPauseAll: TButton
+          Left = 97
+          Top = 24
+          Width = 75
+          Height = 25
+          Caption = 'Pause All'
+          TabOrder = 2
+          OnClick = btnPauseAllClick
+        end
+      end
+      object GroupBox1: TGroupBox
+        Left = 0
+        Top = 306
+        Width = 281
+        Height = 245
+        Align = alTop
+        Caption = 'Selected Element'
+        TabOrder = 2
+        Visible = False
+        DesignSize = (
+          281
+          245)
+        object Label1: TLabel
+          Left = 16
+          Top = 24
+          Width = 35
           Height = 13
-          Align = alBottom
-          Caption = 'Streamed sound playback control:'
+          Caption = 'Name:'
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
           Font.Height = -11
@@ -348,106 +293,211 @@ object frmmain: Tfrmmain
           Font.Style = [fsBold]
           ParentFont = False
         end
-        object ToolBar1: TToolBar
-          Left = 0
-          Top = 0
-          Width = 255
-          Height = 41
-          ButtonHeight = 36
-          ButtonWidth = 85
-          Caption = 'ToolBar2'
-          Images = ImageList1
-          ShowCaptions = True
-          TabOrder = 0
-          object btnAddStreamedSound: TToolButton
-            Left = 0
-            Top = 0
-            Caption = 'Add'
-            ImageIndex = 4
-            OnClick = btnAddStreamedSoundClick
-          end
-          object btnDeleteStreamedSound: TToolButton
-            Left = 85
-            Top = 0
-            Caption = 'Delete'
-            ImageIndex = 3
-            OnClick = btnDeleteStreamedSoundClick
-          end
-          object btnStreamedSoundCreateInstance: TToolButton
-            Left = 170
-            Top = 0
-            Caption = 'Create Instance'
-            ImageIndex = 5
-            OnClick = btnStreamedSoundCreateInstanceClick
-          end
+        object Label2: TLabel
+          Left = 16
+          Top = 43
+          Width = 32
+          Height = 13
+          Caption = 'Class:'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
         end
-        object lstStreamedSounds: TListView
-          Left = 0
-          Top = 41
-          Width = 255
-          Height = 137
+        object Label3: TLabel
+          Left = 16
+          Top = 62
+          Width = 28
+          Height = 13
+          Caption = 'Gain:'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object lblName: TLabel
+          Left = 63
+          Top = 24
+          Width = 37
+          Height = 13
+          Caption = 'lblName'
+        end
+        object lblClass: TLabel
+          Left = 63
+          Top = 43
+          Width = 35
+          Height = 13
+          Caption = 'lblClass'
+        end
+        object lblGain: TLabel
+          Left = 63
+          Top = 62
+          Width = 31
+          Height = 13
+          Caption = 'lblGain'
+        end
+        object Label4: TLabel
+          Left = 18
+          Top = 199
+          Width = 80
+          Height = 13
+          Caption = 'Current State:'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object lblState: TLabel
+          Left = 62
+          Top = 218
+          Width = 36
+          Height = 13
+          Caption = 'lblState'
+        end
+        object Label5: TLabel
+          Left = 16
+          Top = 110
+          Width = 31
+          Height = 13
+          Caption = 'Pitch:'
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object lblPitch: TLabel
+          Left = 63
+          Top = 110
+          Width = 33
+          Height = 13
+          Caption = 'lblPitch'
+        end
+        object trbGain: TTrackBar
+          Left = 63
+          Top = 81
+          Width = 190
+          Height = 32
+          Anchors = [akLeft, akTop, akRight]
+          Max = 100
+          Min = -300
+          TabOrder = 0
+          TickMarks = tmBoth
+          TickStyle = tsNone
+          OnChange = trbGainChange
+        end
+        object btnPlay: TButton
+          Left = 16
+          Top = 168
+          Width = 75
+          Height = 25
+          Caption = 'Play'
+          TabOrder = 1
+          OnClick = btnPlayClick
+        end
+        object btnPause: TButton
+          Left = 97
+          Top = 168
+          Width = 75
+          Height = 25
+          Caption = 'Pause'
+          TabOrder = 2
+          OnClick = btnPauseClick
+        end
+        object btnStop: TButton
+          Left = 178
+          Top = 168
+          Width = 75
+          Height = 25
+          Caption = 'Stop'
+          TabOrder = 3
+          OnClick = btnStopClick
+        end
+        object trbPitch: TTrackBar
+          Left = 63
+          Top = 129
+          Width = 190
+          Height = 32
+          Anchors = [akLeft, akTop, akRight]
+          Max = 250
+          Min = 1
+          Position = 100
+          TabOrder = 4
+          TickMarks = tmBoth
+          TickStyle = tsNone
+          OnChange = trbPitchChange
+        end
+      end
+    end
+    object TabSheet4: TTabSheet
+      Caption = 'Materials and Walls'
+      ImageIndex = 1
+      object btnBuildWall: TSpeedButton
+        Left = 3
+        Top = 223
+        Width = 276
+        Height = 34
+        AllowAllUp = True
+        GroupIndex = 1
+        Caption = 'Build Wall'
+        Flat = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        ParentFont = False
+        OnClick = btnBuildWallClick
+      end
+      object GroupBox3: TGroupBox
+        Left = 0
+        Top = 0
+        Width = 281
+        Height = 217
+        Align = alTop
+        Caption = 'Materialien'
+        TabOrder = 0
+        object ListView1: TListView
+          Left = 2
+          Top = 15
+          Width = 277
+          Height = 200
           Align = alClient
           Columns = <
             item
               Caption = 'Name'
-              Width = 150
-            end
-            item
-              Caption = 'Length'
+              Width = 200
             end>
-          MultiSelect = True
-          RowSelect = True
-          SmallImages = ImageList1
-          TabOrder = 1
+          TabOrder = 0
           ViewStyle = vsReport
-          OnDblClick = lstStreamedSoundsDblClick
-          OnMouseDown = lstStreamedSoundsMouseDown
         end
-        object ToolBar3: TToolBar
-          Left = 0
-          Top = 191
-          Width = 255
-          Height = 23
-          Align = alBottom
-          Caption = 'ToolBar3'
-          Images = ImageList1
-          TabOrder = 2
-          object btnStreamedSoundPlay: TToolButton
-            Left = 0
-            Top = 0
-            Caption = 'btnStreamedSoundPlay'
-            Enabled = False
-            ImageIndex = 0
-            OnClick = btnStreamedSoundPlayClick
-          end
-          object btnStreamedSoundPause: TToolButton
-            Left = 23
-            Top = 0
-            Caption = 'btnStreamedSoundPause'
-            Enabled = False
-            ImageIndex = 1
-            OnClick = btnStreamedSoundPauseClick
-          end
-          object btnStreamedSoundStop: TToolButton
-            Left = 46
-            Top = 0
-            Caption = 'btnStreamedSoundStop'
-            Enabled = False
-            ImageIndex = 2
-            OnClick = btnStreamedSoundStopClick
-          end
-        end
+      end
+      object Button1: TButton
+        Left = 104
+        Top = 344
+        Width = 75
+        Height = 25
+        Caption = 'Draw Map'
+        TabOrder = 1
+        OnClick = Button1Click
       end
     end
   end
   object OpenDialog1: TOpenDialog
     Options = [ofHideReadOnly, ofAllowMultiSelect, ofEnableSizing]
-    Left = 296
-    Top = 8
+    Left = 632
+    Top = 16
   end
   object ImageList1: TImageList
-    Left = 328
-    Top = 8
+    Left = 600
+    Top = 16
     Bitmap = {
       494C01010A000E00040010001000FFFFFFFFFF10FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000004000000001002000000000000040
@@ -985,7 +1035,7 @@ object frmmain: Tfrmmain
       000000000000}
   end
   object XPManifest1: TXPManifest
-    Left = 360
-    Top = 8
+    Left = 568
+    Top = 16
   end
 end

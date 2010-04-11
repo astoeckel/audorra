@@ -8,9 +8,6 @@
   For more information visit http://ww.simdesign.nl
   Original date of publication: 10 Mar 2003
 
-  This unit requires these other units:
-  - Math:  Delphi mathematics unit
-
   ****************************************************************
 
   The contents of this file are subject to the Mozilla Public
@@ -24,6 +21,7 @@
   implied. See the License for the specific language governing
   rights and limitations under the License.
 }
+
 unit AuComplex;
 
 interface
@@ -34,8 +32,8 @@ interface
 
 type
   TAuComplex = packed record
-    Re: single; // Real part
-    Im: single; // Imaginary part
+    Re: Double; // Real part
+    Im: Double; // Imaginary part
   end;
 
   TAuComplexArray = array of TAuComplex;

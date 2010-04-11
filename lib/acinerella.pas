@@ -73,8 +73,8 @@ type
     AC_OUTPUT_BGRA32 = 3
   );
   
-  TAc_infostr = array[0..511] of AnsiChar;
-  TAc_infostr2 = array[0..31] of AnsiChar;
+  TAc_infostr = array[0..511] of Char;
+  TAc_infostr2 = array[0..31] of Char;
 
   {Contains information about the whole file/stream that has been opened. Default 
    values are "" for strings and -1 for integer values.}
@@ -173,12 +173,6 @@ type
 
   {Contains information about an Acinerella package.}
   TAc_package = record
-    {The data of the package. This data may not be accessible, because
-     currently FFMpeg doesn't reserve this memory area using the Acinerella
-     memory manager.}
-    data: PByte;
-    {The size of the package data.}
-    size: integer;
     {The stream the package belongs to.}
     stream_index: integer;
   end;
@@ -272,9 +266,8 @@ begin
   FreeMemory(ptr);
 end;
 
-
 initialization
-  ac_mem_mgr(@malloc, @realloc, @free);
+  ac_mem_mgr(@malloc, @realloc, @free);      
 
 end.
 

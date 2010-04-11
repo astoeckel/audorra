@@ -8,10 +8,11 @@ uses
 
   uplaygroundclasses,
 
-  AcTypes, AcSysUtils, 
+  AcTypes, AcSysUtils,
 
   AuWASAPI, AuDirectSound, AuWAV, AuAcinerella,
-  AuUtils, AuAudio, Au3DAudio, Au3DAudioRenderer;
+  AuUtils, AuAudio, Au3DAudio, Au3DAudioRenderer, ActnList, XPStyleActnCtrls,
+  ActnMan, ActnCtrls, ActnMenus, Buttons;
 
 type
   Tstreamedsoundlist = class(TList)
@@ -31,30 +32,12 @@ type
     PaintBox1: TPaintBox;
     StatusBar1: TStatusBar;
     OpenDialog1: TOpenDialog;
-    Panel1: TPanel;
-    GroupBox1: TGroupBox;
-    Label1: TLabel;
-    Label2: TLabel;
-    Label3: TLabel;
-    trbGain: TTrackBar;
-    lblName: TLabel;
-    lblClass: TLabel;
-    lblGain: TLabel;
-    btnPlay: TButton;
-    btnPause: TButton;
-    btnStop: TButton;
-    Label4: TLabel;
-    lblState: TLabel;
-    GroupBox2: TGroupBox;
-    btnPlayAll: TButton;
-    btnStopAll: TButton;
-    btnPauseAll: TButton;
     ImageList1: TImageList;
     Splitter1: TSplitter;
     XPManifest1: TXPManifest;
-    Label5: TLabel;
-    lblPitch: TLabel;
-    trbPitch: TTrackBar;
+    PageControl2: TPageControl;
+    TabSheet3: TTabSheet;
+    TabSheet4: TTabSheet;
     PageControl1: TPageControl;
     TabSheet1: TTabSheet;
     ToolBar2: TToolBar;
@@ -63,6 +46,7 @@ type
     btnStaticSoundCreateInstance: TToolButton;
     lstStaticSounds: TListView;
     TabSheet2: TTabSheet;
+    Label6: TLabel;
     ToolBar1: TToolBar;
     btnAddStreamedSound: TToolButton;
     btnDeleteStreamedSound: TToolButton;
@@ -70,9 +54,32 @@ type
     lstStreamedSounds: TListView;
     ToolBar3: TToolBar;
     btnStreamedSoundPlay: TToolButton;
-    btnStreamedSoundStop: TToolButton;
-    Label6: TLabel;
     btnStreamedSoundPause: TToolButton;
+    btnStreamedSoundStop: TToolButton;
+    GroupBox2: TGroupBox;
+    btnPlayAll: TButton;
+    btnStopAll: TButton;
+    btnPauseAll: TButton;
+    GroupBox1: TGroupBox;
+    Label1: TLabel;
+    Label2: TLabel;
+    Label3: TLabel;
+    lblName: TLabel;
+    lblClass: TLabel;
+    lblGain: TLabel;
+    Label4: TLabel;
+    lblState: TLabel;
+    Label5: TLabel;
+    lblPitch: TLabel;
+    trbGain: TTrackBar;
+    btnPlay: TButton;
+    btnPause: TButton;
+    btnStop: TButton;
+    trbPitch: TTrackBar;
+    GroupBox3: TGroupBox;
+    ListView1: TListView;
+    btnBuildWall: TSpeedButton;
+    Button1: TButton;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure PaintBox1Paint(Sender: TObject);
@@ -104,6 +111,8 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure lstStaticSoundsDblClick(Sender: TObject);
     procedure lstStreamedSoundsDblClick(Sender: TObject);
+    procedure btnBuildWallClick(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
   private
     { Private-Deklarationen }
   public
@@ -114,8 +123,15 @@ type
     soundlist: TAuSoundList;
     streamedlist: Tstreamedsoundlist;
     bmp: TBitmap;
+    mat: TAu3DMaterial;
+
+    bws: integer;
+    wx1, wy1: Single;
+
     procedure ListSounds;
     procedure DisplaySoundInfo;
+
+    procedure AddWall(ax1, ay1, ax2, ay2: Single);
   end;
 
 var
@@ -157,6 +173,8 @@ begin
       listener := TListener.Create(playground, audio3d.Listener);
       DoubleBuffered := true;
 
+      mat := TAu3DMaterial.Create;
+
       exit;
     end;
   end else
@@ -174,6 +192,7 @@ begin
   audio.Free;
   playground.Free;
   bmp.Free;
+  mat.Free;
 end;
 
 procedure Tfrmmain.FormResize(Sender: TObject);
@@ -200,9 +219,9 @@ begin
           1: ImageIndex := 6;
           2: ImageIndex := 7;
           6: ImageIndex := 8;
-          8: ImageIndex := 9;          
+          8: ImageIndex := 9;
         end;
-        SubItems.Add(FormatFloat('0.00', soundlist[i].Len / 1000) + 's'); 
+        SubItems.Add(FormatFloat('0.00', soundlist[i].Len / 1000) + 's');
       end;
     end;
   finally
@@ -255,16 +274,61 @@ end;
 
 procedure Tfrmmain.PaintBox1MouseDown(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
+var
+  cx, cy: Single;
 begin
-  playground.MouseDown(x, y);
-  DisplaySoundInfo;
+  if bws = 0 then
+  begin
+    playground.MouseDown(x, y);
+    DisplaySoundInfo;
+  end else
+  begin
+    cx := (X div 10 * 10); cy := (Y div 10 * 10);
+    playground.FromScreen(cx, cy);
+    if bws = 1 then
+    begin
+      wx1 := cx;
+      wy1 := cy;
+      bws := bws + 1;
+    end else
+    begin
+      AddWall(wx1, wy1, cx, cy);
+      bws := 0;
+      btnBuildWall.Down := false;
+    end;
+  end;
 end;
 
 procedure Tfrmmain.PaintBox1MouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer);
+var
+  wx, wy: Single;
 begin
-  playground.MouseMove(x, y, Shift);
+  if bws = 0 then
+    playground.MouseMove(x, y, Shift);
+
   PaintBox1.Repaint;
+
+  if bws > 0 then
+  begin
+    if bws = 2 then
+    begin
+      wx := wx1; wy := wy1;
+      playground.ToScreen(wx, wy);
+
+      DrawCross(Paintbox1.Canvas, round(wx), round(wy));
+
+      //Draw line
+      with Paintbox1.Canvas do
+      begin
+        Pen.Color := clGray;
+        MoveTo(round(wx), round(wy));
+        LineTo(X div 10 * 10, Y div 10 * 10);
+      end;
+    end;
+
+    DrawCross(Paintbox1.Canvas, X div 10 * 10, Y div 10 * 10);
+  end;
 end;
 
 procedure Tfrmmain.PaintBox1MouseUp(Sender: TObject; Button: TMouseButton;
@@ -424,6 +488,55 @@ begin
       streamedlist[i].Stop;
 end;
 
+procedure Tfrmmain.Button1Click(Sender: TObject);
+var
+  x, y: integer;
+  px, py, v: Single;
+  raydata: TAu3DRayParams;
+  pnt: TAcVector3;
+  ray: TAcRay;
+  dist: Single;
+  bmp: TBitmap;
+  p32: PCardinal;
+begin
+  bmp := TBitmap.Create;
+  bmp.Width := PaintBox1.ClientWidth;
+  bmp.Height := PaintBox1.ClientHeight;
+  bmp.PixelFormat := pf32bit;
+  
+  pnt := listener.Listener.Position;
+
+  for y := 0 to PaintBox1.ClientHeight - 1 do
+  begin
+    p32 := bmp.ScanLine[y];
+    for x := 0 to PaintBox1.ClientWidth - 1 do
+    begin
+      px := x; py := y;
+      playground.FromScreen(px, py);
+
+      dist := AcVectorLength(AcVectorSub(pnt, AcVector3(px, py, 0)));
+      if dist > 0 then
+      begin
+        ray := AcRayPnts(AcVector3(px, py, 0), pnt);
+
+        raydata.Energy := 1;
+        audio3d.Renderer.Environment.ModelEnvironment.Raytrace(@raydata, ray, dist);
+        p32^ := RGB(
+          Round(raydata.Energy * 255),
+          Round(raydata.Energy * 255),
+          Round(raydata.Energy * 255)
+        );
+      end;
+
+      inc(p32);
+    end;
+  end;
+
+  PaintBox1.Canvas.Draw(0, 0, bmp);
+
+  bmp.Free;
+end;
+
 procedure Tfrmmain.DisplaySoundInfo;
 begin
   if playground.Selected <> nil then
@@ -463,6 +576,40 @@ begin
     lblClass.Caption := playground.Selected.ClassName;
   end else
     GroupBox1.Visible := false;
+end;
+
+procedure Tfrmmain.AddWall(ax1, ay1, ax2, ay2: Single);
+var
+  model: TAu3DModel;
+  tri: TAcTriangle;
+  wall: TWall;
+begin
+  model := TAu3DModel.Create;
+  model.Material := mat;
+
+  //Create a first triangle
+  tri := AcTriangle(
+    ax1, ay1, 1,
+    ax2, ay2, 1,
+    ax1, ay1,-1
+  );
+  model.Triangles.Add(tri);
+
+  tri := AcTriangle(
+    ax2, ay2, 1,
+    ax2, ay2,-1,
+    ax1, ay1,-1
+  );
+  model.Triangles.Add(tri);
+
+  audio3d.Lock;
+  try
+    audio3d.Renderer.Environment.ModelEnvironment.Models.Add(model);
+  finally
+    audio3d.Unlock;
+  end;
+
+  wall := TWall.Create(playground, ax1, ay1, ax2, ay2);
 end;
 
 procedure Tfrmmain.btnAddStaticSoundClick(Sender: TObject);
@@ -509,6 +656,19 @@ begin
     end;
 
     ListSounds;
+  end;
+end;
+
+procedure Tfrmmain.btnBuildWallClick(Sender: TObject);
+begin
+  if bws = 0 then
+  begin
+    bws := 1;
+    btnBuildWall.Down := true;
+  end else
+  begin
+    btnBuildWall.Down := false;
+    bws := 0;
   end;
 end;
 

@@ -44,7 +44,7 @@ interface
 uses
   SysUtils, Classes, AuSyncUtils,
   Windows, MMSystem, DirectSound,
-  AcPersistent, AcSyncObjs,
+  AcSysUtils, AcPersistent, AcSyncObjs,
 
   AuTypes, AuDriverClasses, AuWin32Common;
 
@@ -309,9 +309,9 @@ begin
         begin
           try
             pb := FBufMem;
-            Move(pb^, wrtptr1^, wrtcnt1);
+            AcMove(pb^, wrtptr1^, wrtcnt1);
             inc(pb, wrtcnt1);
-            Move(pb^, wrtptr2^, wrtcnt2);
+            AcMove(pb^, wrtptr2^, wrtcnt2);
             result := true;
           finally
             FBuf.Unlock(wrtptr1, wrtcnt1, wrtptr2, wrtcnt2);

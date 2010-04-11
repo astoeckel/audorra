@@ -5,7 +5,8 @@ program simple;
 uses
   Forms,
   Main in 'Main.pas' {frmPlayer},
-  wnd_OpenURL in 'wnd_OpenURL.pas' {OpenURLWnd};
+  wnd_OpenURL in 'wnd_OpenURL.pas' {OpenURLWnd},
+  AuNULL in '..\..\src\drivers\AuNULL.pas';
 
 {$R *.res}
 

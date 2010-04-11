@@ -668,8 +668,7 @@ begin
   finally
     fs.Free;
   end;
-end;
-
+end;                
 
 { TAuStreamedSound }
 

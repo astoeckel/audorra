@@ -92,6 +92,7 @@ interface
 
 uses
   SysUtils,
+  AcSysUtils,
   AuComplex;
 
 const
@@ -553,7 +554,7 @@ begin
   // ruin the structure
   if @Dest = @Source then begin
     GetMem(TmpDest, SizeOf(TAuComplex) * Count);;
-    Move(Dest, TmpDest^, SizeOf(TAuComplex) * Count);
+    AcMove(Dest, TmpDest^, SizeOf(TAuComplex) * Count);
   end else begin
     TmpDest := @Dest;
   end;
@@ -564,7 +565,7 @@ begin
 
   // Free the temporary copy (if any)
   if @Dest = @Source then begin
-    Move(TmpDest^, Dest, SizeOf(TAuComplex) * Count);
+    AcMove(TmpDest^, Dest, SizeOf(TAuComplex) * Count);
     FreeMem(TmpDest);
   end;
 

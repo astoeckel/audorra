@@ -51,9 +51,86 @@ uses
 const
   AU3DPROP_PHASE = $01;
   AU3DPROP_GAIN = $02;
+  AU3DPROP_RAYTRACE = $04;
   AU3DPROP_ALL = $FF;
 
 type
+  TAu3DMaterial = class
+    private
+      FTransmissionFactor: Single;
+      FReflexionFactor: Single;
+      FUpdateEvent: TAcNotifyEvent;
+      procedure SetTransmissionFactor(AValue: Single);
+      procedure SetReflexionFactor(AValue: Single);
+    public
+      constructor Create;
+      destructor Destroy;override;
+      
+      property TransmissionFactor: Single read FTransmissionFactor
+        write SetTransmissionFactor;
+      property ReflexionFactor: Single read FReflexionFactor
+        write SetReflexionFactor;
+
+      property OnUpdate: TAcNotifyEvent read FUpdateEvent write FUpdateEvent;
+  end;
+
+  TAu3DTriangleList = class(TList)
+    private
+      function GetItem(AIndex: integer): PAcTriangle;
+    protected
+      procedure Notify(ptr: Pointer; action: TListNotification);override;
+    public
+      procedure Add(const ATriangle: TAcTriangle);
+
+      property Items[AIndex: integer]: PAcTriangle read GetItem;default;
+  end;
+
+  TAu3DModel = class
+    private
+      FTriangles: TAu3DTriangleList;
+      FMaterial: TAu3DMaterial;
+      FAABB: TAcAABB;
+      FHasAABB: Boolean;
+      procedure CalcAABB;
+      function GetAABB: TAcAABB; 
+    public
+      constructor Create;
+      destructor Destroy;override;
+
+      procedure Update;
+
+      property Triangles: TAu3DTriangleList read FTriangles;
+      property Material: TAu3DMaterial read FMaterial write FMaterial;
+      property AABB: TAcAABB read GetAABB; 
+  end;
+
+  TAu3DModelList = class(TList)
+    private
+      function GetItem(AIndex: integer): TAu3DModel;
+    protected
+      procedure Notify(ptr: Pointer; action: TListNotification);override;
+    public
+      property Items[AIndex: integer]: TAu3DModel read GetItem;default;
+  end;
+
+  TAu3DRayParams = record
+    Energy: Single;
+  end;
+  PAu3DRayParams = ^TAu3DRayParams;
+
+  TAu3DModelEnvironment = class
+    private
+      FModels: TAu3DModelList;
+    public
+      constructor Create;
+      destructor Destroy;override;
+
+      procedure Raytrace(const AParams: PAu3DRayParams; const ARay: TAcRay;
+        const ADist: Single);
+
+      property Models: TAu3DModelList read FModels;
+  end;       
+
   //Speaker setup presets
   TAu3DSpeakerPreset = (
     au3dssMono = 1,
@@ -338,6 +415,7 @@ type
       FPitch: Single;
       FDistanceModel: TAu3DDistanceModel;    
       FMinGain: Single;
+      FModelEnvironment: TAu3DModelEnvironment;
       procedure SetScale(AValue: Single);
       procedure SetSpeedOfSound(AValue: Single);
       procedure SetMinGain(AValue: Single);
@@ -353,6 +431,7 @@ type
       property DistanceModel: TAu3DDistanceModel read FDistanceModel write FDistanceModel;
       property MinGain: Single read FMinGain write SetMinGain;
       property Pitch: Single read FPitch write SetPitch;
+      property ModelEnvironment: TAu3DModelEnvironment read FModelEnvironment;
   end;
 
   TAu3DListener = class;
@@ -367,6 +446,7 @@ type
       FViewMatrix: TAcMatrix;
       FMoveProc: TAu3DListenerProc;
       procedure SetGain(AValue: Single);
+      function GetPosition: TAcVector3;
     public
       constructor Create;
       destructor Destroy;override;
@@ -380,6 +460,7 @@ type
       property Sources: TAu3DEmitterPropsList read FSources;
       property Properites: Byte read FProperties write FProperties;
       property ViewMatrix: TAcMatrix read FViewMatrix;
+      property Position: TAcVector3 read GetPosition;
 
       property OnMove: TAu3DListenerProc read FMoveProc write FMoveProc;
   end;
@@ -686,6 +767,7 @@ var
   ps: PByte;
   props: Byte;
   pos4: TAcVector4;
+  ray: TAu3DRayParams;
 begin
   ps := ABuf;
 
@@ -697,7 +779,7 @@ begin
     AcVector4(AEmitter.Position, 1));
 
   //Calculate the distance towards the listener
-  if (props and (AU3DPROP_PHASE or AU3DPROP_GAIN) > 0) then
+  if (props and (AU3DPROP_PHASE or AU3DPROP_GAIN or AU3DPROP_RAYTRACE) > 0) then
   begin
     //Calculate the distance
     dist := Sqrt(
@@ -706,21 +788,31 @@ begin
       Sqr(pos4.z));
   end;
 
+  //Raytrace the environment
+  ray.Energy := 1;
+  if (props and AU3DPROP_RAYTRACE > 0) and (dist > 0) then
+    FEnvironment.ModelEnvironment.Raytrace(@ray, AcRayPnts(AListener.Position,
+      AEmitter.Position), dist);
+
   //Calculate the gain values
   if props and AU3DPROP_GAIN > 0 then
   begin
-    gain := AEmitter.Gain * AListener.Gain *
+    gain := AEmitter.Gain * AListener.Gain * ray.Energy *
       FEnvironment.DistanceGainFactor(
         dist * FEnvironment.Scale, AEmitter.MaxDistance, AEmitter.RolloffFactor,
         AEmitter.ReferenceDistance);
-    if gain < FEnvironment.MinGain then
-      exit;
+ {   if gain < FEnvironment.MinGain then
+      exit;}
     hasalpha := CalculateSoundAngle(pos4, alpha);
   end else
   begin
-    gain := 1;
+    gain := ray.Energy;
     hasalpha := false;
   end;
+
+  //---
+  //! Break the operation if gain is near zero
+  //---
 
   //Read the channel factors
   for k := 0 to FSpeakerSetup.ChannelCount - 1 do
@@ -1213,6 +1305,14 @@ begin
   inherited;
 end;
 
+function TAu3DListener.GetPosition: TAcVector3;
+begin
+  result := AcVector3(
+    -FViewMatrix[3][0],
+    -FViewMatrix[3][1],
+    -FViewMatrix[3][2]);
+end;
+
 procedure TAu3DListener.Move(ATimeGap: Double);
 begin
   if Assigned(FMoveProc) then
@@ -1246,6 +1346,7 @@ begin
   FMinGain := 0.0001;
   FPitch := 1;
   FDistanceModel := au3ddmInverseDistanceClamped;
+  FModelEnvironment := TAu3DModelEnvironment.Create;
 end;
 
 destructor TAu3DEnvironment.Destroy;
@@ -1492,8 +1593,7 @@ begin
   for i := 0 to Emitters.Count - 1 do
     TAu3DStaticEmitter(Emitters[i]).SeekToSample(0);
 end;
-
-
+                 
 { TAu3DCustomEmitter }
 
 constructor TAu3DCustomEmitter.Create(ASound: TAu3DCustomSound);
@@ -1511,7 +1611,7 @@ begin
   FPosition := AcVector3(0, 0, 0);
   FReferenceDistance := 1;
   FRolloffFactor := 1;
-  FMaxDistance := 10000;
+  FMaxDistance := 1000;
   FProperties := AU3DPROP_ALL;
   FActive := true;
   FTimeoffset := 0;
@@ -1677,6 +1777,163 @@ procedure TAu3DStaticEmitter.SetPitch(AValue: Single);
 begin
   if AValue > 0 then
     FPitch := AValue;
+end;
+
+{ TAu3DMaterial }
+
+constructor TAu3DMaterial.Create;
+begin
+  inherited Create;
+
+  FTransmissionFactor := 0.25;
+  FReflexionFactor := 0.0;
+end;
+
+destructor TAu3DMaterial.Destroy;
+begin
+
+  inherited;
+end;
+
+procedure TAu3DMaterial.SetReflexionFactor(AValue: Single);
+begin
+  //Check bounds
+  if FTransmissionFactor + AValue < 1 then
+  begin
+    FReflexionFactor := AValue;
+    
+    if Assigned(FUpdateEvent) then
+      FUpdateEvent(self);
+  end else;
+    //! RAISE EXCEPTION HERE
+end;
+
+procedure TAu3DMaterial.SetTransmissionFactor(AValue: Single);
+begin
+  //Check bounds
+  if FReflexionFactor + AValue < 1 then
+  begin
+    FTransmissionFactor := AValue;
+    
+    if Assigned(FUpdateEvent) then
+      FUpdateEvent(self);
+  end else;
+    //! RAISE EXCEPTION HERE
+end;
+
+{ TAu3DTriangleList }
+
+procedure TAu3DTriangleList.Add(const ATriangle: TAcTriangle);
+var
+  pt: PAcTriangle;
+begin
+  New(pt);
+  pt^ := ATriangle;
+  inherited Add(pt);
+end;
+
+function TAu3DTriangleList.GetItem(AIndex: integer): PAcTriangle;
+begin
+  result := inherited Items[AIndex];
+end;
+
+procedure TAu3DTriangleList.Notify(ptr: Pointer; action: TListNotification);
+begin
+  if action = lnDeleted then
+    Dispose(PAcTriangle(ptr));
+end;
+
+{ TAu3DModel }
+
+constructor TAu3DModel.Create;
+begin
+  inherited Create;
+
+  FMaterial := nil;
+  FTriangles := TAu3DTriangleList.Create;
+end;
+
+destructor TAu3DModel.Destroy;
+begin
+  FTriangles.Free;
+  inherited;
+end;
+
+function TAu3DModel.GetAABB: TAcAABB;
+begin
+  if not FHasAABB then
+    CalcAABB;
+
+  Result := FAABB;
+end;
+
+procedure TAu3DModel.Update;
+begin
+  FHasAABB := false;
+end;
+
+procedure TAu3DModel.CalcAABB;
+var
+  i, j: integer;
+begin
+  for i := 0 to FTriangles.Count - 1 do
+    for j := 0 to 2 do      
+      AcVecMinMax(FAABB, FTriangles[i]^.elems[j], (i = 0) and (j = 0));
+
+  FHasAABB := true;
+end;
+
+{ TAu3DModelList }
+
+function TAu3DModelList.GetItem(AIndex: integer): TAu3DModel;
+begin
+  result := inherited Items[AIndex];
+end;
+
+procedure TAu3DModelList.Notify(ptr: Pointer; action: TListNotification);
+begin
+  if action = lnDeleted then
+    TAu3DModel(ptr).Free;
+end;
+
+{ TAu3DModelEnvironment }
+
+constructor TAu3DModelEnvironment.Create;
+begin
+  inherited Create;
+
+  FModels := TAu3DModelList.Create;  
+end;
+
+destructor TAu3DModelEnvironment.Destroy;
+begin
+  FModels.Free;
+  inherited;
+end;
+
+procedure TAu3DModelEnvironment.Raytrace(const AParams: PAu3DRayParams;
+  const ARay: TAcRay; const ADist: Single);
+var
+  i, j: integer;
+  t: Single;
+begin
+  for i := 0 to FModels.Count - 1 do
+  begin
+    for j := 0 to FModels[i].Triangles.Count - 1 do
+    begin
+      //Test collision with each triangle
+      if AcTriangleRayIntersect(FModels[i].Triangles[j]^, ARay, t) and (t < ADist) then
+      begin
+        if FModels[i].Material <> nil then
+          AParams^.Energy := AParams^.Energy * FModels[i].Material.TransmissionFactor
+        else
+          AParams^.Energy := 0;
+
+        if IsZero(AParams^.Energy, 0.0001) then
+          exit;
+      end;
+    end;
+  end;
 end;
 
 end.

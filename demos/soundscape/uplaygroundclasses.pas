@@ -58,6 +58,7 @@ type
       procedure Draw(ACanvas: TCanvas);
 
       procedure ToScreen(var AX, AY: Single);
+      procedure FromScreen(var AX, AY: Single);
 
       function ObjectAt(AX, AY: integer): TObj;
       
@@ -101,10 +102,32 @@ type
       property Emitter: TAu3DCustomEmitter read FEmitter;
       property Color: TColor read FColor write FColor;
   end;
-  
 
+  TWall = class(TObj)
+    private
+      FX1, FY1, FX2, FY2: Single;
+    protected
+      procedure DoDraw(ACanvas: TCanvas);override;
+    public
+      constructor Create(AParent: TPlayground; AX1, AY1, AX2, AY2: Single);
+  end;
+  
+procedure DrawCross(ACanvas: TCanvas; AX, AY: Integer);
 
 implementation
+
+procedure DrawCross(ACanvas: TCanvas; AX, AY: Integer);
+begin
+  with ACanvas do
+  begin
+    Pen.Color := clBlue;
+    MoveTo(AX - 2, AY);
+    LineTo(AX + 3, AY);
+
+    MoveTo(AX, AY - 2);
+    LineTo(AX, AY + 3);
+  end;
+end;
 
 { TObj }
 
@@ -114,7 +137,9 @@ var
 begin
   ax := FX; ay := FY;
   FParent.ToScreen(ax, ay);
-  result := Bounds(round(ax), round(ay), round(FWidth), round(FHeight));
+  result := Rect(
+    round(ax - FWidth / 2), round(ay - FHeight / 2),
+    round(ax + FWidth / 2), round(ay + FHeight / 2));
 end;
 
 constructor TObj.Create(AParent: TPlayground);
@@ -297,6 +322,12 @@ begin
   AY := AY * FScale + FCanvas.ClipRect.Bottom / 2;
 end;
 
+procedure TPlayground.FromScreen(var AX, AY: Single);
+begin
+  AX := (AX - FCanvas.ClipRect.Right / 2) / FScale;
+  AY := (AY - FCanvas.ClipRect.Bottom / 2) / FScale;
+end;
+
 { TListener }
 
 constructor TListener.Create(AParent: TPlayground; AListener: TAu3DListener);
@@ -394,5 +425,41 @@ begin
   AEmitter.Position := AcVector3(FX, FY, 0);
 end;
 
+
+{ TWall }
+
+constructor TWall.Create(AParent: TPlayground; AX1, AY1, AX2, AY2: Single);
+begin
+  inherited Create(AParent);
+
+  if AX1 > AX2 then FX := AX2 else FX := AX1;
+  if AY1 > AY2 then FY := AY2 else FY := AY1;
+
+  FX1 := AX1;
+  FY1 := AY1;
+  FX2 := AX2;
+  FY2 := AY2;
+end;
+
+procedure TWall.DoDraw(ACanvas: TCanvas);
+var
+  x1, y1, x2, y2: Single;
+begin
+  x1 := FX1; y1 := FY1; x2 := FX2; y2 := FY2;
+  FParent.ToScreen(x1, y1);
+  FParent.ToScreen(x2, y2);
+
+  //Draw the wall line
+  with ACanvas do
+  begin
+    Pen.Color := clBlack;
+    MoveTo(round(x1), round(y1));
+    LineTo(round(x2), round(y2));
+  end;
+  
+  //Draw Crosses at the top
+  DrawCross(ACanvas, round(x1), round(y1));
+  DrawCross(ACanvas, round(x2), round(y2));
+end;
 
 end.

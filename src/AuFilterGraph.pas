@@ -44,7 +44,9 @@ uses
   SysUtils, Classes, SyncObjs,
   AcBuffer, AcSysUtils,
   AuTypes, AuDriverClasses, AuDecoderClasses, AuUtils,
-  AuSyncUtils, AuAnalyzerClasses, AuEffects;
+  AuSyncUtils, AuAnalyzerClasses, AuEffects,
+
+  mkfilter;
 
 type
   TAuOutputFilter = class;
@@ -769,6 +771,7 @@ function TAuVolumeFilter.ReadCallback(ABuf: PByte; ASize: Cardinal;
 var
   i: integer;
   mem: PSingle;
+  mem2: PSingle;
 begin
   result := 0;
   if Assigned(Callback) then
@@ -819,19 +822,8 @@ begin
       for i := 0 to High(FChannels) do
         FChannels[i] := 1;
     end;
-  end;  
+  end;
 end;
-
-const
-  alpha_kernel: array[0..2] of Single = (
-    1, 2, 1
-  );
-
-  beta_kernel: array[0..1] of Single = (
-    -0.9391454766, 1.9378718952
-  );
-
-  gain = 1/3.140749294e+03;
 
 constructor TAuVolumeFilter.Create(AParameters: TAuAudioParameters);
 begin

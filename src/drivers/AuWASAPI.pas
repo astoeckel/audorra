@@ -141,7 +141,7 @@ function TAuWASAPIStreamDriver.Idle(AReadCallback: TAuReadCallback): boolean;
 begin
   if FInst <> nil then
   begin
-    FCallback := AReadCallback;
+    FCallback := AReadCallback; //! TODO protect this by a critical section (8 Bytes copied)
     result := wasapi_idle(FInst, TAuWASAPIStreamDriver_wasapi_callback) = 1;
   end else
     result := false;

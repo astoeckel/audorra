@@ -45,6 +45,7 @@ interface
 
 uses
   SysUtils, Classes,
+  AcSysUtils,
   AuTypes, AuUtils, AuAudioSpline;
 
 type
@@ -176,18 +177,18 @@ begin
     if Integer(ACount) < rs then
     begin
       //Writeln(Integer(ptar):10, #9, Integer(FMem):10, #9, rs:10, #9, ACount:10, #9, FWrtPtr:10);
-      Move(AData^, ptar^, ACount)
+      AcMove(AData^, ptar^, ACount)
     end
     else begin
       //Copy the first part to the ring
       psrc := AData;
-      Move(psrc^, ptar^, rs);
+      AcMove(psrc^, ptar^, rs);
       inc(psrc, rs);
 
       //Copy the second part to the ring
       ptar := FMem;
       rs := Integer(ACount) - rs;
-      Move(psrc^, ptar^, rs);
+      AcMove(psrc^, ptar^, rs);
     end;
 
     //Calculate the position of the new write pointer

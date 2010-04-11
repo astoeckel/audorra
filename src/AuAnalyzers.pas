@@ -43,6 +43,7 @@ interface
 uses
   SysUtils, Classes,
 
+  AcSysUtils,
   AuUtils, AuTypes, AuAnalyzerClasses, AuFFT, AuComplex;
 
 type
@@ -216,12 +217,12 @@ begin
   //Move the current data backward
   psrc := FCurrentData;
   inc(psrc, ds);
-  Move(psrc^, FCurrentData^, FDataSize - ds);
+  AcMove(psrc^, FCurrentData^, FDataSize - ds);
 
   //Append the new data
   psrc := FCurrentData;
   inc(psrc, FDataSize - ds);
-  Move(ASamples^, psrc^, ds);
+  AcMove(ASamples^, psrc^, ds);
 end;
 
 procedure TAuOscilloscope.DoSetParameters;
@@ -247,7 +248,7 @@ begin
   begin
     CritSect.Enter;
     try
-      Move(FCurrentData^, ATar^, FDataSize);
+      AcMove(FCurrentData^, ATar^, FDataSize);
       result := true;
     finally
       CritSect.Leave;
@@ -317,12 +318,12 @@ begin
   //Move the current data backward
   psrc := FCurrentData;
   inc(psrc, ds);
-  Move(psrc^, FCurrentData^, FDataSize - ds);
+  AcMove(psrc^, FCurrentData^, FDataSize - ds);
 
   //Append the new data
   psrc := FCurrentData;
   inc(psrc, FDataSize - ds);
-  Move(ASamples^, psrc^, ds);
+  AcMove(ASamples^, psrc^, ds);
 
   //Copy the channel data into the channel arrays
   ps := PSingle(FCurrentData);
