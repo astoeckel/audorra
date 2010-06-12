@@ -43,20 +43,27 @@ interface
 {$INCLUDE andorra.inc}
 
 uses
+  SysUtils, Classes,
   Math,
+  AcSysUtils, AcSyncObjs,
   AuTypes;
 
-{Reads a sample from the given memory pointer at the given bit depth and returns
- a normalized single value (-1 to 1).
- @param(AMem is the pointer to the sample that should be read. The pointer
-   is automatically incremented.)
- @param(ABitDepth is the bit depth the sample is in. Currently 8 and 16 bits are
-   supported).}
-function AuReadSample(var AMem: PByte; ABitDepth: Cardinal): Single;{$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
-{Writes a normalized single value AVal as a audio sample with the bit depth defined in
- ABitDepth to AMem. The single value is clipped to the range from -1 to 1. AMem
- is automatically incremented.}
-procedure AuWriteSample(var AMem: PByte; AVal: Single; ABitDepth: Cardinal);{$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
+type
+  TAuStreamDriverIdleFunc = function(
+    AReadCallback: TAuReadCallback): boolean of object;
+  
+  TAuStreamDriverIdleThread = class(TThread)
+    private
+      FIdleFunc: TAuStreamDriverIdleFunc;
+      FReadCallback: TAuStreamDriverProc;
+    protected
+      procedure Execute;override;
+    public
+      constructor Create(AReadCallback: TAuStreamDriverProc;
+        AIdleFunc: TAuStreamDriverIdleFunc);
+      destructor Destroy;override;
+  end;
+
 {Convertes a normalized, positive single sample value to dB.}
 function AuToDezibel(AVal: Single): Single;
 {Convertes a dB value to the corresponding normalized sample value.}
@@ -86,18 +93,79 @@ function AuConvertByteCount(AByteCount: integer; const ASrcParameters, ATarParam
  @param(ASrc defines the source memory)
  @param(ATar defines the target memory)
  @param(ASampleCount defines the count of samples that should be copied.)}
-procedure AuPCMIntToFloat(const AParameters: TAuAudioParametersEx;
-  ASrc, ATar: PByte; ASampleCount: Integer);
-{Converts ASamples from the memory ASrc points on to int values in the given
- bit depth.
- @param(AParameters defines the format the samples should be stored in.)
+procedure AuReadSamples(const AParams: TAuAudioParametersEx; ASrc, ATar: PByte; ASampleCount: Cardinal);
+
+{Converts ASamples from the memory ASrc points on to single float values.
+ @param(AParameters defines the format the samples are stored in.)
  @param(ASrc defines the source memory)
  @param(ATar defines the target memory)
  @param(ASampleCount defines the count of samples that should be copied.)}
-procedure AuPCMFloatToInt(const AParameters: TAuAudioParametersEx;
-  ASrc, ATar: PByte; ASampleCount: Integer);
+procedure AuWriteSamples(const AParams: TAuAudioParametersEx; ASrc, ATar: PByte; ASampleCount: Cardinal);
+
 
 implementation
+
+procedure AuReadSamples(const AParams: TAuAudioParametersEx; ASrc, ATar: PByte;
+  ASampleCount: Cardinal);
+var
+  i: Integer;
+  sv: Integer;
+  mul: Single;
+begin
+  if AParams.BitDepth.sample_type < austFloat then
+  begin
+    sv := (32 - AParams.BitDepth.bits);
+
+    //Calculate the maximum value that can be achieved by shifting ABitdepth.bits
+    //to a 32-Bit value
+    mul := 1 / Cardinal(($FFFFFFFF shl sv) xor $80000000);
+
+    for i := 0 to AParams.Channels * ASampleCount - 1 do
+    begin
+      case AParams.BitDepth.sample_type of
+        austInt:
+          PSingle(ATar)^ := (PInteger(ASrc)^ shl sv) * mul;
+        austUInt:
+          PSingle(ATar)^ := (PCardinal(ASrc)^ shl sv) * mul - 1;
+      end;
+      Inc(ASrc, AParams.BitDepth.align div 8);
+      Inc(ATar, 4);
+    end;
+  end else
+    AcMove(ASrc^, ATar^,
+      AParams.Channels * ASampleCount * AParams.BitDepth.align div 8);
+end;
+
+procedure AuWriteSamples(const AParams: TAuAudioParametersEx; ASrc, ATar: PByte;
+  ASampleCount: Cardinal);
+var
+  i: Integer;
+  sv: Integer;
+  mul: Cardinal;
+begin
+  if AParams.BitDepth.sample_type < austFloat then
+  begin
+    sv := (32 - AParams.BitDepth.bits);
+
+    //Calculate the maximum value that can be achieved by shifting ABitdepth.bits
+    //to a 32-Bit value
+    mul := ($FFFFFFFF shl sv) xor $80000000;
+
+    for i := 0 to AParams.Channels * ASampleCount - 1 do
+    begin
+      case AParams.BitDepth.sample_type of
+        austInt:
+          PInteger(ATar)^ := trunc(AuLimit(PSingle(ASrc)^) * mul) shr sv;
+        austUInt:
+          PCardinal(ATar)^ := trunc((AuLimit(PSingle(ASrc)^) + 1.0) * mul) shr sv;
+      end;
+      Inc(ASrc, 4);
+      Inc(ATar, AParams.BitDepth.align div 8);
+    end;
+  end else
+    AcMove(ASrc^, ATar^,
+      AParams.Channels * ASampleCount * AParams.BitDepth.align div 8);
+end;
 
 function AuToDezibel(AVal: Single): Single;
 begin
@@ -127,29 +195,6 @@ begin
   result := Power(10, ADez / 10);
 end;
 
-function AuReadSample(var AMem: PByte; ABitDepth: Cardinal): Single;
-begin
-  result := 0;
-
-  case ABitDepth of
-    8:
-    begin
-      result := (PByte(AMem)^ - 127) / 127;
-      Inc(AMem, 1);
-    end;
-    16:
-    begin
-      result := PSmallInt(AMem)^ / High(SmallInt);
-      Inc(AMem, 2);
-    end;
-    32:
-    begin
-      result := PSingle(AMem)^;
-      Inc(AMem, 4);
-    end;
-  end;
-end;
-
 function AuLimit(AVal: Single): Single;
 begin
   //Clamp the value to a range from 1 to -1
@@ -161,31 +206,9 @@ begin
     result := AVal;
 end;
 
-
-procedure AuWriteSample(var AMem: PByte; AVal: Single; ABitDepth: Cardinal);{$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
-begin
-  case ABitDepth of
-    8:
-    begin
-      PByte(AMem)^ := trunc((AuLimit(AVal) + 1) / 2 * High(Byte));
-      Inc(AMem, 1);
-    end;
-    16:
-    begin
-      PSmallInt(AMem)^ := trunc(AuLimit(AVal) * High(SmallInt));
-      Inc(AMem, 2);
-    end;
-    32:
-    begin
-      PSingle(AMem)^ := AuLimit(AVal);
-      Inc(AMem, 4);
-    end;
-  end;
-end;
-
 function AuBytesPerSecond(const AParameters: TAuAudioParametersEx): Cardinal;
 begin
-  result := AParameters.Frequency * AParameters.Channels * AParameters.BitDepth div 8;
+  result := AParameters.Frequency * AParameters.Channels * AParameters.BitDepth.align div 8;
 end;
 
 function AuBytesPerSecond(const AParameters: TAuAudioParameters): Cardinal;
@@ -195,62 +218,12 @@ end;
 
 function AuBytesPerSample(const AParameters: TAuAudioParametersEx): Cardinal;
 begin
-  result := AParameters.Channels * AParameters.BitDepth div 8;
+  result := AParameters.Channels * AParameters.BitDepth.align div 8;
 end;
 
 function AuBytesPerSample(const AParameters: TAuAudioParameters): Cardinal;
 begin
   result := AParameters.Channels * SizeOf(Single)
-end;
-
-procedure AuPCMIntToFloat(const AParameters: TAuAudioParametersEx;
-  ASrc, ATar: PByte; ASampleCount: Integer);
-var
-  i, j: integer;
-  psrc: PByte;
-  ptar: PSingle;
-begin
-  //Define source and target
-  psrc := ASrc;
-  ptar := PSingle(ATar);
-
-  for i := 0 to ASampleCount - 1 do
-  begin
-    //Read a sample and convert it
-    for j := 0 to AParameters.Channels - 1 do
-    begin
-      ptar^ := AuReadSample(psrc, AParameters.BitDepth);
-
-      //Increment the target pointer (psrc is automatically incremented by the
-      //AuReadSample function)
-      inc(ptar);
-    end;
-  end;         
-end;
-
-procedure AuPCMFloatToInt(const AParameters: TAuAudioParametersEx;
-  ASrc, ATar: PByte; ASampleCount: Integer);
-var
-  i, j: integer;
-  psrc: PSingle;
-  ptar: PByte;
-begin
-  //Define source and target
-  psrc := PSingle(ASrc);
-  ptar := ATar;
-
-  for i := 0 to ASampleCount - 1 do
-  begin
-    //Read a sample and convert it
-    for j := 0 to AParameters.Channels - 1 do
-    begin
-      AuWriteSample(ptar, psrc^, AParameters.BitDepth);
-
-      //Increment the source pointer (ptar is automatically incremented by the
-      //AuReadSample function)
-      inc(psrc);
-    end;
-  end;
 end;
 
 function AuBytesToSamples(AByteCount: integer; const ASrcParameters: TAuAudioParameters): integer;overload;
@@ -270,6 +243,36 @@ begin
     Integer(AuBytesPerSample(ATarParameters));
 end;
 
+{ TAuStreamDriverIdleThread }
 
+constructor TAuStreamDriverIdleThread.Create(
+  AReadCallback: TAuStreamDriverProc; AIdleFunc: TAuStreamDriverIdleFunc);
+begin
+  inherited Create(false);
+
+  FReadCallback := AReadCallback;
+  FIdleFunc := AIdleFunc;
+end;
+
+destructor TAuStreamDriverIdleThread.Destroy;
+begin
+  inherited;
+end;
+
+procedure TAuStreamDriverIdleThread.Execute;
+var
+  actv: boolean;
+begin
+  try
+    while not Terminated do
+    begin
+      while FIdleFunc(FReadCallback) do;
+
+      Sleep(1);
+    end;
+  except
+    //
+  end;
+end;
 
 end.

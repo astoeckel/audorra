@@ -31,6 +31,7 @@ File: Au3DAudio.pas
 Author: Andreas Stöckel
 }
 
+{Contains classes for the simple usage of 3d audio in Audorra.}
 unit Au3DAudio;
 
 {$IFDEF FPC}
@@ -41,15 +42,32 @@ interface
 
 uses
   SysUtils, Classes,
-  AcDataStore, AcPersistent, AcRegUtils,
-  AuTypes, AuUtils, AuDriverClasses, AuDecoderClasses,
-  AuAudio, AuFilterGraph, AuSyncUtils, AuProtocolClasses,
+  AcDataStore, AcPersistent, AcRegUtils, AcNotify,
+  AuDriverClasses, AuDecoderClasses, AuProtocolClasses,
+  AuTypes, AuUtils, AuAudio, AuFilterGraph, AuMessages,
   Au3DAudioRenderer, Au3DAudioFilters;
 
 type
+  {TAu3DAudio is the high level class for providing 3D audio inside an audorra filtergraph
+   environment. Such an 3D audio environment is also needed if you simply want to playback
+   short sounds from memory with low latency. Then TAu3DAudio can be used together
+   with TAuStaticSound and/or TAuSoundList. TAu3DAudio can be interconnected to an
+   TAuPlayer instance by using a TAu3DSoundFilterAdapter as a target or by using
+   TAuStreamed sound instead.
+   TAu3DAudio is a wrapper class around TAu3DSoundRenderer and the filtergraph adpters
+   and initializes and manages these objects in a convenient manner.
+   You should always use TAu3DAudio instead of directly instanciating the managed
+   object if you want to use the 3D audio capabilites.
+   @seealso(TAu3DSoundRenderer)
+   @seealso(TAuStreamedSound)
+   @seealso(TAuStaticSound)
+   @seealso(TAuSoundList)
+   @seealso(TAu3DOutputFilterAdapter)
+   @seealso(TAu3DSoundFilterAdapter)}
   TAu3DAudio = class
     private
       FAudio: TAuAudio;
+      FOwnAudio: Boolean;
       FRenderer: TAu3DSoundRenderer;
       FOutputAdapter: TAu3DOutputFilterAdapter;
       FDriver: TAuStreamDriver;
@@ -58,26 +76,90 @@ type
       FBitdepth: integer;
       FSpeakerPreset: TAu3DSpeakerPreset;
       FDeviceID: integer;
+      FLastError: String;
 
       function GetParameters: TAuAudioParametersEx;
       function GetListener: TAu3DListener;
     public
+      {Creates an instance of TAu3DAudio by using an external TAuAudio instance.
+       @param(AAudio is the parent audio environment to be used. You have to care about
+         initializing, chosing the right driver etc. Pass nil if you want TAu3DAudio
+         to create its own TAuAudio instance. You can access this instance by using
+         the "Audio" property.)
+       @param(ASpeakerPreset specifies the count and type of loud speeker setup.)
+       @param(AFrequency specifies the output frequency of the output. Use 44100
+         for CD-Quality audio, 48000 for DAT-Quality audio, etc. You should be
+         aware, that the frequency directly specifies the computational power
+         needed for calculating the audio output. As higher this value is, as higher
+         will be the CPU load. You should also remember to specify a value here,
+         which matches the frequency of most audio samples used as this will
+         save the audio render cpu power needed for interpolating.)
+       @param(ABitdepth specifies the bitdepth of the audio output. The highest
+         value supported by the audio system should be used here. 32-Bit output
+         might the fastest from the audorra point of view, if the audio card
+         has floating point support.)
+       @param(ADeviceID specifies the id of the device that should be used to output
+         the audio. A value of -1 (default) will take the default device. You can
+         enumerate all devices available by using the TAuAudio class.)}
       constructor Create(AAudio: TAuAudio; ASpeakerPreset: TAu3DSpeakerPreset;
         AFrequency, ABitdepth: integer; ADeviceID: integer = -1);
+      {Destroys this instance of TAu3DAudio. Please remember to free all classes
+       using TAu3DAudio before freeing TAu3DAudio itself.}
       destructor Destroy;override;
 
+      {All changes made to the 3D audio environment (adding sources, changing values,
+       adding walls, etc.) have to be synchronized with the audio thread in order
+       to prevent both thread from going into race conditions or read/write accessing
+       resources at the same time. Always call the "Lock" function before performing
+       such tasks. You must always protect the actions performed after calling the
+       lock function with a "try/finally" block, calling "Unlock" in the finally
+       part. Do not perform computationally expensive tasks while the audio renderer
+       is locked, as this may lead to audio stuttering. Trying to free the renderer
+       inside the lock or trying to perform other complex operations inside the lock
+       may lead to a dead lock!
+       @seealso(TAu3DSoundRenderer.Lock)
+       @seealso(TAu3DSoundRenderer.Unlock)
+       @seealso(Unlock)}
       procedure Lock;
+      {Unlocks the 3D audio renderer.
+       @seealso(Lock)}
       procedure Unlock;
 
+      {Initializes the 3D audio environment: Creates the renderer, filter adapter
+       and driver output. If no own TAuAudio object has been
+       passed, the internal TAuAudio object will now been initialized. To set
+       any options in the internal audio object, use the Audio property.
+       @return(true if initialization was successfull, false if something went wrong.
+         use the "GetLastError" function to get an detailed description about what
+         has happened.)
+       @seealso(Finalize)}
       function Initialize: boolean;
+      {Finalizes the 3d audio environment by freeing the renderer, filter graph adapter
+       and output object. If no own TAuAudio object has been passed, the internal
+       audio object will be freed here.}
       procedure Finalize;
-      
+
+      {Returns the last error that occured during the initialization process.}
+      function GetLastError: string;
+
+      {Reference to the TAuAudio object passed during initialization or the internal
+       TAuAudio object if nil had been passed in the constructor.}
       property Audio: TAuAudio read FAudio;
+      {Reference to the 3d audio software renderer.}
       property Renderer: TAu3DSoundRenderer read FRenderer;
+      {Reference to the filter graph adapter, which is used to interconnect the
+       device driver object with the software renderer.}
       property OutputAdapter: TAu3DOutputFilterAdapter read FOutputAdapter;
+      {The speaker preset which had been chosen in the constructor.}
       property SpeakerPreset: TAu3DSpeakerPreset read FSpeakerPreset;
+      {The audio parameters the 3D audio environment is using.}
       property Parameters: TAuAudioParametersEx read GetParameters;
+      {The device id which is used to output the data.}
       property DeviceID: integer read FDeviceID;
+      {The 3d audio listener object that is used in connection with the audio renderer.
+       Use this object to set the position, orientation, pitch and gain of the listener.
+       Don't forget to synchronize access to the listener by using TAuRenderer.Lock and
+       Unlock.}
       property Listener: TAu3DListener read GetListener;
   end;
 
@@ -92,7 +174,6 @@ type
       FName: AnsiString;
       FOwner: Pointer;
       F3DAudio: TAu3DAudio;
-      FFinished: boolean;
       procedure FreeComponents;
       function DecodeStream: boolean;
       procedure SetLoop(AValue: boolean);
@@ -169,8 +250,17 @@ constructor TAu3DAudio.Create(AAudio: TAuAudio;
 begin
   inherited Create;
 
+  if AAudio = nil then
+  begin
+    FAudio := TAuAudio.Create;
+    FOwnAudio := true;
+  end else
+  begin
+    FAudio := AAudio;
+    FOwnAudio := false;
+  end;
+
   //Copy some parameters
-  FAudio := AAudio;
   FFrequency := AFrequency;
   FBitdepth := ABitdepth;
   FSpeakerPreset := ASpeakerPreset;
@@ -184,21 +274,28 @@ end;
 destructor TAu3DAudio.Destroy;
 begin
   Finalize;
+
+  if FOwnAudio then
+    FreeAndNil(FAudio);
+
   inherited;
 end;
 
 function TAu3DAudio.Initialize: boolean;
 begin
-  Finalize;
-
   result := false;
+  if FOwnAudio and (not FAudio.Initialized) and (not FAudio.Initialize) then
+  begin
+    FLastError := FAudio.GetLastError;
+    exit;
+  end;
 
   //Create the 3D audio renderer
   FRenderer := TAu3DSoundRenderer.Create(FSpeakerPreset, FFrequency);
 
   //Create the output driver
-  FDriver := FAudio.Driver.CreateStreamDriver(FDeviceID, GetParameters);
-  if (FDriver <> nil) and (FDriver.Open) then
+  FDriver := FAudio.Driver.CreateStreamDriver(FDeviceID);
+  if (FDriver <> nil) then
   begin
     //                                      FDriver
     //                                        / \
@@ -212,18 +309,22 @@ begin
 
 
     //Create the driver filter block
-    FDriverFilter := TAuDriverOutput.Create(FDriver);
-    FDriverFilter.Init(AuAudioParameters(FFrequency, FRenderer.Setup.OutputChannelCount));
+    FDriverFilter := TAuDriverOutput.Create(FDriver, FBitdepth);
 
     //Create the output adpter block and interconnect it to the renderer
     FOutputAdapter := TAu3DOutputFilterAdapter.Create(FRenderer);
     FOutputAdapter.Target := FDriverFilter;
 
     //Start the output
-    FDriverFilter.Play;
-    
-    result := true;
-  end;
+    if FDriverFilter.Init(AuAudioParameters(FFrequency,
+      FRenderer.Setup.OutputChannelCount)) then
+    begin
+      FDriverFilter.Play;
+
+      result := true;
+    end;
+  end else
+    FLastError := Msg3DAudioDriverCreationFailed;
 
   if not result then
     Finalize;
@@ -231,13 +332,21 @@ end;
 
 procedure TAu3DAudio.Finalize;
 begin
-  if FOutputAdapter <> nil then
-    FOutputAdapter.Target := nil;
-    
-  FreeAndNil(FDriverFilter);
+  //Finalize the filtergraph before freeing the other components
+  if FDriverFilter <> nil then
+  begin
+    FDriverFilter.Finalize;
+    FreeAndNil(FDriverFilter);
+  end;
+  
   FreeAndNil(FOutputAdapter);
   FreeAndNil(FDriver);
   FreeAndNil(FRenderer);
+end;
+
+function TAu3DAudio.GetLastError: string;
+begin
+  result := FLastError;
 end;
 
 function TAu3DAudio.GetListener: TAu3DListener;
@@ -251,7 +360,7 @@ function TAu3DAudio.GetParameters: TAuAudioParametersEx;
 begin
   result.Frequency := FFrequency;
   result.Channels := FRenderer.Setup.OutputChannelCount;
-  result.BitDepth := FBitdepth;
+  result.BitDepth := AuBitdepth(FBitdepth);
 end;
 
 procedure TAu3DAudio.Lock;
@@ -304,7 +413,6 @@ begin
       end;
     end;
 
-
     //Free the memory stream if it was our own
     FreeAndNil(FMs);
 
@@ -328,59 +436,55 @@ begin
   end;
 end;
 
-procedure TAuStaticSound_EnumDecoders(ASender: Pointer; AEntry: PAcRegisteredClassEntry);
-var
-  res: TAuDecoderState;
-  decoder: TAuDecoder;
-  pckg: TAuPacket;
-  i: integer;
-  s: Single;
-  buf: PByte;
-begin
-  with TAuStaticSound(ASender) do
-  begin
-    if not FFinished then
-    begin
-      //Bugfix by littleDave
-      if Protocol.Seekable then
-         Protocol.Seek(aupsFromBeginning, 0 );
-
-      decoder := TAuCreateDecoderProc(AEntry.ClassConstructor)(Protocol);
-      try
-        if decoder.OpenDecoder then
-        begin
-          FMs := TMemoryStream.Create;
-
-          FFormat := decoder.Info;
-          repeat
-            res := decoder.Decode;
-            if res = audsHasFrame then
-            begin
-              decoder.GetPacket(pckg);
-              buf := pckg.Buffer;
-              for i := 0 to (pckg.BufferSize div (Integer(FFormat.BitDepth) div 8)) - 1 do
-              begin
-                s := AuReadSample(buf, FFormat.BitDepth);
-                FMs.Write(s, SizeOf(s));
-              end;
-            end;
-          until res = audsEnd;
-          FFinished := true;
-        end;
-      finally
-        decoder.Free;
-      end;
-    end;
-  end;
-end;
-
 function TAuStaticSound.DecodeStream: boolean;
+var
+  decoder: TAuDecoder;
+  res: TAuDecoderState;
+  pckg:  TAuPacket;
+  mem: PByte;
+  buf_size: integer;
 begin
-  FFinished := false;
+  result := false;
+  mem := nil;
+  
   try
-    AcRegSrv.EnumClasses(TAuDecoder, TAuStaticSound_EnumDecoders, self);
+    //Search a decoder for the given protocol
+    decoder := AuFindDecoder(Protocol);
+    if decoder <> nil then
+    begin
+      //Create a memory stream for the decoded data, store the decoder format
+      FMs := TMemoryStream.Create;
+      FFormat := decoder.Info;
+
+      repeat
+        //Decode each package of the input data
+        res := decoder.Decode;
+
+        //Convert each frame to 32-Bit floating point data, and write it to the memory stream
+        if res = audsHasFrame then
+        begin
+          //Get the packet data
+          decoder.GetPacket(pckg);
+
+          //Calculate how many bytes the converted package will take and reserve that memory
+          buf_size := AuConvertByteCount(pckg.BufferSize, FFormat,
+            AuAudioParametersEx(FFormat.Frequency, FFormat.Channels, AuBitDepth(32)));
+          ReallocMem(mem, buf_size);
+
+          //Convert the samples and write them to the memory stream
+          AuReadSamples(FFormat, pckg.Buffer, mem, Cardinal(pckg.BufferSize)
+            div AuBytesPerSample(FFormat));
+          FMs.Write(mem^, buf_size);
+        end;
+      until res = audsEnd;
+
+      decoder.Free;
+
+      result := true;
+    end;
   finally
-    result := FFinished;
+    if mem <> nil then
+      FreeMem(mem);
   end;
 end;
 
@@ -452,7 +556,7 @@ begin
     if fmt_node <> nil then
     begin
       FFormat.Frequency := fmt_node.IntValue('freq', 44100);
-      FFormat.BitDepth := fmt_node.IntValue('bits', 16);
+      FFormat.BitDepth := AuBitDepth(fmt_node.IntValue('bits', 16)); //Load whole bit format
       FFormat.Channels := fmt_node.IntValue('chan', 2);
     end;
 
@@ -488,7 +592,7 @@ begin
 
     fmt_node := node.Add('fmt');
     fmt_node.Add('freq', FFormat.Frequency);
-    fmt_node.Add('bits', FFormat.BitDepth);
+    fmt_node.Add('bits', FFormat.BitDepth.bits); //! Save whole bit format
     fmt_node.Add('chan', FFormat.Channels);
 
     if FMs <> nil then

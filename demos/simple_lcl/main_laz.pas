@@ -11,7 +11,7 @@ uses
 
   AuAudio, AuTypes, AuUtils, AuAcinerella, AuAnalyzers,
   {$IFDEF WIN32}
-  AuWaveOut32;
+  AuDirectSound;
   {$ELSE}
   AuOpenAL;
   {$ENDIF}
@@ -98,6 +98,10 @@ type
     procedure PaintBox1Resize(Sender: TObject);
     procedure Timer1Timer(Sender: TObject);
     procedure trbPositionChange(Sender: TObject);
+    procedure trbPositionMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure trbPositionMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
   private
     procedure ShowHint(Sender: TObject);
     procedure PlayerStop(Sender: TObject);
@@ -113,6 +117,8 @@ type
     peakmeter: TBitmap;
 
     upd_trb: boolean;
+    trackbar_drag: boolean;
+    seeked: Boolean;
 
     procedure ResizePeakMeter;
 
@@ -210,7 +216,7 @@ begin
 
     AuPeaks := TAuPeakMeter.Create;
     AuPeaks.Active := true;
-    AuPlayer.AddAnalzyer(AuPeaks);
+    AuPlayer.AddAnalyzer(AuPeaks);
   end;
 
   peakmeter_bg := TBitmap.Create;
@@ -289,10 +295,16 @@ begin
   if (AuPlayer <> nil) then
   begin
     upd_trb := true;
-    Panel3.Visible := ((AuPlayer.Position > -1) and (AuPlayer.Len > -1));
+    if AuPlayer.Position > -1 then
+    begin
+      Panel3.Visible := (AuPlayer.Len >= 0);
 
-    trbPosition.Position := AuPlayer.Position div 10;
-    pnlTime.Caption := FormatDateTime('hh:nn:ss.zzz', AuPlayer.Position / day);
+      if (not trackbar_drag) then
+      begin
+        trbPosition.Position := AuPlayer.Position div 10;
+      end;
+      pnlTime.Caption := FormatDateTime('hh:nn:ss.zzz', AuPlayer.Position / day);
+    end;
   end;
 end;
 
@@ -300,10 +312,28 @@ procedure TfrmMain.trbPositionChange(Sender: TObject);
 begin
   if (not upd_trb) and (AuPlayer.State >= aupsOpened) then
   begin
-    AuPlayer.Position := trbPosition.Position * 10;
+    seeked := true;
   end;
 
   upd_trb := false;
+end;
+
+procedure TfrmMain.trbPositionMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  trackbar_drag := true;
+end;
+
+procedure TfrmMain.trbPositionMouseUp(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  if seeked then
+  begin
+    AuPlayer.Position := trbPosition.Position * 10;
+    AuPlayer.Play;
+    seeked := false;
+  end;
+  trackbar_drag := false;
 end;
 
 procedure TfrmMain.ShowHint(Sender: TObject);

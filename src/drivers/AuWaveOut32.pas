@@ -41,9 +41,9 @@ unit AuWaveOut32;
 interface
 
 uses
-  Classes, Windows, MMSystem,
-  AcPersistent,
-  AuTypes, AuDriverClasses, AuWin32Common;
+  SysUtils, Classes, Windows, MMSystem,
+  AcPersistent, AcSyncObjs,
+  AuTypes, AuUtils, AuDriverClasses, AuWin32Common;
 
 type
   TAuWaveOutDriver = class(TAuDriver)
@@ -52,8 +52,7 @@ type
 
       procedure EnumDevices(ACallback: TAuEnumDeviceProc);override;
 
-      function CreateStreamDriver(ADeviceID: integer;
-        AParameters: TAuAudioParametersEx): TAuStreamDriver;override;
+      function CreateStreamDriver(ADeviceID: integer): TAuStreamDriver;override;
   end;
 
   TAuWaveOutStreamDriver = class(TAuStreamDriver)
@@ -67,31 +66,33 @@ type
       FBlockSize: Cardinal;
       FCurrentblock: Cardinal;
       FFreeblocks: Cardinal;
-      FSyncDataArr: array of TAuSyncData;
+      FTimecode: Int64;
+      FThread: TAuStreamDriverIdleThread;
+      FCallback: TAuStreamDriverProc;
+      FParameters: TAuDriverParameters;
+      FMutex: TAcMutex;
+      FActive: Boolean;
+      function Idle(ACallback: TAuReadCallback):boolean;
       procedure AllocBlocks(ABlockCount, ABlockSize: Cardinal);
       procedure DestroyBlocks;
     public
       {Creates a new instance of TAuWaveOutStaticSoundDriver.
        @param(AID is the device id.)
        @param(AFmt is the windows wave format descriptor.)}
-      constructor Create(AID: Cardinal; AFmt: TWaveFormatExtensible);
+      constructor Create(AID: Cardinal);
 
       {Destroys the instance of TAuWaveOutStaticSoundDriver.}
       destructor Destroy;override;
 
-      {Starts the audio playback.}
-      procedure Play;override;
-      {Pauses the audio playback.}
-      procedure Pause;override;      
-      {Stops audio playback: All loaded audio buffers are cleaned up.}
-      procedure Stop;override;
+      procedure SetActive(AActive: Boolean);override;
+      procedure FlushBuffer;override;
+
       {Openes the audio object. And prepares it for playback. When using the
        TAuStaticSoundDriver, data can now be written into the object.}
-      function Open: boolean;override;
+      function Open(ADriverParams: TAuDriverParameters;
+        ACallback: TAuStreamDriverProc; out AWriteFormat: TAuBitdepth): boolean;override;
       {Closes the audio object.}
       procedure Close;override;
-
-      function Idle(ACallback: TAuReadCallback):boolean;override;
   end;
 
 var
@@ -145,11 +146,9 @@ begin
   end;    
 end;
 
-function TAuWaveOutDriver.CreateStreamDriver(ADeviceID: integer;
-  AParameters: TAuAudioParametersEx): TAuStreamDriver;
+function TAuWaveOutDriver.CreateStreamDriver(ADeviceID: integer): TAuStreamDriver;
 begin
-  result := TAuWaveOutStreamDriver.Create(Cardinal(ADeviceID),
-    GetWaveFormatEx(AParameters));
+  result := TAuWaveOutStreamDriver.Create(Cardinal(ADeviceID));
 end;
 
 { TAuWaveOutStreamDriver }
@@ -163,24 +162,89 @@ begin
   end;
 end;
 
-constructor TAuWaveOutStreamDriver.Create(AID: Cardinal;
-  AFmt: TWaveFormatExtensible);
+constructor TAuWaveOutStreamDriver.Create(AID: Cardinal);
 begin
   inherited Create;
 
   FDevId := Integer(AID);
-  FFormat := AFmt;
-  FParameters.Frequency := AFmt.Format.nSamplesPerSec;
-  FParameters.Channels := AFmt.Format.nChannels;
-  FParameters.BitDepth := AFmt.Format.wBitsPerSample;
+  FMutex := TAcMutex.Create;
 end;
 
 destructor TAuWaveOutStreamDriver.Destroy;
 begin
   Close;
   DestroyBlocks;
+  FMutex.Free;
 
   inherited;
+end;
+
+function TAuWaveOutStreamDriver.Idle(ACallback: TAuReadCallback): boolean;
+begin
+  result := false;
+  if (FFreeblocks > 0) and (FHwo <> 0) and (FBlockCount > 0) then
+  begin
+    FMutex.Acquire;
+    try
+      if FActive then
+      begin
+        with FBlocks[FCurrentBlock] do
+        begin
+          if dwFlags = WHDR_PREPARED then
+            waveOutUnprepareHeader(Fhwo, @FBlocks[FCurrentBlock], SizeOf(FBlocks[FCurrentBlock]));
+
+          //Set the sync data
+          dwBufferLength := ACallback(PByte(lpData), FBlockSize, FTimecode);
+
+          if dwBufferLength > 0 then
+          begin
+            waveOutPrepareHeader(Fhwo, @FBlocks[FCurrentBlock], SizeOf(FBlocks[FCurrentBlock]));
+            waveOutWrite(Fhwo, @FBlocks[FCurrentBlock], SizeOf(FBlocks[FCurrentBlock]));
+
+            dec(FFreeblocks);
+
+            FCurrentBlock := FCurrentBlock + 1;
+            if FBlockCount > 0 then
+              FCurrentBlock := FCurrentBlock mod FBlockcount;
+            FTimecode := FTimecode + WaveOut_SamplesPerBlock;
+
+            result := true;
+          end;
+        end;
+      end;
+    finally
+      FMutex.Release;
+    end;
+  end;
+end;
+
+function TAuWaveOutStreamDriver.Open(ADriverParams: TAuDriverParameters;
+  ACallback: TAuStreamDriverProc; out AWriteFormat: TAuBitdepth): boolean;
+begin
+  result := false;
+
+  FFormat := GetWaveFormatEx(ADriverParams);
+  FCallback := ACallback;
+  AWriteFormat := AuBitdepth(ADriverParams.BitDepth);
+  FParameters := ADriverParams;
+  FActive := false;
+
+  //Try to open wave out for streaming purposes
+  if waveOutOpen(@Fhwo, Cardinal(FDevId), @FFormat, Cardinal(@stream_callback), Cardinal(self),
+    CALLBACK_FUNCTION) = MMSYSERR_NOERROR then
+  begin
+    result := true;
+
+    //Allocate buffer blocks
+    AllocBlocks(
+      WaveOut_StdBlockCount,
+      WaveOut_SamplesPerBlock * FFormat.Format.nChannels * FFormat.Format.wBitsPerSample div 8);
+
+    FThread := TAuStreamDriverIdleThread.Create(FCallback, Idle);
+
+    //Pause the playback
+    SetActive(false);
+  end;
 end;
 
 procedure TAuWaveOutStreamDriver.Close;
@@ -189,6 +253,12 @@ var
 begin
   if FHWO <> 0 then
   begin
+    FlushBuffer;
+    
+    FThread.Terminate;
+    FThread.WaitFor;
+    FreeAndNil(FThread);
+
     waveOutReset(FHWO);
     
     for i := 0 to FBlockCount - 1 do
@@ -206,92 +276,43 @@ begin
   end;
 
   FHWO := 0;
-  FState := audsClosed;
 end;
 
-function TAuWaveOutStreamDriver.Idle(ACallback: TAuReadCallback): boolean;
+procedure TAuWaveOutStreamDriver.SetActive(AActive: Boolean);
 begin
-  result := false;
-  if (FFreeblocks > 0) and (FHwo <> 0) and (FBlockCount > 0) then
+  if FHWO <> 0 then
   begin
-    with FBlocks[FCurrentBlock] do
-    begin
-      if dwFlags = WHDR_PREPARED then
-        waveOutUnprepareHeader(Fhwo, @FBlocks[FCurrentBlock], SizeOf(FBlocks[FCurrentBlock]));
+    FMutex.Acquire;
+    try
+      if AActive then
+        waveOutRestart(FHWO)
+      else
+        waveOutPause(FHWO);
 
-      //Set the sync data
-      FSyncData := FSyncDataArr[FCurrentBlock];
-      
-      dwBufferLength := ACallback(PByte(lpData), FBlockSize, FSyncDataArr[FCurrentBlock]);
-
-      if dwBufferLength > 0 then
-      begin
-        waveOutPrepareHeader(Fhwo, @FBlocks[FCurrentBlock], SizeOf(FBlocks[FCurrentBlock]));
-        waveOutWrite(Fhwo, @FBlocks[FCurrentBlock], SizeOf(FBlocks[FCurrentBlock]));
-
-        dec(FFreeblocks);
-
-        FCurrentBlock := FCurrentBlock + 1;
-        if FBlockCount > 0 then        
-          FCurrentBlock := FCurrentBlock mod FBlockcount;
-
-        result := true;
-      end;
+      FActive := true;
+    finally
+      FMutex.Release;
     end;
   end;
 end;
 
-function TAuWaveOutStreamDriver.Open: boolean;
-begin
-  result := false;
-
-  //Try to open wave out for streaming purposes
-  if waveOutOpen(@Fhwo, Cardinal(FDevId), @FFormat, Cardinal(@stream_callback), Cardinal(self),
-    CALLBACK_FUNCTION) = MMSYSERR_NOERROR then
-  begin
-    result := true;
-    FState := audsOpened;
-
-    //Pause the playback
-    Pause;
-
-    //Allocate buffer blocks
-    AllocBlocks(
-      WaveOut_StdBlockCount,
-      WaveOut_SamplesPerBlock * FFormat.Format.nChannels * FFormat.Format.wBitsPerSample div 8);
-  end;
-end;
-
-procedure TAuWaveOutStreamDriver.Pause;
+procedure TAuWaveOutStreamDriver.FlushBuffer;
 begin
   if FHWO <> 0 then
   begin
-    waveOutPause(FHWO);
-    FState := audsPaused;
-  end;
-end;
+    FMutex.Acquire;
+    try
+      waveOutReset(FHWO);
+      waveOutPause(FHWO);
 
-procedure TAuWaveOutStreamDriver.Play;
-begin
-  if FHWO <> 0 then
-  begin
-    waveOutRestart(FHWO);
-    FState := audsPlaying;
-  end;
-end;
+      FFreeblocks := FBlockCount;
+      FCurrentblock := 0;
+      FTimecode := 0;
 
-procedure TAuWaveOutStreamDriver.Stop;
-begin
-  if FHWO <> 0 then
-  begin
-    waveOutReset(FHWO);
-    waveOutPause(FHWO);
-
-    FFreeblocks := FBlockCount;
-    FCurrentblock := 0;
-    FSyncData.Timecode := 0;
-    FSyncData.FrameType := auftBeginning;
-    FState := audsOpened;
+      FActive := false;
+    finally
+      FMutex.Release;
+    end;
   end;
 end;
 
@@ -312,13 +333,10 @@ begin
   SetLength(FBlocks, FBlockcount);
 
   //Reserve memory for the sync data array
-  SetLength(FSyncDataArr, FBlockCount);
-
   ptr := FBuffer;
   for i := 0 to FBlockcount - 1 do
   begin
     FBlocks[i].lpData := PAnsiChar(ptr);
-    FBlocks[i].dwUser := Cardinal(@FSyncDataArr[i]);
     FBlocks[i].dwBufferLength := FBlocksize;
     inc(ptr, FBlocksize);
   end;

@@ -45,8 +45,8 @@ interface
 
 uses
   SysUtils, Classes, Math,
-  AcMath, AcTypes, AcSyncObjs,
-  AuTypes, AuUtils, AuAudioSpline, AuSyncUtils, Au3DRingBuffer;
+  AcMath, AcTypes, AcSyncObjs, AcNotify,
+  AuTypes, AuUtils, AuAudioSpline, Au3DRingBuffer;
 
 const
   AU3DPROP_PHASE = $01;
@@ -246,6 +246,7 @@ type
       FCallback: TAuReadCallback;
       FBuf: PByte;
       FBufSize: Cardinal;
+      FReadPos: Int64;
 
       procedure SetPitch(AValue: Single);
       procedure ReadSamples(ACount: Cardinal);
@@ -350,7 +351,7 @@ type
       FStopProc: TAuNotifyEvent;
 
       procedure SetTimePosition64(AValue: TAuSamplestamp);
-      procedure StopProc;
+      procedure StopProc(ASender: TObject; AUserData: Pointer);
     protected
       function GetPitch: Single;override;
       procedure SetPitch(AValue: Single);override;
@@ -1351,7 +1352,7 @@ end;
 
 destructor TAu3DEnvironment.Destroy;
 begin
-
+  FreeAndNil(FModelEnvironment);
   inherited;
 end;
 
@@ -1531,13 +1532,13 @@ procedure TAu3DStreamedSound.ClearBuffers;
 begin
   inherited;
 
-  FTimePosition64 := 0;  
+  FTimePosition64 := 0;
+  FReadPos := 0;  
 end;
 
 procedure TAu3DStreamedSound.ReadSamples(ACount: Cardinal);
 var
   size: Cardinal;
-  sd: TAuSyncData;
   smpls: Integer;
 begin
   //Reserve some buffer memory
@@ -1547,7 +1548,8 @@ begin
   FBufSize := size;
 
   //Read the samples and write them into the ringbuffer
-  smpls := FCallback(FBuf, size, sd) div AuBytesPerSample(FParameters);
+  smpls := FCallback(FBuf, size, FReadPos) div AuBytesPerSample(FParameters);
+  FReadPos := FReadPos + smpls;
   FRing.WriteSamples(smpls, PSingle(FBuf));
 end;
 
@@ -1714,7 +1716,7 @@ end;
 
 destructor TAu3DStaticEmitter.Destroy;
 begin
-  AuQueueRemove(self);
+  AcNotifyRemoveObject(self);
 
   inherited;
 end;
@@ -1732,7 +1734,7 @@ begin
   if ((FTimePosition64 - FTimeOffset) div (1 shl 16)) >= Sound.BufferSamples then
   begin
     if Assigned(FStopProc) then
-      AuQueueCall(StopProc);
+      AcNotifyQueue(self, StopProc);
 
     if TAu3DStaticSound(FSound).Loop then
       while ((FTimePosition64 - FTimeOffset) div (1 shl 16) >= Sound.BufferSamples) do
@@ -1757,7 +1759,7 @@ begin
   FTimeOffset := 0;
 end;
 
-procedure TAu3DStaticEmitter.StopProc;
+procedure TAu3DStaticEmitter.StopProc(ASender: TObject; AUserData: Pointer);
 begin
   if Assigned(FStopProc) then
     FStopProc(self);

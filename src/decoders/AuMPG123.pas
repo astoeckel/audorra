@@ -55,24 +55,23 @@ type
       FChannels: integer;
       FTimecode: Cardinal;
       FMustRead: boolean;
-      FProtocol: TAuProtocol;
       function OpenFeedDecoder: boolean;
       function OpenStreamDecoder: boolean;
       function DecodeFeed: TAuDecoderState;
       function DecodeStream: TAuDecoderState;
     protected
       function GetInfo: TAuAudioParametersEx;override;
+
+      function DoOpenDecoder(AProbeResult: Pointer): boolean;override;
+      procedure DoCloseDecoder;override;
     public
-      constructor Create(AProtocol: TAuProtocol);override;
-      destructor Destroy;override;
-
-      function OpenDecoder: boolean;override;
-      procedure CloseDecoder;override;
-
       function Decode: TAuDecoderState;override;
 
       function SeekTo(ACur, ATar: integer): boolean;override;
       function StreamLength: integer;override;
+
+      function Probe(ABuf: PByte; ASize: Integer; AURL: PAnsiChar;
+        var AResult: Pointer): Integer;override;
 
       procedure GetPacket(var APacket: TAuPacket);override;
   end;
@@ -81,20 +80,7 @@ implementation
 
 { TAuMPG123Decoder }
 
-constructor TAuMPG123Decoder.Create(AProtocol: TAuProtocol);
-begin
-  inherited;
-  FProtocol := AProtocol;
-end;
-
-destructor TAuMPG123Decoder.Destroy;
-begin
-  CloseDecoder;
-  inherited;
-end;
-
-
-procedure TAuMPG123Decoder.CloseDecoder;
+procedure TAuMPG123Decoder.DoCloseDecoder;
 begin
   if FDec <> nil then
   begin
@@ -118,13 +104,32 @@ begin
   FTimecode := 0;
 end;
 
+function TAuMPG123Decoder.DoOpenDecoder(AProbeResult: Pointer): boolean;
+begin
+  result := false;
+
+  //Create a new decoder
+  FDec := mpg123_new(nil, nil);
+  if FDec <> nil then
+  begin
+    //Reserve memory for the output
+    FOutBufSize := 32768;
+    GetMem(FOutBuf, FOutBufSize);
+
+    if Protocol.Seekable then
+      result := OpenStreamDecoder
+    else
+      result := OpenFeedDecoder;
+  end;
+end;
+
 function TAuMPG123Decoder.Decode: TAuDecoderState;
 begin
   result := audsEnd;
   
   if FDec <> nil then
   begin
-    if FProtocol.Seekable then
+    if Protocol.Seekable then
       result := DecodeStream
     else
       result := DecodeFeed;
@@ -140,7 +145,7 @@ begin
   
   if FMustRead then
   begin
-    read := FProtocol.Read(FInBuf, FInBufSize);
+    read := Protocol.Read(FInBuf, FInBufSize);
     FMustRead := false;
     if read = 0 then
     begin
@@ -185,7 +190,7 @@ begin
   begin
     Frequency := FFrequency;
     Channels := FChannels;
-    BitDepth := FBitDepth;
+    BitDepth := AuBitdepth(FBitDepth);
   end;
 end;
 
@@ -196,27 +201,6 @@ begin
     Buffer := FOutBuf;
     BufferSize := FOutBufCount;
     Timecode := round(FTimecode / FFrequency * 1000);
-  end;
-end;
-
-function TAuMPG123Decoder.OpenDecoder: boolean;
-begin
-  CloseDecoder;
-
-  result := false;
-
-  //Create a new decoder
-  FDec := mpg123_new(nil, nil);
-  if FDec <> nil then
-  begin
-    //Reserve memory for the output
-    FOutBufSize := 32768;
-    GetMem(FOutBuf, FOutBufSize);
-
-    if FProtocol.Seekable then
-      result := OpenStreamDecoder
-    else
-      result := OpenFeedDecoder;
   end;
 end;
 
@@ -241,7 +225,7 @@ begin
   c := 0;
   repeat
     inc(c);
-    read := FProtocol.Read(FInBuf, FInBufSize);
+    read := Protocol.Read(FInBuf, FInBufSize);
     if read <> 0 then
     begin
       atend := true;
@@ -262,13 +246,13 @@ end;
 
 function read_proc(fd: integer; buf: PByte; count: integer): integer;cdecl;
 begin
-  result := TAuMPG123Decoder(Pointer(fd)).FProtocol.Read(buf, count);
+  result := TAuMPG123Decoder(Pointer(fd)).Protocol.Read(buf, count);
 end;
 
 function seek_proc(fd: integer; count: integer; offset: integer): integer;cdecl;
 begin
   if offset in [0, 1, 2] then
-    result := TAuMPG123Decoder(Pointer(fd)).FProtocol.Seek(TAuProtocolSeekMode(offset), count)
+    result := TAuMPG123Decoder(Pointer(fd)).Protocol.Seek(TAuProtocolSeekMode(offset), count)
   else
     result := -1;
 end;
@@ -292,6 +276,25 @@ begin
   result := true;
 end;
 
+function TAuMPG123Decoder.Probe(ABuf: PByte; ASize: Integer; AURL: PAnsiChar;
+  var AResult: Pointer): Integer;
+var
+  dec: PMPG123Handle;
+begin
+  result := 0;
+
+  dec := mpg123_new(nil, nil);
+  try
+    mpg123_open_feed(dec);
+
+    //Read some data from the stream
+    if mpg123_decode(dec, ABuf, ASize, nil, 0, nil) = MPG123_NEW_FORMAT then
+      result := 100;
+  finally
+    mpg123_delete(dec);
+  end;
+end;
+
 function TAuMPG123Decoder.SeekTo(ACur, ATar: integer): boolean;
 begin
   result :=
@@ -306,9 +309,9 @@ begin
     result := round(mpg123_length(FDec) / FFrequency * 1000);
 end;
 
-function CreateMPG123Decoder(AProtocol: TAuProtocol): TAuMPG123Decoder;
+function CreateMPG123Decoder: TAuMPG123Decoder;
 begin
-  result := TAuMPG123Decoder.Create(AProtocol);
+  result := TAuMPG123Decoder.Create;
 end;
 
 initialization

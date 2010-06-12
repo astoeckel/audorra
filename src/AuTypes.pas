@@ -61,6 +61,18 @@ type
     up: TAuVector3;
   end;
 
+  TAuSampletype = (
+    austInt,
+    austUInt,
+    austFloat
+  );
+
+  TAuBitdepth = record
+    bits: Byte;
+    align: Byte;
+    sample_type: TAuSampletype;
+  end;
+
   {TAuAudioParameters represents the internal audio data structure. The bit depth
    is always 32 bit.}
   TAuAudioParameters = packed record
@@ -72,6 +84,7 @@ type
      any purpose. The standard Audorra implementations don't use this value.}
     UserData: Pointer;
   end;
+  PAuAudioParameters = ^TAuAudioParameters;
 
   {TAuAudioParameters represents the internal audio data structure. This structure
    contains (in difference to TAuAudioParameters) the BitDepth of the audio data.
@@ -87,10 +100,17 @@ type
         any purpose. The standard Audorra implementations don't use this value.}
        UserData: Pointer;
        {The bit depth of a single audio sub-sample. Common values are 16, 24 or 8 Bits.}
-       BitDepth: Cardinal; );
+       BitDepth: TAuBitdepth; );
       1:(
        {Data without the bit depth.}
        Parameters: TAuAudioParameters);
+  end;
+  PAuAudioParametersEx = ^TAuAudioParametersEx;
+
+  TAuDriverParameters = record
+    Frequency: Cardinal;
+    Channels: Cardinal;
+    BitDepth: Cardinal;
   end;
 
   {The TAuAudioDriverState represents the current state of an audio driver.
@@ -123,13 +143,13 @@ type
   {TAuDriverReadCallback is used by the stream driver to gain new audio data information.
    @param(ABuf is a pointer to the first byte of the buffer)
    @param(ASize is the size of the buffer.)
-   @param(ASyncData may be used for you own needs. For example you may write the
-     timecode information you've got from an audio decoder into it. Lateron you
-     may read the current timecode from the stream driver.)
    @returns(Count of bytes that has been read.)}
-  TAuReadCallback = function(
-    ABuf: PByte; ASize: Cardinal; var ASyncData: TAuSyncData): Cardinal of object;
+  TAuReadCallback = function(ABuf: PByte; ASize: Cardinal;
+    APlaybackSample: Int64): Cardinal of object;
 
+  TAuStreamDriverProc = function(ABuf: PByte; ASize: Cardinal;
+    APlaybackSample: Int64): Cardinal of object;
+    
   TAuChannelPeaks = array of Single;
   TAuChannelVolumes = array of Single;
 
@@ -142,12 +162,12 @@ type
 
 {Produces a TAuAudioParameters record.
  @seealso(TAuAudioParametersEx)}
-function AuAudioParametersEx(const AFrequency, AChannels, ABitDepth: Cardinal;
-  const AUserData: Pointer = nil): TAuAudioParametersEx;overload;
+function AuAudioParametersEx(const AFrequency, AChannels: Cardinal;
+  const ABitDepth: TAuBitdepth; const AUserData: Pointer = nil): TAuAudioParametersEx;overload;
 {Produces a TAuAudioParameters record.
  @seealso(TAuAudioParametersEx)}
 function AuAudioParametersEx(const AParams: TAuAudioParameters;
-  ABitDepth: Cardinal): TAuAudioParametersEx;overload;
+  const ABitDepth: TAuBitdepth): TAuAudioParametersEx;overload;
 {Produces a TAuAudioParametersEx record.
  @seealso(TAuAudioParameters)}
 function AuAudioParameters(const AFrequency, AChannels: Cardinal;
@@ -157,7 +177,121 @@ function AuCompSyncData(AData1, AData2: TAuSyncData): boolean;
 
 function AuOrientation(AAt, AUp: TAuVector3): TAuOrientation;
 
+function AuBitdepth(ABitdepth: Byte): TAuBitdepth;overload;
+function AuBitdetph(ABits, AAlign: Byte; ASampleType: TAuSampletype): TAuBitdepth;overload;
+function AuCheckBitdepth(const ABitdepth: TAuBitdepth): Boolean;
+function AuDriverParameters(AFrequency, AChannels, ABitdepth: Cardinal): TAuDriverParameters;overload;
+function AuDriverParameters(AParametersEx: TAuAudioParametersEx): TAuDriverParameters;overload;
+function AuDriverParameters(AParameters: TAuAudioParameters; ABitdepth: Cardinal): TAuDriverParameters;overload;
+
+const
+  au8Bit: TAuBitdepth = (
+    bits: 8;
+    align: 8;
+    sample_type: austUInt;
+  );
+
+  au16Bit: TAuBitdepth = (
+    bits: 16;
+    align: 16;
+    sample_type: austInt;
+  );
+
+  au24Bit: TAuBitdepth = (
+    bits: 24;
+    align: 24;
+    sample_type: austInt;
+  );
+
+  au32Bit: TAuBitdepth = (
+    bits: 32;
+    align: 32;
+    sample_type: austInt;
+  );
+
+  auFloat32Bit: TAuBitdepth = (
+    bits: 32;
+    align: 32;
+    sample_type: austFloat;
+  );
+
 implementation
+
+function AuDriverParameters(AFrequency, AChannels, ABitdepth: Cardinal): TAuDriverParameters;overload;
+begin
+  with result do
+  begin
+    Frequency := AFrequency;
+    Channels := AChannels;
+    BitDepth := ABitdepth;
+  end;
+end;
+
+function AuDriverParameters(AParametersEx: TAuAudioParametersEx): TAuDriverParameters;overload;
+begin
+  with result do
+  begin
+    Frequency := AParametersEx.Frequency;
+    Channels := AParametersEx.Channels;
+    BitDepth := AParametersEx.BitDepth.bits;
+  end;
+end;
+
+function AuDriverParameters(AParameters: TAuAudioParameters; ABitdepth: Cardinal): TAuDriverParameters;overload;
+begin
+  with result do
+  begin
+    Frequency := AParameters.Frequency;
+    Channels := AParameters.Channels;
+    BitDepth := ABitdepth;
+  end;
+end;
+
+function AuBitdepth(ABitdepth: Byte): TAuBitdepth;overload;
+begin
+  with result do
+  begin
+    //Set the bitdepth accordingly
+    bits := ABitdepth;
+
+    //Set the align properly. It has to be a multiple of eight.
+    if ABitdepth mod 8 = 0 then    
+      align := ABitdepth
+    else
+      align := (ABitdepth div 8 + 1) * 8;
+
+    //Set sample type according to the given bitdepth
+    if ABitdepth <= 8 then    
+      sample_type := austUInt
+    else
+      sample_type := austInt;
+  end;
+end;
+
+function AuBitdetph(ABits, AAlign: Byte; ASampleType: TAuSampletype): TAuBitdepth;overload;
+begin
+  with result do
+  begin
+    bits := ABits;
+    align := AAlign;
+    sample_type := ASampleType;
+  end;
+end;
+
+function AuCheckBitdepth(const ABitdepth: TAuBitdepth): Boolean;
+begin
+  result :=
+     //Align must always be greater than bits
+    (ABitdepth.bits <= ABitdepth.align) and
+    //The align must be a multiple of eight
+    (ABitdepth.align mod 8 = 0) and
+    //There actually have to be some bits
+    (ABitdepth.bits > 0) and
+    //Bitdepths greater than 32 bits are not supported
+    (ABitdepth.bits <= 32) and
+    //Only single percission floats are currently supported
+    ((ABitdepth.sample_type < austFloat) or ((ABitDepth.bits = 32) and (ABitdepth.align = 32)));
+end;                  
 
 function AuOrientation(AAt, AUp: TAuVector3): TAuOrientation;
 begin
@@ -187,8 +321,8 @@ begin
   end;
 end;
 
-function AuAudioParametersEx(const AFrequency, AChannels, ABitDepth: Cardinal;
-  const AUserData: Pointer = nil): TAuAudioParametersEx;
+function AuAudioParametersEx(const AFrequency, AChannels: Cardinal;
+  const ABitDepth: TAuBitdepth; const AUserData: Pointer = nil): TAuAudioParametersEx;
 begin
   //Set all values and return the result record
   with result do
@@ -201,7 +335,7 @@ begin
 end;
 
 function AuAudioParametersEx(const AParams: TAuAudioParameters;
-  ABitDepth: Cardinal): TAuAudioParametersEx;overload;
+  const ABitDepth: TAuBitdepth): TAuAudioParametersEx;overload;
 begin
   with result do
   begin

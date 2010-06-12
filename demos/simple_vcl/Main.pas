@@ -9,10 +9,8 @@ uses
   wnd_OpenURL,
 
   AcPersistent, AcDLLExplorer, AcStrUtils,
-  AuUtils, AuTypes, AuAudio, AuComplex,
-  AuCDAudio, AuVorbis, AuNULL, AuLibao,
-  {AuHTTP,}
-  AuAnalyzers, AuVisualisations;
+  AuUtils, AuTypes, AuAudio, AuComplex, AuVisualisations,
+  AuCDAudio, AuAcinerella, AuDirectSound, AuHTTP;
 
 type
   TfrmPlayer = class(TForm)
@@ -154,7 +152,7 @@ begin
     AuVisualisations[1] := TAuPeakMeterVisualisation.Create;
     AuVisualisations[2] := TAuOsciloscopeVisualisation.Create(0.1);
     for i := 0 to High(AuVisualisations) do
-      AuPlayer.AddAnalzyer(AuVisualisations[i].Analyzer);
+      AuPlayer.AddAnalyzer(AuVisualisations[i].Analyzer);
 
     AuCurrentVisualisation := 0;
     AuVisualisations[AuCurrentVisualisation].Activate;
@@ -294,17 +292,17 @@ end;
 function MSToTime(AV: Integer): string;
 begin
   result :=
-    FormatFloat('00', AV div (3600 * 1000)) + ':' +
-    FormatFloat('00', (AV div 60000) mod 60) + ':' +
-    FormatFloat('00', (AV div 1000) mod 60);
-{    FormatFloat('000', AV mod 1000);}
+    //FormatFloat('00', AV div (3600 * 1000)) + ':' +
+    FormatFloat('00', (AV div 60000)) + ':' +
+    FormatFloat('00', (AV div 1000) mod 60) + ':' +
+    FormatFloat('000', AV mod 1000);
 end;
 
 procedure TfrmPlayer.Timer1Timer(Sender: TObject);
 var
   pos: integer;
 begin
-  if AuVisualisations[AuCurrentVisualisation].Update then;
+  if AuVisualisations[AuCurrentVisualisation].Update then
     AuVisualisations[AuCurrentVisualisation].Draw(pntbVis.Canvas);
 
   if AuPlayer <> nil then
@@ -333,8 +331,9 @@ begin
       begin
         seek := false;
         AuPlayer.Position := TrackBar1.Position;
+        AuPlayer.Play;
       end;
-        
+
       pos := AuPlayer.Len;
       if pos >= 0 then
         TrackBar1.Max := pos;
@@ -350,8 +349,10 @@ procedure TfrmPlayer.TrackBar1Change(Sender: TObject);
 begin
   if not changed then
   begin
-    seek := true;
+//    seek := true;
     trbchange_time := GetTickCount;
+    AuPlayer.Position := TrackBar1.Position;
+    AuPlayer.Play;
   end;
   changed := false;
 end;

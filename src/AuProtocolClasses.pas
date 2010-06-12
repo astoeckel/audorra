@@ -42,7 +42,7 @@ interface
 
 uses
   Classes,
-  AcPersistent;
+  AuTypes, AcPersistent;
 
 type
   {TAuProtocolSeekMode is used to define the origin of a seek operation.}
@@ -59,17 +59,40 @@ type
   );
 
   TAuProtocol = class(TAcPersistent)
+    private
+      FOnDestroy: TAuNotifyEvent;
+      FUrl: String;
+    protected
+      property OnDestroy: TAuNotifyEvent read FOnDestroy write FOnDestroy;
     public
+      procedure BeforeDestruction;override;
+
       function Read(ABuf: PByte; ACount: Integer): Integer;virtual;abstract;
       function Seekable: boolean;virtual;abstract;
       function Seek(ASeekMode: TAuProtocolSeekMode; ACount: Int64): Int64;virtual;abstract;
+
+      property URL: string read FUrl write FUrl;
+  end;
+
+  TAuMemoryProtocol = class(TAuProtocol)
+    private
+      FMemory: PByte;
+      FSize: integer;
+      FReadPosition: integer;
+      FOwnMemory: Boolean;
+    public
+      constructor Create(ABuf: PByte; ACount: Integer; ACopy: Boolean = true);
+      destructor Destroy;override;
+      
+      function Read(ABuf: PByte; ACount: Integer): Integer;override;
+      function Seekable: boolean;override;
+      function Seek(ASeekMode: TAuProtocolSeekMode; ACount: Int64): Int64;override;
   end;
 
   TAuStreamProtocol = class(TAuProtocol)
     private
       FStream: TStream;
       FCanSeek: boolean;
-      FURL: string;
       function StreamIsSeekable: boolean;
     public
       constructor Create(AStream: TStream);
@@ -79,20 +102,38 @@ type
       function Seek(ASeekMode: TAuProtocolSeekMode; ACount: Int64): Int64;override;
 
       property Stream: TStream read FStream;
-      property URL: string read FURL write FURL;
   end;
 
   TAuURLProtocol = class(TAuProtocol)
-    private
-      FURL: string;
-
     public
       function SupportsProtocol(const AName: string):boolean;virtual;abstract;
       function Open(AUrl: string): boolean;virtual;
       procedure Close;virtual;abstract;
       function Opened: boolean;virtual;abstract;
+  end;
 
-      property URL: string read FURL;
+  TAuProtocolAdapter = class(TAuProtocol)
+    private
+      FParent: TAuProtocol;
+      procedure ParentDestroy(Sender: TObject);
+    public
+      constructor Create(AParent: TAuProtocol);
+      destructor Destroy;override;
+  end;
+
+  //Non seekable
+  TAuInitialMemAdapter = class(TAuProtocolAdapter)
+    private
+      FMem: PByte;
+      FSize: Integer;
+      FReadPos: Integer;
+    public
+      constructor Create(AParent: TAuProtocol; AMem: PByte; ASize: Integer);
+      destructor Destroy;override;
+
+      function Read(ABuf: PByte; ACount: Integer): Integer;override;
+      function Seekable: boolean;override;
+      function Seek(ASeekMode: TAuProtocolSeekMode; ACount: Int64): Int64;override;
   end;
 
   TAuCreateURLProtocolProc = function: TAuURLProtocol;
@@ -158,8 +199,203 @@ end;
 function TAuURLProtocol.Open(AUrl: string): boolean;
 begin
   result := false;
+end;
+
+{ TAuMemoryProtocol }
+
+constructor TAuMemoryProtocol.Create(ABuf: PByte; ACount: Integer;
+  ACopy: Boolean);
+begin
+  inherited Create;
+
+  //If ACopy is true, copy the given memory else only store a reference to the
+  //given buffer
+  if ACopy then
+  begin
+    GetMem(FMemory, ACount);
+    Move(ABuf^, FMemory^, ACount);
+  end else
+    FMemory := ABuf;
+    
+  FSize := ACount;
+  FOwnMemory := ACopy;
+  FReadPosition := 0; 
+end;
+
+destructor TAuMemoryProtocol.Destroy;
+begin
+  //Free the possibly reserved memory
+  if FOwnMemory then
+    FreeMem(FMemory, FSize);
+
+  FSize := 0;
+  FMemory := nil;
+
+  inherited;
+end;
+
+function TAuMemoryProtocol.Read(ABuf: PByte; ACount: Integer): Integer;
+var
+  cnt: Integer;
+  src: PByte;
+begin
+  //Calculate the maximum amount of bytes which can be read
+  cnt := FSize - FReadPosition;
+
+  //If this value is greater than ACount, limit it
+  if cnt > ACount then
+    cnt := ACount;
+  if cnt < 0 then //should never occur
+    cnt := 0;
+
+  //Calculate a temporary read pointer and copy the data
+  src := FMemory;
+  inc(src, FReadPosition);
+  Move(src^, ABuf^, cnt);
+
+  //Increment the read position and return the actual read count  
+  FReadPosition := FReadPosition + cnt;
+  result := cnt;
+end;
+
+function TAuMemoryProtocol.Seek(ASeekMode: TAuProtocolSeekMode;
+  ACount: Int64): Int64;
+begin
+  //Calculate the new read position
+  case ASeekMode of
+    aupsFromBeginning:
+      FReadPosition := ACount;
+    aupsFromCurrent:
+      FReadPosition := FReadPosition + ACount;
+    aupsFromEnd:
+      FReadPosition := FSize + ACount;
+  end;
+
+  //Limit the read position
+  if FReadPosition < 0 then
+    FReadPosition := 0;
+  if FReadPosition > FSize then
+    FReadPosition := FSize;
+
+  //Return the new position
+  result := FReadPosition;
+end;
+
+function TAuMemoryProtocol.Seekable: boolean;
+begin
+  result := true;
+end;
+
+{ TAuProtocol }
+
+procedure TAuProtocol.BeforeDestruction;
+begin
+  if Assigned(FOnDestroy) then
+    FOnDestroy(self);
+
+  inherited;
+end;
+
+{ TAuProtocolAdapter }
+
+constructor TAuProtocolAdapter.Create(AParent: TAuProtocol);
+begin
+  inherited Create;
+
+  //Set the parent on destroy handler
+  FParent := AParent;
+  FParent.OnDestroy := ParentDestroy;  
+  FUrl := AParent.URL;
+end;
+
+destructor TAuProtocolAdapter.Destroy;
+begin
+  //Clean all references to parent
+  FParent.OnDestroy := nil;
+  FParent := nil;
+
+  inherited;
+end;
+
+procedure TAuProtocolAdapter.ParentDestroy(Sender: TObject);
+begin
+  Free;
+end;
+
+{ TAuInitialMemAdapter }
+
+constructor TAuInitialMemAdapter.Create(AParent: TAuProtocol; AMem: PByte;
+  ASize: Integer);
+begin
+  inherited Create(AParent);
+
+  //Reserve ASize bytes of memory and copy the content of AMem to it
+  FSize := ASize;
+  GetMem(FMem, FSize);
+  Move(AMem^, FMem^, FSize);
+
+  FReadPos := 0;
+end;
+
+destructor TAuInitialMemAdapter.Destroy;
+begin
+  //Destroy all reserved memory
+  if FMem <> nil then
+    FreeMem(FMem);
+  FMem := nil;
+  FSize := 0;
   
-  FURL := AURL;
+  inherited;
+end;
+
+function TAuInitialMemAdapter.Read(ABuf: PByte; ACount: Integer): Integer;
+var
+  ptar, psrc: PByte;
+  cnt, maxcnt: Integer;
+  read: integer;
+begin
+  ptar := ABuf;
+  cnt := ACount;
+  read := 0;
+
+  if FReadPos < FSize then
+  begin
+    //Get the maximum count of bytes which can be read from memory
+    maxcnt := FSize - FReadPos;
+    if cnt < maxcnt then
+      maxcnt := cnt;
+
+    //Setup the source pointer
+    psrc := FMem;
+    inc(psrc, FReadPos);
+
+    //Copy maxcnt bytes from psrc to ptar
+    Move(psrc^, ptar^, maxcnt);
+
+    //Increment the target pointer and increment the read count/decrement the
+    //count of bytes which have to be read
+    inc(ptar, maxcnt);
+    read := read + maxcnt;
+    cnt := cnt - maxcnt;
+  end;
+
+  //If all buffer bytes have been read, ask the adapted protocol for data
+  if cnt > 0 then
+    read := read + FParent.Read(ptar, cnt);
+
+  result := read;
+  FReadPos := FReadPos + read;  
+end;
+
+function TAuInitialMemAdapter.Seek(ASeekMode: TAuProtocolSeekMode;
+  ACount: Int64): Int64;
+begin
+  result := 0;
+end;
+
+function TAuInitialMemAdapter.Seekable: boolean;
+begin
+  result := false;
 end;
 
 end.

@@ -224,6 +224,9 @@ var
     outmemsize: Cardinal; done: PCardinal): Integer; cdecl; 
   mpg123_getformat: function(mh: PMPG123Handle;
   	rate: PInteger; channels: PInteger; encoding: PInteger): integer;cdecl;
+  mpg123_format: function(mh: PMPG123Handle;
+  	rate: Integer; channels: Integer; encoding: Integer): integer;cdecl;
+  mpg123_format_all: function(mh: PMPG123Handle): integer; cdecl;
   mpg123_tell: function(mh: PMPG123Handle): Cardinal;cdecl;
   mpg123_replace_reader: function(mh: PMPG123Handle; readproc: Tmpg123_readproc;
     seekproc: Tmpg123_seekproc): integer;cdecl;
@@ -270,6 +273,8 @@ begin
     mpg123_decode := AcGetProcAddress(lib_handle, 'mpg123_decode');
     mpg123_read := AcGetProcAddress(lib_handle, 'mpg123_read');
     mpg123_getformat := AcGetProcAddress(lib_handle, 'mpg123_getformat');
+    mpg123_format := AcGetProcAddress(lib_handle, 'mpg123_format');
+    mpg123_format_all := AcGetProcAddress(lib_handle, 'mpg123_format_all');
     mpg123_tell := AcGetProcAddress(lib_handle, 'mpg123_tell');
     mpg123_replace_reader := AcGetProcAddress(lib_handle, 'mpg123_replace_reader');
     mpg123_scan := AcGetProcAddress(lib_handle, 'mpg123_scan');

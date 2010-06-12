@@ -54,12 +54,11 @@ type
       procedure FreeBuf;
     protected
       function GetInfo: TAuAudioParametersEx;override;
+      function DoOpenDecoder(AProbeResult: Pointer): boolean;override;
+      procedure DoCloseDecoder;override;
     public
-      constructor Create(AProtocol: TAuProtocol);override;
+      constructor Create;
       destructor Destroy;override;
-
-      function OpenDecoder: boolean;override;
-      procedure CloseDecoder;override;
 
       function Decode: TAuDecoderState;override;
 
@@ -73,7 +72,7 @@ implementation
 
 { TAuWAVDecoder }
 
-constructor TAuWAVDecoder.Create(AProtocol: TAuProtocol);
+constructor TAuWAVDecoder.Create;
 begin
   inherited;
 
@@ -87,7 +86,23 @@ begin
   inherited;
 end;
 
-procedure TAuWAVDecoder.CloseDecoder;
+function TAuWAVDecoder.DoOpenDecoder(AProbeResult: Pointer): boolean;
+begin
+  result := false;
+
+  if FWAVFile.Open(Protocol) then
+  begin
+    //Reserve space for 512 samples
+    FBufSize := 512 * AuBytesPerSample(FWAVFile.Parameters);
+    FBuf := GetMemory(FBufSize);
+
+    FPacket.Buffer := FBuf;
+    
+    result := true;
+  end;  
+end;
+
+procedure TAuWAVDecoder.DoCloseDecoder;
 begin
   FWAVFile.Close;
 end;
@@ -124,30 +139,11 @@ begin
   APacket:= FPacket;
 end;
 
-function TAuWAVDecoder.OpenDecoder: boolean;
-begin
-  //Close the decoder
-  CloseDecoder;
-
-  result := false;
-
-  if FWAVFile.Open(FProtocol) then
-  begin
-    //Reserve space for 512 samples
-    FBufSize := 512 * AuBytesPerSample(FWAVFile.Parameters);
-    FBuf := GetMemory(FBufSize);
-
-    FPacket.Buffer := FBuf;
-    
-    result := true;
-  end;  
-end;
-
 function TAuWAVDecoder.SeekTo(ACur, ATar: integer): boolean;
 begin
   result := false;
 
-  if FProtocol.Seekable then
+  if Protocol.Seekable then
     result := FWAVFile.Seek(ATar);
 end;
 
@@ -156,9 +152,9 @@ begin
   result := FWAVFile.StreamLength;
 end;
 
-function CreateWAVDecoder(AProtocol: TAuProtocol): TAuDecoder;
+function CreateWAVDecoder: TAuDecoder;
 begin
-  result := TAuWAVDecoder.Create(AProtocol);
+  result := TAuWAVDecoder.Create;
 end;
 
 initialization

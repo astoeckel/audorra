@@ -53,7 +53,7 @@ object frmmain: Tfrmmain
     Top = 0
     Width = 289
     Height = 614
-    ActivePage = TabSheet4
+    ActivePage = TabSheet3
     Align = alLeft
     TabOrder = 1
     object TabSheet3: TTabSheet
@@ -63,11 +63,15 @@ object frmmain: Tfrmmain
         Top = 0
         Width = 281
         Height = 242
-        ActivePage = TabSheet1
+        ActivePage = TabSheet2
         Align = alTop
         TabOrder = 0
         object TabSheet1: TTabSheet
           Caption = 'Static Sounds'
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 0
+          ExplicitHeight = 0
           object ToolBar2: TToolBar
             Left = 0
             Top = 0
@@ -439,6 +443,10 @@ object frmmain: Tfrmmain
     object TabSheet4: TTabSheet
       Caption = 'Materials and Walls'
       ImageIndex = 1
+      ExplicitLeft = 0
+      ExplicitTop = 0
+      ExplicitWidth = 0
+      ExplicitHeight = 0
       object btnBuildWall: TSpeedButton
         Left = 3
         Top = 223

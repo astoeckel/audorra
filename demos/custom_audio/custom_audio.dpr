@@ -13,13 +13,13 @@ uses
 type
   TAuApp = class
     private
-      FOutput: TAuStreamDriver;
+      FOutput: TAuStreamDriver2;
       FAudio: TAuAudio;
       FTime: Double;
       FFreq: Double;
       FAmplitude: Double;
       function ReadProc(ABuf: PByte; ASize: Cardinal;
-        var ASyncData: TAuSyncData): Cardinal;
+        APlaybackSample: Int64): Cardinal;
     public
       constructor Create;
       procedure Run;
@@ -45,7 +45,7 @@ begin
 end;
 
 function TAuApp.ReadProc(ABuf: PByte; ASize: Cardinal;
-  var ASyncData: TAuSyncData): Cardinal;
+  APlaybackSample: Int64): Cardinal;
 var
   p: PAcInt16;
   i: integer;
@@ -67,19 +67,18 @@ begin
   if FAudio.Initialize then
   begin
     Writeln('Opening output driver.');
-    FOutput := FAudio.Driver.CreateStreamDriver(FAudio.StandardDeviceID,
+    FOutput := FAudio.Driver.CreateStreamDriver2(FAudio.StandardDeviceID,
       AuAudioParametersEx(44100, 1, 16));
 
     if Assigned(FOutput) then
     begin
       try
-        if FOutput.Open then
+        if FOutput.Open(ReadProc) then
         begin
-          FOutput.Play;
+          FOutput.SetActive(true);
           Writeln('Playing a sine waveform at 440Hz.');
           while true do
-            if not FOutput.Idle(ReadProc) then
-              Sleep(1);
+            Sleep(1);
         end;
       finally
         FOutput.Free;

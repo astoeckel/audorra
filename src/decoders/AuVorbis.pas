@@ -39,7 +39,7 @@ interface
 uses
   SysUtils, Classes,
   ogg, vorbis,
-  AcPersistent,
+  AcPersistent, AcSyncObjs,
   AuDecoderClasses, AuProtocolClasses,
   AuTypes, AuUtils;
 
@@ -54,13 +54,14 @@ type
       FCurrent_Section: integer;
       FVI: pvorbis_info;
       FLen: Integer;
+      FOggCritSect: TAcCriticalSection;
       function GetInfo: TAuAudioParametersEx;override;
+    protected
+      function DoOpenDecoder(AProberesult: Pointer): boolean;override;
+      procedure DoCloseDecoder;override;
     public
-      constructor Create(AProtocol: TAuProtocol);override;
+      constructor Create;
       destructor Destroy;override;
-
-      function OpenDecoder: boolean;override;
-      procedure CloseDecoder;override;
 
       function Decode: TAuDecoderState;override;
 
@@ -73,22 +74,23 @@ implementation
 
 function ogg_read_func(ptr: pointer; size, nmemb: csize_t; datasource: pointer): csize_t; cdecl;
 begin
-  with TAuVorbisDecoder(datasource) do
-    result := FProtocol.Read(ptr, size * nmemb) div size;
+  with TAuProtocol(datasource) do
+    result := Read(ptr, size * nmemb);
 end;
 
 function ogg_seek_func(datasource: pointer; offset: ogg_int64_t; whence: cint): cint; cdecl;
 begin
-  with TAuVorbisDecoder(datasource) do
+  with TAuProtocol(datasource) do
   begin
     result := -1;
-    if FProtocol.Seekable then
+    if Seekable then
     begin
       case whence of
-        0: result := FProtocol.Seek(aupsFromBeginning, offset);
-        1: result := FProtocol.Seek(aupsFromCurrent, offset);
-        2: result := FProtocol.Seek(aupsFromEnd, offset);
+        0: Seek(aupsFromBeginning, offset);
+        1: Seek(aupsFromCurrent, offset);
+        2: Seek(aupsFromEnd, offset);
       end;
+      result := 0;
     end;
   end;
 end;
@@ -100,17 +102,17 @@ end;
 
 function ogg_tell_func(datasource: pointer): clong; cdecl;
 begin
-  with TAuVorbisDecoder(datasource) do
+  with TAuProtocol(datasource) do
   begin
     result := -1;
-    if FProtocol.Seekable then
-      result := FProtocol.Seek(aupsFromCurrent, 0);
+    if Seekable then
+      result := Seek(aupsFromCurrent, 0);
   end;
 end;
 
 { TAuVorbisDecoder }
 
-constructor TAuVorbisDecoder.Create(AProtocol: TAuProtocol);
+constructor TAuVorbisDecoder.Create;
 begin
   inherited;
 
@@ -123,21 +125,26 @@ begin
   //Reserve some buffer memory
   GetMem(FBuf, 4096);
 
+  FOggCritSect := TAcCriticalSection.Create;
+
   FOpened := false;
 end;
 
 destructor TAuVorbisDecoder.Destroy;
 begin
-  FreeMem(FBuf, 4096); 
+  FreeMem(FBuf, 4096);
 
   CloseDecoder;
+
+  FOggCritSect.Free;
+
   inherited;
 end;
 
-function TAuVorbisDecoder.OpenDecoder: boolean;
+function TAuVorbisDecoder.DoOpenDecoder(AProberesult: Pointer): boolean;
 begin
   result := false;
-  if ov_open_callbacks(self, FVorbisFile, nil, 0, FCallbacks) >= 0 then
+  if ov_open_callbacks(Protocol, FVorbisFile, nil, 0, FCallbacks) >= 0 then
   begin
     //Get some info about the file
     FVI := ov_info(FVorbisFile, -1);
@@ -148,11 +155,16 @@ begin
   end;
 end;
 
-procedure TAuVorbisDecoder.CloseDecoder;
+procedure TAuVorbisDecoder.DoCloseDecoder;
 begin
   if FOpened then
   begin
-    ov_clear(FVorbisFile);
+    FOggCritSect.Enter;
+    try
+      ov_clear(FVorbisFile);
+    finally
+      FOggCritSect.Leave;
+    end;
     FOpened := false;
   end;
 end;
@@ -162,11 +174,16 @@ begin
   result := audsIncomplete;
   if FOpened then
   begin
-    FBufSize := ov_read(FVorbisFile, FBuf, 4096, false, 2, true, @FCurrent_section);
-    if FBufSize = 0 then
-      result := audsEnd
-    else if FBufSize > 0 then
-      result := audsHasFrame;
+    FOggCritSect.Enter;
+    try
+      FBufSize := ov_read(FVorbisFile, FBuf, 4096, false, 2, true, @FCurrent_section);
+      if FBufSize = 0 then
+        result := audsEnd
+      else if FBufSize > 0 then
+        result := audsHasFrame;
+    finally
+      FOggCritSect.Leave;
+    end;
   end;
 end;
 
@@ -179,7 +196,7 @@ begin
     begin
       Frequency := FVI.rate;
       Channels := FVI.channels;
-      BitDepth := 16;
+      BitDepth := au16Bit;
     end;
   end;
 end;
@@ -190,9 +207,15 @@ begin
   begin
     with APacket do
     begin
-      Timecode := round(ov_time_tell(FVorbisFile) * 1000);
+      FOggCritSect.Enter;
+      try
+        Timecode := round(ov_time_tell(FVorbisFile) * 1000);
+      finally
+        FOggCritSect.Leave;
+      end;
+
       BufferSize := FBufSize;
-      Buffer := FBuf;      
+      Buffer := FBuf;
     end;
   end;
 end;
@@ -202,9 +225,14 @@ begin
   result := false;
   if FOpened then
   begin
-    if ov_seekable(FVorbisFile) <> 0 then
-    begin
-      result := ov_time_seek(FVorbisFile, ATar / 1000) = 0;
+    FOggCritSect.Enter;
+    try
+      if ov_seekable(FVorbisFile) <> 0 then
+      begin
+        result := ov_time_seek(FVorbisFile, ATar / 1000) = 0
+      end;
+    finally
+      FOggCritSect.Leave;
     end;
   end;
 end;
@@ -216,9 +244,9 @@ begin
     result := trunc(FLen / FVI.rate * 1000);
 end;
 
-function CreateVorbisDecoder(AProtocol: TAuProtocol): TAuVorbisDecoder;
+function CreateVorbisDecoder: TAuVorbisDecoder;
 begin
-  result := TAuVorbisDecoder.Create(AProtocol);
+  result := TAuVorbisDecoder.Create;
 end;
 
 initialization

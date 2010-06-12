@@ -59,6 +59,20 @@ resourcestring
 
   MsgDeviceDoesNotExist = 'The device "%s" you have specified does not exist!';
 
+  MsgSyncdata = 'The audio frame information data has been added with decreasing ' +
+    'sample timestamp. An increasing sample timestamp is mandatory.';
+
+  MsgFiltergraphLocked = 'Connection to the target filter could not be established.';
+  MsgFiltergraphConnectionFailed = 'Connection to the target filter could not be established.';
+  MsgFiltergraphRecursion = 'A filter cannot target on its own instance!';
+  MsgFiltergraphInitializationFailed = 'Inatialization of the filtergraph failed.';
+  MsgFilterSuspendImpossible = 'A filter cannot be suspended, if it is not initialized.';
+  MsgFilterResumeImpossible = 'A filter cannot be resumed, if it is initialized.';
+  MsgFiltergraphGuessingParametersFailed = 'The filtergraph parameters could not be guessed from the context while resuming.';
+
+  Msg3DAudioDriverCreationFailed = 'The 3D output driver could not be created. ' +
+    'Try a smaller bit count, sample rate or channel count.';
+
 implementation
 
 end.

@@ -62,56 +62,33 @@ type
     UserData: Pointer; 
   end;
 
-  PAuDevice = ^TAuDevice;  
+  PAuDevice = ^TAuDevice;
 
   {TAuEnumDeviceProc is a callback funktion type declaration used by the driver
    to send all devices to the host appliaction.}
   TAuEnumDeviceProc = procedure(ADevice: TAuDevice) of object;
 
-  {TAuAudioDriver is the base abstract class for audio output objects. Remember
-   that many hardware devices have a limitation in how many output objects can
-   be opened at once. So mix down channels together in software if possible.
-   Descendands of this class are TAuStaticSoundDriver and TAuStreamDriver. The
-   StaticSound driver is used for the playback of single sound effects wheras
-   the stream driver streams its audio data while playing. This is necessary for
-   the playback of music.}
-  TAuAudioDriver = class(TAcPersistent)
-    protected
-      FParameters: TAuAudioParametersEx;
-      FState: TAuAudioDriverState;
+  TAuStreamDriver = class
     public
-      {Starts the audio playback.}
-      procedure Play;virtual;abstract;
-      {Pauses the audio playback.}
-      procedure Pause;virtual;abstract;
-      {Stops audio playback: All loaded audio buffers are cleaned up.}
-      procedure Stop;virtual;abstract;
-      {Openes the audio object. And prepares it for playback. When using the
-       TAuStaticSoundDriver, data can now be written into the object.}
-      function Open: boolean;virtual;abstract;
-      {Closes the audio object.}
+      {Openes the audio stream driver and makes it ready for playback. The driver
+       will initially be opened in the inactive state.
+       @param(AParameters is used to set the audio format information.)
+       @param(ACallback is the function the data should be read from.)
+       @returns(True if opening the audio device was successful, false if an error
+         occured.)}
+      function Open(ADriverParams: TAuDriverParameters;
+        ACallback: TAuStreamDriverProc; out AWriteFormat: TAuBitdepth): Boolean;virtual;abstract;
+      {Closes the driver, if it had been opened. If the driver is not in a opened
+       state, "Close" will do nothing.}
       procedure Close;virtual;abstract;
 
-      {Represents the parameters this audio object was created with.}
-      property Parameters: TAuAudioParametersEx read FParameters;
-      {Represents the state of the audio object. @seealso(TAuAudioDriverState)}
-      property State: TAuAudioDriverState read FState;
-  end;
+      {Sets the driver active or inactive. In the active state, the driver pulls
+       audio data from the callback and plays it back, int the inactive state
+       the driver just idles and waits for getting active immediately.}
+      procedure SetActive(AActive: Boolean);virtual;abstract;
 
-  {TAuStreamDriver represents a single audio stream. It is capable of transporting
-   audio data from the application to the audio hardware and implements all functions
-   derived from TAuAudioDriver. Befor using a TAuStreamDriver, you have to call the
-   "Open" function. TAuStreamDrivers are created by calling the "CreateStreamDriver"
-   function of the TAuDriver class.}
-  TAuStreamDriver = class(TAuAudioDriver)
-    protected
-      FSyncData: TAuSyncData;
-      FDelay: Cardinal;
-    public
-      function Idle(AReadCallback: TAuReadCallback): boolean;virtual;abstract;
-
-      property SyncData: TAuSyncData read FSyncData;
-      property Delay: Cardinal read FDelay;
+      {Swithes to the innactive state and flushes the audio buffer.}
+      procedure FlushBuffer;virtual;abstract;
   end;
 
   //TAuDeviceShareMode = (audsExclusive, audsShared);
@@ -128,16 +105,15 @@ type
       {Calls the given callback function for each device and returns information
        about them.}
       procedure EnumDevices(ACallback: TAuEnumDeviceProc);virtual;abstract;
+
       {Creates a stream driver.
        @param(ADeviceID is the device the sound should be output to. You get valid
          device IDs by calling the EnumDevices method.)
-       @param(AParameters is used to set the audio format information.)
        @param(AScene is used to put the output object in a 3D environment.)
        @seealso(EnumDevices)
        @seealso(TAuAudioParameters)
        @seealso(TAuStreamDriver)}
-      function CreateStreamDriver(ADeviceID: integer;
-        AParameters: TAuAudioParametersEx): TAuStreamDriver;virtual;abstract;
+      function CreateStreamDriver(ADeviceID: integer): TAuStreamDriver;virtual;abstract;
 
       property Priority: integer read FPriority;
 

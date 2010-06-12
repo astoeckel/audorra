@@ -10,8 +10,8 @@ uses
 
   AcTypes, AcSysUtils,
 
-  AuWASAPI, AuDirectSound, AuWAV, AuAcinerella,
-  AuUtils, AuAudio, Au3DAudio, Au3DAudioRenderer, ActnList, XPStyleActnCtrls,
+  AuOpenAL, AuAcinerella,
+  AuCDAudio, AuUtils, AuAudio, Au3DAudio, Au3DAudioRenderer, ActnList,
   ActnMan, ActnCtrls, ActnMenus, Buttons;
 
 type
@@ -118,7 +118,6 @@ type
   public
     listener: TListener;
     playground: TPlayground;
-    audio: TAuAudio;
     audio3d: TAu3DAudio;
     soundlist: TAuSoundList;
     streamedlist: Tstreamedsoundlist;
@@ -145,43 +144,37 @@ implementation
 
 procedure Tfrmmain.FormCreate(Sender: TObject);
 begin
-  audio := TAuAudio.Create;
-  if audio.Initialize then
+  audio3d := TAu3DAudio.Create(nil, au3dss51, 48000, 16);
+  if not audio3d.Initialize then
   begin
-    audio3d := TAu3DAudio.Create(audio, au3dss51, 48000, 16);
+    ShowMessage('5.1 Sound is not available on the default output device. Falling back to stereo.');
+    FreeAndNil(audio3d);
+    audio3d := TAu3DAudio.Create(nil, au3dssStereo, 48000, 16);
     if not audio3d.Initialize then
     begin
-      ShowMessage('5.1 Sound is not available on the default output device. Falling back to stereo.');
+      ShowMessage(audio3d.GetLastError);
       FreeAndNil(audio3d);
-      audio3d := TAu3DAudio.Create(audio, au3dssStereo, 48000, 16);
-      if not audio3d.Initialize then
-      begin
-        FreeAndNil(audio3d);
-        ShowMessage('Output device couldn'' be opened.');
-      end;
     end;
+  end;
 
-    if audio3d <> nil then
-    begin
-      audio3d.Renderer.Environment.Scale := 0.1;
+  if audio3d <> nil then
+  begin
+    audio3d.Renderer.Environment.Scale := 0.1;
 
-      soundlist := TAuSoundList.Create(audio3d);
-      streamedlist := Tstreamedsoundlist.Create(audio3d);
+    soundlist := TAuSoundList.Create(audio3d);
+    streamedlist := Tstreamedsoundlist.Create(audio3d);
 
-      bmp := TBitmap.Create;
-      playground := TPlayground.Create;
-      listener := TListener.Create(playground, audio3d.Listener);
-      DoubleBuffered := true;
+    bmp := TBitmap.Create;
+    playground := TPlayground.Create;
+    listener := TListener.Create(playground, audio3d.Listener);
+    DoubleBuffered := true;
 
-      mat := TAu3DMaterial.Create;
+    mat := TAu3DMaterial.Create;
 
-      exit;
-    end;
-  end else
-    ShowMessage('The audio system couldn''t be initialized.');
+    exit;
+  end;
 
   FreeAndNil(audio3d);
-  FreeAndNil(audio);
 end;
 
 procedure Tfrmmain.FormDestroy(Sender: TObject);
@@ -189,7 +182,6 @@ begin
   streamedlist.Free;
   soundlist.Free;
   audio3d.Free;
-  audio.Free;
   playground.Free;
   bmp.Free;
   mat.Free;
@@ -491,7 +483,7 @@ end;
 procedure Tfrmmain.Button1Click(Sender: TObject);
 var
   x, y: integer;
-  px, py, v: Single;
+  px, py: Single;
   raydata: TAu3DRayParams;
   pnt: TAcVector3;
   ray: TAcRay;
@@ -582,7 +574,6 @@ procedure Tfrmmain.AddWall(ax1, ay1, ax2, ay2: Single);
 var
   model: TAu3DModel;
   tri: TAcTriangle;
-  wall: TWall;
 begin
   model := TAu3DModel.Create;
   model.Material := mat;
@@ -609,7 +600,7 @@ begin
     audio3d.Unlock;
   end;
 
-  wall := TWall.Create(playground, ax1, ay1, ax2, ay2);
+  TWall.Create(playground, ax1, ay1, ax2, ay2);
 end;
 
 procedure Tfrmmain.btnAddStaticSoundClick(Sender: TObject);

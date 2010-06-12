@@ -37,36 +37,53 @@ unit AuNULL;
 interface
 
 uses
+  SysUtils, Classes,
   AcPersistent, AcSysUtils,
   AuTypes, AuUtils, AuDriverClasses;
 
 type
   TAuNULLStreamDriver = class(TAuStreamDriver)
-    protected
+    private
+      FFmt: TAuDriverParameters;
       FMem: PByte;
-      FSmpls: Cardinal;
       FSize: Cardinal;
       FTC: Double;
       FFill: Boolean;
       FWait: Boolean;
+      FThread: TAuStreamDriverIdleThread;
+      FSmpls: Cardinal;
+      FSmpl: Int64;
+      FActive: Boolean;
+      function Idle(AReadCallback: TAuReadCallback): boolean;
     public
-      constructor Create(AFmt: TAuAudioParametersEx; AWait: Boolean = true);
+      constructor Create(AWait: Boolean = true);
       destructor Destroy;override;
-      
-      procedure Play;override;
-      procedure Pause;override;
-      procedure Stop;override;
-      function Open: boolean;override;
+
+      {Openes the audio stream driver and makes it ready for playback. The driver
+       will initially be opened in the inactive state.
+       @param(AParameters is used to set the audio format information.)
+       @param(ACallback is the function the data should be read from.)
+       @returns(True if opening the audio device was successful, false if an error
+         occured.)}
+      function Open(ADriverParams: TAuDriverParameters;
+        ACallback: TAuStreamDriverProc; out AWriteFormat: TAuBitdepth): Boolean;override;
+      {Closes the driver, if it had been opened. If the driver is not in a opened
+       state, "Close" will do nothing.}
       procedure Close;override;
 
-      function Idle(AReadCallback: TAuReadCallback): boolean;override;
+      {Sets the driver active or inactive. In the active state, the driver pulls
+       audio data from the callback and plays it back, int the inactive state
+       the driver just idles and waits for getting active immediately.}
+      procedure SetActive(AActive: Boolean);override;
+
+      {Swithes to the innactive state and flushes the audio buffer.}
+      procedure FlushBuffer;override;
   end;
 
   TAuNULLDriver = class(TAuDriver)
     public
       procedure EnumDevices(ACallback: TAuEnumDeviceProc);override;
-      function CreateStreamDriver(ADeviceID: integer;
-        AParameters: TAuAudioParametersEx): TAuStreamDriver;override;
+      function CreateStreamDriver(ADeviceID: integer): TAuStreamDriver;override;
   end;
 
 const
@@ -76,28 +93,62 @@ implementation
 
 { TAuNULLStreamDriver }
 
-constructor TAuNULLStreamDriver.Create(AFmt: TAuAudioParametersEx; AWait: Boolean);
+constructor TAuNULLStreamDriver.Create(AWait: Boolean);
 begin
   inherited Create;
   
-  FParameters := AFmt;
-  FDelay := AuNULLBufferTime;
-
-  FSmpls := AuNullBufferTime * AFmt.Frequency div 1000;
-  FSize := AuBytesPerSample(AFmt) * FSmpls;
-  FMem := GetMemory(FSize);
-  FFill := true;
   FWait := AWait;
 end;
 
 destructor TAuNULLStreamDriver.Destroy;
 begin
-  if FMem <> nil then
-    FreeMem(FMem);
-  FMem := nil;
-  FSize := 0;
-  
   inherited;
+end;
+
+function TAuNULLStreamDriver.Open(ADriverParams: TAuDriverParameters;
+  ACallback: TAuStreamDriverProc; out AWriteFormat: TAuBitdepth): Boolean;
+begin
+  FFill := true;
+  FSmpl := 0;
+
+  FFmt := ADriverParams;
+
+  FSmpls := AuNullBufferTime * FFmt.Frequency div 1000;
+  FSize := FFmt.BitDepth * FFmt.Channels * FSmpls div 8;
+
+  FMem := GetMemory(FSize);
+
+  AWriteFormat := AuBitdepth(ADriverParams.BitDepth);
+
+  FActive := false;
+
+  //Create the idle thread handler
+  FThread := TAuStreamDriverIdleThread.Create(ACallback, Idle);
+
+  result := true;
+end;
+
+procedure TAuNULLStreamDriver.Close;
+begin
+  if FThread <> nil then
+  begin
+    FThread.Terminate;
+    FThread.WaitFor;
+    FreeAndNil(FThread);
+  end;
+
+  if FMem <> nil then
+  begin
+    FreeMem(FMem);
+    FSize := 0;
+    FMem := nil;
+  end;
+end;
+
+procedure TAuNULLStreamDriver.FlushBuffer;
+begin
+  SetActive(false);
+  FSmpl := 0;
 end;
 
 function TAuNULLStreamDriver.Idle(AReadCallback: TAuReadCallback): boolean;
@@ -105,21 +156,26 @@ var
   tc2: Double;
 begin
   result := false;
-  if FState = audsPlaying then
+  if FActive then
   begin
     tc2 := AcGetTickCount;
-    if FWait or FFill or (tc2 - FTC > AuNULLBufferTime) then
+    if (not FWait) or FFill or (tc2 - FTC > AuNULLBufferTime) then
     begin
-      AReadCallback(FMem, FSize, FSyncData);
+      FSmpl := FSmpl + FSmpls;
+      AReadCallback(FMem, FSize, FSmpl);
 
       FFill := false;
       FTC := tc2;
-      result := not FWait;
     end;
   end;
 end;
 
-function TAuNULLStreamDriver.Open: boolean;
+procedure TAuNULLStreamDriver.SetActive(AActive: Boolean);
+begin
+  FActive := AActive;
+end;
+
+(*function TAuNULLStreamDriver.Open: boolean;
 begin
   result := FMem <> nil;
   FState := audsOpened;
@@ -149,15 +205,14 @@ begin
     FState := audsOpened;
     FFill := true;
   end;
-end;
+end;     *)
 
 { TAuNULLDriver }
 
-function TAuNULLDriver.CreateStreamDriver(ADeviceID: integer;
-  AParameters: TAuAudioParametersEx): TAuStreamDriver;
+function TAuNULLDriver.CreateStreamDriver(ADeviceID: integer): TAuStreamDriver;
 begin
   if (ADeviceID >= 0) and (ADeviceID <= 1) then
-    result := TAuNULLStreamDriver.Create(AParameters, ADeviceID = 1)
+    result := TAuNULLStreamDriver.Create(ADeviceID = 1)
   else
     result := nil;
 end;
@@ -167,17 +222,18 @@ var
   dev: TAuDevice;
 begin
   //Return the null device
-  dev.Name := 'NULL Normal';
+  dev.Name := 'NULL Sink';
   dev.ID := 0;
   dev.Priority := 1;
   dev.UserData := nil;
   ACallback(dev);
 
-  //Return the null device
+  //The null stream device simulates a real stream driver by reading the data in
+  //realtime instead of reading with infinite speed 
   dev.Name := 'NULL Stream';
   dev.ID := 1;
   dev.Priority := 0;
-  dev.UserData := nil;  
+  dev.UserData := nil;
   ACallback(dev);
 end;
 

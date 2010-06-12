@@ -117,7 +117,7 @@ begin
 
           //Set audio parameters record
           FAudioParameters.Frequency := FFmt.SampleRate;
-          FAudioParameters.BitDepth := FFmt.BitsPSmp;
+          FAudioParameters.BitDepth := AuBitdepth(FFmt.BitsPSmp);
           FAudioParameters.Channels := FFmt.Channels;
 
           //Calculate a few constants that will be needed lateron

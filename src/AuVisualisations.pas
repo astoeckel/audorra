@@ -1,4 +1,4 @@
-{*******************************************************}
+﻿{*******************************************************}
 {                                                       }
 {       Audorra Digital Audio Library                   }
 {       Copyright (c) Andreas Stöckel, 2009             }
@@ -230,7 +230,7 @@ begin
   {$ENDIF}
 
   //3. Draw the comp bitmap to the target
-  if FComp.Transparent then
+  if FTransparent then
   begin
     FComp.TransparentColor := clBlack;
     FComp.Transparent      := True;

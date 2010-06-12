@@ -1,7 +1,7 @@
 object OpenURLWnd: TOpenURLWnd
   Left = 0
   Top = 0
-  BorderStyle = bsSingle
+  BorderStyle = bsDialog
   Caption = 'Open URL...'
   ClientHeight = 162
   ClientWidth = 327
@@ -726,7 +726,7 @@ object OpenURLWnd: TOpenURLWnd
   object Label1: TLabel
     Left = 56
     Top = 8
-    Width = 257
+    Width = 242
     Height = 39
     Caption = 
       'Enter the URL of the media file on your computer, the local netw' +

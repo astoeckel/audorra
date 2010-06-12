@@ -95,11 +95,12 @@ type
       FTrackNumber: integer;
       FURL: string;
       function ParseCDDA(AProtocol: TAuProtocol): boolean;
+    protected
+      function DoOpenDecoder(AProbeResult: Pointer = nil): Boolean;override;
+      procedure DoCloseDecoder;override;
     public
-      constructor Create(AProtocol: TAuProtocol);override;
+      constructor Create;
       destructor Destroy;override;
-
-      function OpenDecoder: boolean;override;
   end;
 
 const
@@ -392,22 +393,38 @@ end;
 
 { TAuCDADecoder }
 
-constructor TAuCDADecoder.Create(AProtocol: TAuProtocol);
-var
-  letter: Char;
+constructor TAuCDADecoder.Create;
 begin
   FTrackNumber := -1;
 
+  inherited Create;
+end;
+
+destructor TAuCDADecoder.Destroy;
+begin
+  inherited;
+end;
+
+procedure TAuCDADecoder.DoCloseDecoder;
+begin
+  //Free the TAuCDDAProtocol instance
+  if FCDDAProtocol <> nil then
+    FreeAndNil(FCDDAProtocol);
+end;
+
+function TAuCDADecoder.DoOpenDecoder(AProbeResult: Pointer): boolean;
+var
+  letter: AnsiChar;
+begin
+  //Return false if the CDA-File couldn't be opened
+  result := false;
+
   //Try to obtain the file url from the protocol
-  FURL := '';
-  if AProtocol is TAuStreamProtocol then
-    FURL := TAuStreamProtocol(AProtocol).URL;
-  if AProtocol is TAuURLProtocol then
-    FURL := TAuURLProtocol(AProtocol).URL;
+  FURL := Protocol.URL;
 
   if FURL <> '' then
   begin
-    ParseCDDA(AProtocol);
+    ParseCDDA(Protocol);
 
     //Get the drive letter
     letter := FURL[1]; //!
@@ -418,31 +435,13 @@ begin
       FCDDAProtocol := TAuCDDAProtocol.Create;
       FCDDAProtocol.Open('cdda://'+letter+'/?track='+IntToStr(FTrackNumber));
 
-      //Open the WAVE-Decoder with the TAuCDDAProtocol
-      inherited Create(FCDDAProtocol);
+      //Replace the protocol of the wave decoder with the new CDDA protocol. Open the wave decoder
+      Protocol := FCDDAProtocol;
+      inherited DoOpenDecoder(nil);
 
-      exit;
+      result := true;
     end;
   end;
-
-  inherited Create(AProtocol);
-end;
-
-destructor TAuCDADecoder.Destroy;
-begin
-  //Free the TAuCDDAProtocol instance
-  FreeAndNil(FCDDAProtocol);
-  
-  inherited;
-end;
-
-function TAuCDADecoder.OpenDecoder: boolean;
-begin
-  //Return false if the CDA-File couldn't be opened
-  result := false;
-
-  if FTrackNumber > -1 then
-    result := inherited OpenDecoder;
 end;
 
 function TAuCDADecoder.ParseCDDA(AProtocol: TAuProtocol): boolean;
@@ -498,9 +497,9 @@ begin
   result := TAuCDDAProtocol.Create;
 end;
 
-function CreateCDADecoder(AProtocol: TAuProtocol): TAuCDADecoder;
+function CreateCDADecoder: TAuCDADecoder;
 begin
-  result := TAuCDADecoder.Create(AProtocol);
+  result := TAuCDADecoder.Create;
 end;
 
 

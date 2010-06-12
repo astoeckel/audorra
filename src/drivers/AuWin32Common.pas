@@ -2,18 +2,32 @@ unit AuWin32Common;
 
 interface
 
-uses
-  Windows, MMSystem,
 
+
+uses
+  Classes, Windows, MMSystem,
   AuTypes;
 
 type
-  TWaveFormatExtensible = record
-    Format : tWAVEFORMATEX;
+  TAuDriverIdleEvent = function: boolean of object;
 
-    wValidBitsPerSample : Word;
-    dwChannelMask : DWord;
-    SubFormat : TGuid;
+  //Only a helper class - does not need to be used by any driver plugin
+  TAuDriverIdleThread = class(TThread)
+  private
+    FCallback: TAuDriverIdleEvent;
+    FEvent:    THandle;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(ACallback: TAuDriverIdleEvent; AEvent: THandle = 0);
+  end;
+
+  TWaveFormatExtensible = record
+    Format: tWAVEFORMATEX;
+
+    wValidBitsPerSample: word;
+    dwChannelMask: DWord;
+    SubFormat:     TGuid;
   end;
 
   PWaveFormatExtensible = ^TWaveFormatExtensible;
@@ -25,53 +39,81 @@ const
   KSDATAFORMAT_SUBTYPE_PCM: TGUID = '{00000001-0000-0010-8000-00aa00389b71}';
   WAVE_FORMAT_EXTENSIBLE = $FFFE;
 
-function GetWaveFormatEx(AParameters: TAuAudioParametersEx): TWaveFormatExtensible;
+function GetWaveFormatEx(AParameters: TAuDriverParameters): TWaveFormatExtensible;
 
 implementation
 
-function GetWaveFormatEx(AParameters: TAuAudioParametersEx): TWaveFormatExtensible;
+function GetWaveFormatEx(AParameters: TAuDriverParameters): TWaveFormatExtensible;
 var
   i: integer;
 begin
   //Fill the result record with zeros
-  FillChar(result, SizeOf(result), #0);
+  FillChar(Result, SizeOf(Result), #0);
 
   with AParameters do
-  begin           
+  begin
     //Copy wave format description into the wav_fmt buffer
 
     //Set channel count, sample rate and bit depth
-    result.Format.nChannels := Channels;
-    result.Format.nSamplesPerSec := Frequency;
-    result.Format.wBitsPerSample := BitDepth;
+    Result.Format.nChannels      := Channels;
+    Result.Format.nSamplesPerSec := Frequency;
+    Result.Format.wBitsPerSample := BitDepth;
 
     //Calculate needed "Bytes Per Second" value
-    result.Format.nAvgBytesPerSec := (BitDepth div 8) * (Channels * Frequency);
+    Result.Format.nAvgBytesPerSec := (BitDepth div 8) * (Channels * Frequency);
 
     //Set the size of a single block
-    result.Format.nBlockAlign := (BitDepth div 8 * Channels);
+    Result.Format.nBlockAlign := (BitDepth div 8 * Channels);
 
-    if Channels > 2 then
+    if (Channels > 2) or (BitDepth > 16) then
     begin
       //As we have more than two audio channels, we have to use another wave format
       //descriptor
-      result.Format.wFormatTag := WAVE_FORMAT_EXTENSIBLE;
-      result.Format.cbSize := 22;
+      Result.Format.wFormatTag := WAVE_FORMAT_EXTENSIBLE;
+      Result.Format.cbSize     := 22;
 
       //Set the bit depth mask
-      result.wValidBitsPerSample := BitDepth;
+      Result.wValidBitsPerSample := BitDepth;
 
       //Set the speakers that should be used
       for i := 0 to Channels - 1 do
-        result.dwChannelMask := result.dwChannelMask or (1 shl i);
+        Result.dwChannelMask := Result.dwChannelMask or (1 shl i);
 
       //We're still sending PCM data to the driver
-      result.SubFormat := KSDATAFORMAT_SUBTYPE_PCM;
-    end else
+      Result.SubFormat := KSDATAFORMAT_SUBTYPE_PCM;
+    end
+    else
       //We only have two or one channels, so we're using the simple WaveFormatPCM
       //format descriptor
-      result.Format.wFormatTag := WAVE_FORMAT_PCM;
+      Result.Format.wFormatTag := WAVE_FORMAT_PCM;
   end;
-end; 
+end;
+
+{ TAuDriverIdleThread }
+
+constructor TAuDriverIdleThread.Create(ACallback: TAuDriverIdleEvent;
+  AEvent: THandle = 0);
+begin
+  inherited Create(False);
+
+  FCallback := ACallback;
+  FEvent    := AEvent;
+end;
+
+procedure TAuDriverIdleThread.Execute;
+begin
+  while not Terminated do
+  begin
+    if FEvent = 0 then
+      //Problematic, as sleep may give to much time slices to other processes
+      Sleep(1)
+    else
+      WaitForSingleObject(FEvent, 1);
+
+    while FCallback() do ;
+  end;
+end;
+
 
 end.
+

@@ -42,9 +42,10 @@ interface
 
 uses
   SysUtils, Classes,
-  AcPersistent, AcStrUtils, AcRegUtils, AcSyncObjs,
-  AuTypes, AuFilterGraph, AuProtocolClasses, AuDecoderClasses,
-  AuDriverClasses, AuAnalyzerClasses, AuSyncUtils, AuMessages;
+  AcPersistent, AcStrUtils, AcRegUtils, AcNotify, AcSyncObjs,
+  AuProtocolClasses, AuDecoderClasses, AuAnalyzerClasses, AuDriverClasses, 
+  AuTypes, AuFilterGraph,
+  AuMessages;
 
 
 type
@@ -184,7 +185,7 @@ type
       FOwnProtocol: boolean;
       FLock: TAcLock;
       FURL: string;
-      procedure CallStateChange;
+      procedure CallStateChange(ASender: TObject; AUserData: Pointer);
     protected
       FParent: TAuAudio;
       procedure SetState(AValue: TAuPlayerState; ACallEvent: boolean = true);
@@ -266,6 +267,25 @@ type
       property OnDestroy: TAuNotifyEvent read FDestroyEvent write FDestroyEvent;
   end;
 
+  {Used internally by TAuPlayer to receive information about notification data change
+   from the TAuPlayerNotification thread.}
+  TAuSyncDataChangedCallback = procedure(ASyncData: TAuFrameInfo) of object;
+
+  {Used internally by TAuPlayer in order to notify the TAuPlayer instance about
+   state changes in the filtergraph environment.}
+  TAuPlayerNotificationThread = class(TThread)
+    private
+      FOutputFilter: TAuOutputFilter;
+      FDecoderFilter: TAuCustomDecoderFilter;
+      FCallback: TAuSyncDataChangedCallback; 
+    protected
+      procedure Execute;override;
+    public
+      constructor Create(AOutputFilter: TAuOutputFilter;
+        ADecoderFilter: TAuCustomDecoderFilter;
+        ACallback: TAuSyncDataChangedCallback);
+  end;
+
   {TAuPlayer is a simple solution for playing back audio using the filter graph
    environment. TAuPlayer let's you Load, Open and Play audio files. Additionally
    you're able to add analyzers (visualisations) and change the playback volume.
@@ -279,10 +299,11 @@ type
 
    Remember that changing the player's volume may take a certain time - this depends
    on the latency of the audio driver. When using the 3D-Audio environment as
-   described above, the latency time may be very huge, so you should use the corresponding
+   described above, the latency time may be very long as 3d audio renderer buffers
+   around ten seconds of audio data, so you should use the corresponding
    properties of the 3D-Audio environment instead.
 
-   TAuPlayer uses all registered, additional modules.}
+   TAuPlayer uses all registered, additional protocols and decoders.}
   TAuPlayer = class(TAuCustomAudioObject)
     private
       FTarget: TAuFilter;
@@ -299,17 +320,20 @@ type
       FMasterVolume: single;
       FSongFinishesEvent: TAuNotifyEvent;
       FAnalyzerList: TAuAnalyzerList;
-      FHasDecoder: boolean;
       FReloadOnPlay: boolean;
       FDeviceID: integer;
-      FSetDeviceID: boolean;
+      FSetDeviceID: boolean;      
+      FCurrentFrameInfo: TAuFrameInfo;
+      FNotifyThreadMutex: TAcMutex;
+      FNotifyThread: TAuPlayerNotificationThread;
+      procedure SyncDataChanged(ASyncData: TAuFrameInfo);      
       procedure FreeComponents(ADestroySources: boolean);
       function BuildFilterGraph: boolean;
       procedure SetMasterVolume(AValue: single);
       function GetPosition: integer;
       function GetSeekable: boolean;
       procedure SetPosition(AValue: integer);
-      procedure StopHandler(Sender: TObject);
+      procedure StopHandler(ASender: TObject; AUserData: Pointer);
       procedure SetDeviceID(AValue: integer);
       function GetDeviceID: integer;
     protected
@@ -327,7 +351,7 @@ type
       destructor Destroy;override;
 
       {Adds a certain analyzer instance to the analyzer filter.}
-      procedure AddAnalzyer(AAnalyzer: TAuAnalyzer);
+      procedure AddAnalyzer(AAnalyzer: TAuAnalyzer);
       {Removes a previously registered analyter from the analyzer filter.}
       procedure RemoveAnalyzer(AAnalyzer: TAuAnalyzer);
 
@@ -594,7 +618,7 @@ destructor TAuCustomAudioObject.Destroy;
 begin
   FLock.Enter;
   try
-    AuQueueRemove(self);
+    AcNotifyRemoveObject(self);
 
     FreeObjects;
   finally
@@ -605,11 +629,11 @@ begin
     FDestroyEvent(self);
 
   FreeAndNil(FLock);
-  
+
   inherited;
 end;
 
-procedure TAuCustomAudioObject.CallStateChange;
+procedure TAuCustomAudioObject.CallStateChange(ASender: TObject; AUserData: Pointer);
 begin
   if Assigned(FStateChangeEvent) then
     FStateChangeEvent(self);
@@ -786,7 +810,7 @@ begin
     FState := AValue;
           
     if ACallEvent then    
-      AuQueueCall(CallStateChange);
+      AcNotifyQueue(self, CallStateChange);
   end;
 end;
 
@@ -829,6 +853,8 @@ begin
   //Fetch the standard device ID
   if FParent <> nil then
     FDeviceID := FParent.StandardDeviceID;
+
+  FNotifyThreadMutex := TAcMutex.Create;
 end;
 
 destructor TAuPlayer.Destroy;
@@ -840,6 +866,8 @@ begin
     FAnalyzerList.Free;
 
     inherited;
+
+    FNotifyThreadMutex.Free;
   finally
     Lock.Leave;
   end;
@@ -849,12 +877,23 @@ procedure TAuPlayer.FreeComponents(ADestroySources: boolean);
 begin
   Lock.Enter;
   try
+    //Stop the notification thread before freeing any other component
+    if (FNotifyThread <> nil) then
+    begin
+      FNotifyThread.Terminate;
+      FNotifyThread.WaitFor;
+      FreeAndNil(FNotifyThread);
+    end;
+
     //Stop the output
     if (FOutput <> nil) then
     begin
       FOutput.Stop;
       FOutput := nil;
     end;
+
+    if (FTarget <> nil) and (FTarget.State = aufsInitialized) then
+      FTarget.SuspendFiltergraph;    
 
     //Free the source object          //  Filters have to be freed in order:
     if (FSource <> nil) and (FOwnSource) then
@@ -886,6 +925,11 @@ begin
     //Free all objects held by the parent class
     if ADestroySources then
       FreeObjects;
+
+    //Remove all notifications for this player instance from the queue, as they
+    //are associated with the old object
+    AcNotifyRemoveObject(self);
+
   finally
     Lock.Leave;
   end;
@@ -902,37 +946,6 @@ begin
   end;
 end;
 
-procedure TAuPlayer_EnumDecoders(ASender: Pointer; AEntry: PAcRegisteredClassEntry);
-
-  procedure DestroyDecoder;
-  begin
-    with TAuPlayer(ASender) do
-    begin
-      if Protocol.Seekable then
-        Protocol.Seek(aupsFromBeginning, 0);
-
-      FreeAndNil(FDecoder);
-    end;
-  end;
-
-begin
-  with TAuPlayer(ASender) do
-  begin
-    if not FHasDecoder then
-    begin
-      FDecoder := TAuCreateDecoderProc(AEntry.ClassConstructor)(Protocol);
-      try
-        if not FDecoder.OpenDecoder then
-          DestroyDecoder
-        else
-          FHasDecoder := true;
-      except
-        DestroyDecoder;
-      end;
-    end;
-  end;
-end;
-
 function TAuPlayer.Open: boolean;
 begin
   Lock.Enter;
@@ -946,13 +959,9 @@ begin
         TAuURLProtocol(Protocol).Open(TAuURLProtocol(Protocol).URL);      
 
       if FSource = nil then
-      begin
-        FHasDecoder := false;
-        AcRegSrv.EnumClasses(TAuDecoder, TAuPlayer_EnumDecoders, self);
-      end else
-        FHasDecoder := true;
+        FDecoder := AuFindDecoder(Protocol);
 
-      if not FHasDecoder then
+      if (FDecoder = nil) and (FSource = nil) then
         exit;
      
       if BuildFilterGraph then
@@ -981,39 +990,40 @@ begin
     else if FSource <> nil then
       params := FSource.Parameters;
 
-
     //Create the target filter
     if (FTarget = nil) then
     begin
       if (FParent <> nil) then
       begin
-        FDriver := FParent.Driver.CreateStreamDriver(DeviceID, AuAudioParametersEx(
-          params.Frequency, params.Channels, 16));
-
-        if (FDriver = nil) or (not FDriver.Open) then exit;
+        FDriver := FParent.Driver.CreateStreamDriver(DeviceID);
+        if (FDriver = nil) then exit;
           //! RAISE EXCEPTION
-          
-        FTarget := TAuDriverOutput.Create(FDriver);
+
+        FTarget := TAuDriverOutput.Create(FDriver, FDecoder.Info.BitDepth.bits);
         FOutput := TAuOutputFilter(FTarget);
         FOwnTarget := true;
       end else exit;
         //! RAISE EXCEPTION
     end else
-      FOutput := FTarget.GetOutputFilter;
+    begin
+      if FTarget.GlobalTargetFilter is TAuOutputFilter then
+        FOutput := TAuOutputFilter(FTarget.GlobalTargetFilter)
+      else exit;
+        //! RAISE EXCEPTION
+    end;
 
     if FOutput <> nil then
     begin
-      FOutput.OnStop := StopHandler;
-
       //Create the source filter
       if (FSource = nil) then
       begin
-        FSource := TAuDecoderFilter.Create(FDecoder, FBufSize);
+        FSource := TAuDecoderFilter.Create;
+        TAuDecoderFilter(FSource).SetDecoder(FDecoder);
         FOwnSource := true;
       end;
 
       //Create an analyzer filter
-      FAnalyzeFilter := TAuAnalyzeFilter.Create(params);
+      FAnalyzeFilter := TAuAnalyzeFilter.Create;
 
       //Connect all registered analyzers to the analyzer
       for i := 0 to FAnalyzerList.Count - 1 do
@@ -1023,14 +1033,14 @@ begin
 
         //Connect the analyzer to the filter
         FAnalyzeFilter.Analyzers.Add(FAnalyzerList[i]);
-      end;
+      end;                                             
 
       //Create the volume filter
-      FVolume := TAuVolumeFilter.Create(params);
+      FVolume := TAuVolumeFilter.Create;
       FVolume.Master := FMasterVolume;
 
       //Create the compressor filter
-      FCompressor := TAuCompressorFilter.Create(params);
+      FCompressor := TAuCompressorFilter.Create;
 
       //Interconnect all filters
       FSource.Target := FAnalyzeFilter;
@@ -1039,7 +1049,11 @@ begin
       FCompressor.Target := FTarget;
 
       //Initialize the target filter
-      TAuOutputFilter(FTarget).Init(params);  
+      TAuOutputFilter(FTarget).Init(params);
+
+      //Create the notify thread
+      FNotifyThread := TAuPlayerNotificationThread.Create(TAuOutputFilter(FTarget),
+        FSource, SyncDataChanged);  
 
       result := true;
     end;
@@ -1074,7 +1088,7 @@ begin
 
     if FOutput <> nil then
     begin
-      FSource.Unlock;
+//      FSource.Unlock;
       FOutput.Play;
       SetState(aupsPlaying);
     end;
@@ -1089,7 +1103,9 @@ begin
   try
     if FOutput <> nil then
     begin
-      FSource.Lock;
+      FillChar(FCurrentFrameInfo, SizeOf(FCurrentFrameInfo), 0);
+
+//      FSource.Lock;
       FOutput.Stop;
 
       //Reset the state
@@ -1125,12 +1141,27 @@ begin
   end;
 end;
 
-procedure TAuPlayer.StopHandler(Sender: TObject);
+procedure TAuPlayer.SyncDataChanged(ASyncData: TAuFrameInfo);
 begin
-  Stop;
+  FNotifyThreadMutex.Acquire;
+  try
+    FCurrentFrameInfo := ASyncData;
+    if (FCurrentFrameInfo.PlaybackState = auisFinished) then
+      AcNotifyQueue(self, StopHandler);
+  finally
+    FNotifyThreadMutex.Release;
+  end;
+end;
 
-  if Assigned(FSongFinishesEvent) then
-    FSongFinishesEvent(self);
+procedure TAuPlayer.StopHandler(ASender: TObject; AUserData: Pointer);
+begin
+  if FState > aupsOpened then
+  begin
+    Stop;
+
+    if Assigned(FSongFinishesEvent) then
+      FSongFinishesEvent(self);
+  end;
 end;
 
 procedure TAuPlayer.SetMasterVolume(AValue: single);
@@ -1165,12 +1196,17 @@ begin
     result := -1;
 
     //Return the output position
-    if FOutput <> nil then
-    begin
-      if (State = aupsPlaying) or (State = aupsPaused) then
-        result := FOutput.SyncData.Timecode
-      else
-        result := 0;
+    FNotifyThreadMutex.Acquire;
+    try
+      if (FOutput <> nil) and (FCurrentFrameInfo.PlaybackState <> auisUndefined) then
+      begin
+        if (State = aupsPlaying) or (State = aupsPaused) then
+          result := FCurrentFrameInfo.MediaTimestamp
+        else
+          result := 0;
+      end;
+    finally
+      FNotifyThreadMutex.Release;
     end;
   finally
     Lock.Leave;
@@ -1199,20 +1235,18 @@ begin
       //Reset playback
       TAuOutputFilter(FTarget).Stop; //Actually not needed because the decoder timeslices are very small
 
-      //Seek to the given position
-      if FDecoder.SeekTo(Position, AValue) then
-        //Delete decoder data
-        TAuDecoderFilter(FSource).FlushBuffer;
+      FillChar(FCurrentFrameInfo, SizeOf(FCurrentFrameInfo), 0);
 
-      if State = aupsPlaying then
-        FDriver.Play;
+      //Seek to the given position, if that worked, flush the whole filtergraph
+      if FDecoder.SeekTo(Position, AValue) then
+        FTarget.FlushFiltergraph;
     end;
   finally
     Lock.Leave;
   end;
 end;
 
-procedure TAuPlayer.AddAnalzyer(AAnalyzer: TAuAnalyzer);
+procedure TAuPlayer.AddAnalyzer(AAnalyzer: TAuAnalyzer);
 begin
   Lock.Enter;
   try
@@ -1256,6 +1290,64 @@ begin
     result := FDeviceID
   else
     result := FParent.StandardDeviceID;
+end;
+
+{ TAuPlayerNotificationThread }
+
+constructor TAuPlayerNotificationThread.Create(AOutputFilter: TAuOutputFilter;
+  ADecoderFilter: TAuCustomDecoderFilter;
+  ACallback: TAuSyncDataChangedCallback);
+begin
+  inherited Create(false);
+
+  FOutputFilter := AOutputFilter;
+  FDecoderFilter := ADecoderFilter;
+  FCallback := ACallback;
+end;
+
+procedure TAuPlayerNotificationThread.Execute;
+var
+  oldtime, time: Int64;
+  olddata, data: TAuFrameInfo;
+begin
+  //Preset the variables
+  oldtime := -1;
+  FillChar(olddata, SizeOf(olddata), 0);
+  FillChar(data, SizeOf(data), 0);
+
+  //Just loop until the thread gets terminated  
+  while not Terminated do
+  begin
+    //Get the current timecode from the output filter
+    time := FOutputFilter.Timecode;
+    
+    if time <> oldtime then
+    begin
+      if FDecoderFilter is TAuDecoderFilter then
+      begin
+        //Obtain the frame info from the decoder filter
+        if TAuDecoderFilter(FDecoderFilter).GetFrameInfo(time, data) then
+        begin
+          //If the frame info has changed, call the callback
+          if not CompareMem(@data, @olddata, SizeOf(data)) then
+            FCallback(data);
+
+          olddata := data;
+        end;
+      end else
+      begin
+        //Assemble an own frame info record if a custom decoder filter is used
+        data.MediaTimestamp := time;
+        data.SampleTimestamp := time;
+        data.Interpolated := true;
+        data.PlaybackState := auisPlaying;
+
+        FCallback(data);
+      end;
+    end;
+    
+    Sleep(1);
+  end;
 end;
 
 end.

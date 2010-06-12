@@ -58,21 +58,22 @@ type
       seek_stream: integer;
       seek_dir: integer;
     protected
+      function DoOpenDecoder(AProberesult: Pointer = nil): boolean;override;
+      procedure DoCloseDecoder;override;
       function GetInfo: TAuAudioParametersEx;override;
     public
-      constructor Create(AProtocol: TAuProtocol);override;
-
-      function OpenDecoder: boolean;override;
-      procedure CloseDecoder;override;
 
       function Decode: TAuDecoderState;override;
 
       function SeekTo(ACur, ATar: integer): boolean;override;
       function StreamLength: integer;override;
 
+      function Probe(ABuf: PByte; ASize: Integer; AUrl: PAnsiChar;
+        var AResult: Pointer): Integer;override;
+
       procedure GetPacket(var APacket: TAuPacket);override;
 
-      property Protocol: TAuProtocol read FProtocol;
+      property Protocol;
   end;
 
 implementation
@@ -93,28 +94,19 @@ end;
 
 { TAuAcinerellaDecoder }
 
-constructor TAuAcinerellaDecoder.Create(AProtocol: TAuProtocol);
-begin
-  inherited;
-  lt1 := 0;
-  lt2 := 0;
-end;
-
-function TAuAcinerellaDecoder.OpenDecoder: boolean;
+function TAuAcinerellaDecoder.DoOpenDecoder(AProberesult: Pointer): boolean;
 var
   i: integer;
   info: TAc_stream_info;
 begin
-  CloseDecoder;
-
   //Init Acinerella
   pInstance := ac_init;
   pDecoder := nil;
 
-  if FProtocol.Seekable then
-    ac_open(pInstance, self, nil, @read_proc, @seek_proc, nil)
+  if Protocol.Seekable then
+    ac_open(pInstance, self, nil, @read_proc, @seek_proc, nil, AProberesult)
   else
-    ac_open(pInstance, self, nil, @read_proc, nil, nil);
+    ac_open(pInstance, self, nil, @read_proc, nil, nil, nil);
 
   //Search audio decoder
   for i := 0 to pInstance^.stream_count - 1 do
@@ -131,6 +123,19 @@ begin
   end;
 
   result := pDecoder <> nil;
+end;
+
+procedure TAuAcinerellaDecoder.DoCloseDecoder;
+begin
+  //Free the audio decoder
+  if pDecoder <> nil then
+    ac_free_decoder(pDecoder);
+  pDecoder := nil;
+
+  //Free the acinerella instance
+  if pInstance <> nil then
+    ac_free(pInstance);
+  pInstance := nil;  
 end;
 
 function TAuAcinerellaDecoder.SeekTo(ACur, ATar: integer): boolean;
@@ -156,19 +161,6 @@ begin
     result := pInstance^.info.duration
   else
     result := -1;
-end;
-
-procedure TAuAcinerellaDecoder.CloseDecoder;
-begin
-  //Free the audio decoder
-  if pDecoder <> nil then
-    ac_free_decoder(pDecoder);
-  pDecoder := nil;
-
-  //Free the acinerella instance
-  if pInstance <> nil then
-    ac_free(pInstance);
-  pInstance := nil;  
 end;
 
 function TAuAcinerellaDecoder.Decode: TAuDecoderState;
@@ -209,7 +201,7 @@ begin
   with pDecoder^.stream_info.additional_info.audio_info do
   begin
     result.Frequency := samples_per_second;
-    result.BitDepth := bit_depth;
+    result.BitDepth := AuBitdepth(bit_depth);
     result.Channels := channel_count;
   end;
 end;
@@ -246,9 +238,22 @@ begin
   APacket.Buffer := pDecoder^.buffer;
 end;
 
-function CreateAcinerellaDecoder(AProtocol: TAuProtocol): TAuDecoder;
+function TAuAcinerellaDecoder.Probe(ABuf: PByte; ASize: Integer; AUrl: PAnsiChar;
+  var AResult: Pointer): Integer;
 begin
-  result := TAuAcinerellaDecoder.Create(AProtocol);
+  result := 0;
+  AResult := ac_probe_input_buffer(PAnsiChar(ABuf), ASize, AUrl, result);
+
+  //Scale the result a bit as this reduces delays when trying to playback
+  //MP3/AAC-Internetstreams with acinerella
+  result := round(result * 1.5);
+  if result > 80 then
+    result := 80; //The probe result of acinerella should never get greater as 80 as other decoders may have a more appropriate implementation.
+end;
+
+function CreateAcinerellaDecoder: TAuDecoder;
+begin
+  result := TAuAcinerellaDecoder.Create;
 end;
 
 initialization
