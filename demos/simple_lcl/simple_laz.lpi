@@ -31,16 +31,14 @@
         <PackageName Value="LCL"/>
       </Item1>
     </RequiredPackages>
-    <Units Count="45">
+    <Units Count="51">
       <Unit0>
         <Filename Value="simple_laz.lpr"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="simple_laz"/>
-        <CursorPos X="22" Y="25"/>
+        <CursorPos X="22" Y="23"/>
         <TopLine Value="1"/>
-        <EditorIndex Value="16"/>
-        <UsageCount Value="52"/>
-        <Loaded Value="True"/>
+        <UsageCount Value="55"/>
       </Unit0>
       <Unit1>
         <Filename Value="main_laz.pas"/>
@@ -48,10 +46,10 @@
         <ComponentName Value="frmMain"/>
         <ResourceBaseClass Value="Form"/>
         <UnitName Value="main_laz"/>
-        <CursorPos X="13" Y="271"/>
-        <TopLine Value="252"/>
+        <CursorPos X="26" Y="228"/>
+        <TopLine Value="202"/>
         <EditorIndex Value="0"/>
-        <UsageCount Value="52"/>
+        <UsageCount Value="55"/>
         <Loaded Value="True"/>
       </Unit1>
       <Unit2>
@@ -63,15 +61,17 @@
       <Unit3>
         <Filename Value="../../src/AuAudio.pas"/>
         <UnitName Value="AuAudio"/>
-        <CursorPos X="21" Y="46"/>
-        <TopLine Value="112"/>
-        <UsageCount Value="22"/>
+        <CursorPos X="41" Y="45"/>
+        <TopLine Value="31"/>
+        <EditorIndex Value="7"/>
+        <UsageCount Value="24"/>
+        <Loaded Value="True"/>
       </Unit3>
       <Unit4>
         <Filename Value="../../src/AuDriverClasses.pas"/>
         <UnitName Value="AuDriverClasses"/>
-        <CursorPos X="3" Y="45"/>
-        <TopLine Value="24"/>
+        <CursorPos X="1" Y="1"/>
+        <TopLine Value="1"/>
         <UsageCount Value="21"/>
       </Unit4>
       <Unit5>
@@ -86,18 +86,14 @@
         <UnitName Value="AuAnalyzerClasses"/>
         <CursorPos X="1" Y="1"/>
         <TopLine Value="1"/>
-        <EditorIndex Value="12"/>
         <UsageCount Value="24"/>
-        <Loaded Value="True"/>
       </Unit6>
       <Unit7>
         <Filename Value="../../src/decoders/AuAcinerella.pas"/>
         <UnitName Value="AuAcinerella"/>
         <CursorPos X="24" Y="101"/>
         <TopLine Value="78"/>
-        <EditorIndex Value="7"/>
         <UsageCount Value="24"/>
-        <Loaded Value="True"/>
       </Unit7>
       <Unit8>
         <Filename Value="../../../../../Lazarus/lcl/comctrls.pp"/>
@@ -111,17 +107,15 @@
         <UnitName Value="AuFiltergraph"/>
         <CursorPos X="1" Y="906"/>
         <TopLine Value="888"/>
-        <EditorIndex Value="15"/>
         <UsageCount Value="25"/>
-        <Loaded Value="True"/>
       </Unit9>
       <Unit10>
         <Filename Value="../../src/AuAnalyzers.pas"/>
         <UnitName Value="AuAnalyzers"/>
-        <CursorPos X="33" Y="47"/>
-        <TopLine Value="16"/>
-        <EditorIndex Value="9"/>
-        <UsageCount Value="23"/>
+        <CursorPos X="1" Y="1"/>
+        <TopLine Value="1"/>
+        <EditorIndex Value="3"/>
+        <UsageCount Value="25"/>
         <Loaded Value="True"/>
       </Unit10>
       <Unit11>
@@ -204,9 +198,7 @@
         <UnitName Value="AuComplex"/>
         <CursorPos X="1" Y="1"/>
         <TopLine Value="1"/>
-        <EditorIndex Value="14"/>
         <UsageCount Value="20"/>
-        <Loaded Value="True"/>
       </Unit22>
       <Unit23>
         <Filename Value="../../src/AuMessages.pas"/>
@@ -226,10 +218,8 @@
         <Filename Value="../../src/drivers/AuOpenAL.pas"/>
         <UnitName Value="AuOpenAL"/>
         <CursorPos X="1" Y="344"/>
-        <TopLine Value="309"/>
-        <EditorIndex Value="10"/>
+        <TopLine Value="310"/>
         <UsageCount Value="14"/>
-        <Loaded Value="True"/>
       </Unit25>
       <Unit26>
         <Filename Value="../../../common/AcSysUtils.pas"/>
@@ -248,10 +238,10 @@
       <Unit28>
         <Filename Value="../../src/AuUtils.pas"/>
         <UnitName Value="AuUtils"/>
-        <CursorPos X="1" Y="204"/>
-        <TopLine Value="186"/>
-        <EditorIndex Value="11"/>
-        <UsageCount Value="13"/>
+        <CursorPos X="35" Y="59"/>
+        <TopLine Value="39"/>
+        <EditorIndex Value="5"/>
+        <UsageCount Value="15"/>
         <Loaded Value="True"/>
       </Unit28>
       <Unit29>
@@ -259,12 +249,10 @@
         <UnitName Value="AuEffects"/>
         <CursorPos X="8" Y="41"/>
         <TopLine Value="17"/>
-        <EditorIndex Value="13"/>
         <UsageCount Value="13"/>
-        <Loaded Value="True"/>
       </Unit29>
       <Unit30>
-        <Filename Value="../../../../../../../../../Programme/Lazarus/lcl/include/rasterimage.inc"/>
+        <Filename Value="../../../../../../Programme/Lazarus/lcl/include/rasterimage.inc"/>
         <CursorPos X="1" Y="509"/>
         <TopLine Value="491"/>
         <UsageCount Value="10"/>
@@ -281,9 +269,7 @@
         <UnitName Value="acinerella"/>
         <CursorPos X="15" Y="252"/>
         <TopLine Value="242"/>
-        <EditorIndex Value="8"/>
         <UsageCount Value="13"/>
-        <Loaded Value="True"/>
       </Unit32>
       <Unit33>
         <Filename Value="../../src/drivers/AuWin32Common.pas"/>
@@ -295,45 +281,41 @@
       <Unit34>
         <Filename Value="../../../andorracommons/AcNotify.pas"/>
         <UnitName Value="AcNotify"/>
-        <CursorPos X="23" Y="16"/>
+        <CursorPos X="1" Y="1"/>
         <TopLine Value="1"/>
-        <EditorIndex Value="6"/>
-        <UsageCount Value="13"/>
+        <EditorIndex Value="8"/>
+        <UsageCount Value="14"/>
         <Loaded Value="True"/>
       </Unit34>
       <Unit35>
-        <Filename Value="../../../../../../../../../Programme/Lazarus/fpc/2.2.4/source/rtl/win32/classes.pp"/>
+        <Filename Value="../../../../../../Programme/Lazarus/fpc/2.2.4/source/rtl/win32/classes.pp"/>
         <UnitName Value="Classes"/>
         <CursorPos X="10" Y="198"/>
         <TopLine Value="163"/>
-        <EditorIndex Value="2"/>
         <UsageCount Value="13"/>
-        <Loaded Value="True"/>
       </Unit35>
       <Unit36>
-        <Filename Value="../../../../../../../../../Programme/Lazarus/fpc/2.2.4/source/rtl/objpas/classes/classes.inc"/>
+        <Filename Value="../../../../../../Programme/Lazarus/fpc/2.2.4/source/rtl/objpas/classes/classes.inc"/>
         <CursorPos X="11" Y="1636"/>
         <TopLine Value="1618"/>
-        <EditorIndex Value="3"/>
         <UsageCount Value="13"/>
-        <Loaded Value="True"/>
       </Unit36>
       <Unit37>
-        <Filename Value="../../../../../../../../../Programme/Lazarus/lcl/interfaces/win32/interfaces.pp"/>
+        <Filename Value="../../../../../../Programme/Lazarus/lcl/interfaces/win32/interfaces.pp"/>
         <UnitName Value="Interfaces"/>
         <CursorPos X="13" Y="32"/>
         <TopLine Value="10"/>
         <UsageCount Value="10"/>
       </Unit37>
       <Unit38>
-        <Filename Value="../../../../../../../../../Programme/Lazarus/lcl/interfacebase.pp"/>
+        <Filename Value="../../../../../../Programme/Lazarus/lcl/interfacebase.pp"/>
         <UnitName Value="InterfaceBase"/>
         <CursorPos X="70" Y="36"/>
         <TopLine Value="11"/>
         <UsageCount Value="10"/>
       </Unit38>
       <Unit39>
-        <Filename Value="../../../../../../../../../Programme/Lazarus/lcl/lmessages.pp"/>
+        <Filename Value="../../../../../../Programme/Lazarus/lcl/lmessages.pp"/>
         <UnitName Value="LMessages"/>
         <CursorPos X="1" Y="1"/>
         <TopLine Value="943"/>
@@ -344,27 +326,21 @@
         <UnitName Value="AcPersistent"/>
         <CursorPos X="15" Y="600"/>
         <TopLine Value="582"/>
-        <EditorIndex Value="1"/>
         <UsageCount Value="11"/>
-        <Loaded Value="True"/>
       </Unit40>
       <Unit41>
         <Filename Value="../../src/drivers/AuDirectSound.pas"/>
         <UnitName Value="AuDirectSound"/>
         <CursorPos X="11" Y="379"/>
         <TopLine Value="355"/>
-        <EditorIndex Value="4"/>
         <UsageCount Value="11"/>
-        <Loaded Value="True"/>
       </Unit41>
       <Unit42>
         <Filename Value="../../src/AuDecoderClasses.pas"/>
         <UnitName Value="AuDecoderClasses"/>
         <CursorPos X="1" Y="282"/>
         <TopLine Value="249"/>
-        <EditorIndex Value="5"/>
         <UsageCount Value="11"/>
-        <Loaded Value="True"/>
       </Unit42>
       <Unit43>
         <Filename Value="../../src/AuFilterGraph2.pas"/>
@@ -380,127 +356,175 @@
         <TopLine Value="58"/>
         <UsageCount Value="10"/>
       </Unit44>
+      <Unit45>
+        <Filename Value="../../../andorracommons/AcRegUtils.pas"/>
+        <UnitName Value="AcRegUtils"/>
+        <CursorPos X="105" Y="21"/>
+        <TopLine Value="1"/>
+        <UsageCount Value="10"/>
+      </Unit45>
+      <Unit46>
+        <Filename Value="../../../andorracommons/AcSysUtils.pas"/>
+        <UnitName Value="AcSysUtils"/>
+        <CursorPos X="22" Y="47"/>
+        <TopLine Value="31"/>
+        <UsageCount Value="10"/>
+      </Unit46>
+      <Unit47>
+        <Filename Value="../../../../../../usr/lib/lazarus/0.9.28.2/lcl/include/listitems.inc"/>
+        <CursorPos X="1" Y="55"/>
+        <TopLine Value="39"/>
+        <EditorIndex Value="6"/>
+        <UsageCount Value="12"/>
+        <Loaded Value="True"/>
+      </Unit47>
+      <Unit48>
+        <Filename Value="../../src/drivers/AuNULL.pas"/>
+        <UnitName Value="AuNULL"/>
+        <CursorPos X="8" Y="39"/>
+        <TopLine Value="21"/>
+        <EditorIndex Value="4"/>
+        <UsageCount Value="12"/>
+        <Loaded Value="True"/>
+      </Unit48>
+      <Unit49>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <UnitName Value="AuVisualisations"/>
+        <CursorPos X="1" Y="566"/>
+        <TopLine Value="549"/>
+        <EditorIndex Value="1"/>
+        <UsageCount Value="12"/>
+        <Loaded Value="True"/>
+      </Unit49>
+      <Unit50>
+        <Filename Value="../../../../../../usr/lib/lazarus/0.9.28.2/lcl/include/rasterimage.inc"/>
+        <CursorPos X="1" Y="299"/>
+        <TopLine Value="283"/>
+        <EditorIndex Value="2"/>
+        <UsageCount Value="12"/>
+        <Loaded Value="True"/>
+      </Unit50>
     </Units>
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
-        <Filename Value="../../src/decoders/AuAcinerella.pas"/>
-        <Caret Line="126" Column="1" TopLine="108"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="215" Column="1" TopLine="199"/>
       </Position1>
       <Position2>
-        <Filename Value="../../src/AuDecoderClasses.pas"/>
-        <Caret Line="139" Column="1" TopLine="121"/>
+        <Filename Value="../../../../../../usr/lib/lazarus/0.9.28.2/lcl/include/rasterimage.inc"/>
+        <Caret Line="296" Column="1" TopLine="280"/>
       </Position2>
       <Position3>
-        <Filename Value="../../src/AuDecoderClasses.pas"/>
-        <Caret Line="141" Column="1" TopLine="123"/>
+        <Filename Value="../../../../../../usr/lib/lazarus/0.9.28.2/lcl/include/rasterimage.inc"/>
+        <Caret Line="298" Column="1" TopLine="282"/>
       </Position3>
       <Position4>
-        <Filename Value="../../src/AuDecoderClasses.pas"/>
-        <Caret Line="277" Column="1" TopLine="249"/>
+        <Filename Value="../../../../../../usr/lib/lazarus/0.9.28.2/lcl/include/rasterimage.inc"/>
+        <Caret Line="299" Column="1" TopLine="283"/>
       </Position4>
       <Position5>
-        <Filename Value="../../src/AuDecoderClasses.pas"/>
-        <Caret Line="280" Column="1" TopLine="249"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="529" Column="1" TopLine="513"/>
       </Position5>
       <Position6>
-        <Filename Value="../../src/AuDecoderClasses.pas"/>
-        <Caret Line="282" Column="1" TopLine="249"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="530" Column="1" TopLine="514"/>
       </Position6>
       <Position7>
-        <Filename Value="../../src/decoders/AuAcinerella.pas"/>
-        <Caret Line="170" Column="1" TopLine="164"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="532" Column="1" TopLine="516"/>
       </Position7>
       <Position8>
-        <Filename Value="../../src/decoders/AuAcinerella.pas"/>
-        <Caret Line="172" Column="1" TopLine="154"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="535" Column="1" TopLine="519"/>
       </Position8>
       <Position9>
-        <Filename Value="../../src/decoders/AuAcinerella.pas"/>
-        <Caret Line="175" Column="1" TopLine="166"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="536" Column="1" TopLine="520"/>
       </Position9>
       <Position10>
-        <Filename Value="../../src/decoders/AuAcinerella.pas"/>
-        <Caret Line="182" Column="1" TopLine="167"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="539" Column="1" TopLine="523"/>
       </Position10>
       <Position11>
-        <Filename Value="../../src/decoders/AuAcinerella.pas"/>
-        <Caret Line="183" Column="1" TopLine="165"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="540" Column="1" TopLine="524"/>
       </Position11>
       <Position12>
-        <Filename Value="../../src/decoders/AuAcinerella.pas"/>
-        <Caret Line="186" Column="1" TopLine="168"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="541" Column="1" TopLine="525"/>
       </Position12>
       <Position13>
-        <Filename Value="../../src/decoders/AuAcinerella.pas"/>
-        <Caret Line="183" Column="30" TopLine="163"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="544" Column="1" TopLine="528"/>
       </Position13>
       <Position14>
-        <Filename Value="../../src/decoders/AuAcinerella.pas"/>
-        <Caret Line="103" Column="1" TopLine="85"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="545" Column="1" TopLine="529"/>
       </Position14>
       <Position15>
-        <Filename Value="../../src/decoders/AuAcinerella.pas"/>
-        <Caret Line="170" Column="1" TopLine="152"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="546" Column="1" TopLine="530"/>
       </Position15>
       <Position16>
-        <Filename Value="../../src/decoders/AuAcinerella.pas"/>
-        <Caret Line="186" Column="1" TopLine="168"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="561" Column="1" TopLine="545"/>
       </Position16>
       <Position17>
-        <Filename Value="../../src/decoders/AuAcinerella.pas"/>
-        <Caret Line="176" Column="31" TopLine="163"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="562" Column="1" TopLine="546"/>
       </Position17>
       <Position18>
-        <Filename Value="../../src/decoders/AuAcinerella.pas"/>
-        <Caret Line="103" Column="1" TopLine="85"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="563" Column="1" TopLine="547"/>
       </Position18>
       <Position19>
-        <Filename Value="../../src/decoders/AuAcinerella.pas"/>
-        <Caret Line="170" Column="1" TopLine="152"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="566" Column="1" TopLine="550"/>
       </Position19>
       <Position20>
-        <Filename Value="../../../andorracommons/AcNotify.pas"/>
-        <Caret Line="414" Column="11" TopLine="411"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="569" Column="1" TopLine="552"/>
       </Position20>
       <Position21>
-        <Filename Value="../../../andorracommons/AcNotify.pas"/>
-        <Caret Line="438" Column="1" TopLine="420"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="570" Column="1" TopLine="552"/>
       </Position21>
       <Position22>
-        <Filename Value="main_laz.pas"/>
-        <Caret Line="12" Column="51" TopLine="1"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="566" Column="1" TopLine="550"/>
       </Position22>
       <Position23>
-        <Filename Value="../../src/drivers/AuDirectSound.pas"/>
-        <Caret Line="46" Column="12" TopLine="28"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="569" Column="1" TopLine="552"/>
       </Position23>
       <Position24>
-        <Filename Value="../../src/drivers/AuDirectSound.pas"/>
-        <Caret Line="394" Column="47" TopLine="361"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="570" Column="1" TopLine="552"/>
       </Position24>
       <Position25>
-        <Filename Value="main_laz.pas"/>
-        <Caret Line="17" Column="18" TopLine="1"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="566" Column="1" TopLine="550"/>
       </Position25>
       <Position26>
-        <Filename Value="../../../andorracommons/AcPersistent.pas"/>
-        <Caret Line="604" Column="15" TopLine="586"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="571" Column="1" TopLine="552"/>
       </Position26>
       <Position27>
-        <Filename Value="../../../andorracommons/AcPersistent.pas"/>
-        <Caret Line="45" Column="6" TopLine="19"/>
+        <Filename Value="../../src/AuVisualisations.pas"/>
+        <Caret Line="566" Column="1" TopLine="550"/>
       </Position27>
       <Position28>
-        <Filename Value="../../src/drivers/AuDirectSound.pas"/>
-        <Caret Line="394" Column="47" TopLine="361"/>
+        <Filename Value="main_laz.pas"/>
+        <Caret Line="12" Column="5" TopLine="1"/>
       </Position28>
       <Position29>
-        <Filename Value="main_laz.pas"/>
-        <Caret Line="104" Column="27" TopLine="86"/>
+        <Filename Value="../../src/AuAudio.pas"/>
+        <Caret Line="45" Column="41" TopLine="31"/>
       </Position29>
       <Position30>
         <Filename Value="main_laz.pas"/>
-        <Caret Line="444" Column="37" TopLine="423"/>
+        <Caret Line="123" Column="1" TopLine="107"/>
       </Position30>
     </JumpHistory>
   </ProjectOptions>

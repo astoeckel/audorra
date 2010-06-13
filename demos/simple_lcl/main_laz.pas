@@ -9,7 +9,7 @@ uses
   ComCtrls, Menus, ActnList, ExtCtrls, StdCtrls, Buttons,
   LCLIntf, LCLType,
 
-  AuAudio, AuTypes, AuUtils, AuAcinerella, AuAnalyzers,
+  AuAudio, AuTypes, AuUtils, AuAcinerella, AuVisualisations,
   {$IFDEF WIN32}
   AuDirectSound;
   {$ELSE}
@@ -109,7 +109,7 @@ type
   public
     AuAudio: TAuAudio;
     AuPlayer: TAuPlayer;
-    AuPeaks: TAuPeakMeter;
+    AuPeaks: TAuVisualisation;
 
     plyback: integer;
 
@@ -119,8 +119,6 @@ type
     upd_trb: boolean;
     trackbar_drag: boolean;
     seeked: Boolean;
-
-    procedure ResizePeakMeter;
 
     function AddFiles(AClear: boolean = false): boolean;
     procedure DeleteFiles;
@@ -147,7 +145,7 @@ end;
 
 procedure TfrmMain.FormActivate(Sender: TObject);
 begin
-  ResizePeakMeter;
+  AuPeaks.Resize(PaintBox1.ClientWidth, PaintBox1.ClientHeight);
 end;
 
 procedure TfrmMain.act_openExecute(Sender: TObject);
@@ -214,9 +212,9 @@ begin
     AuPlayer.OnStateChange := @PlayerStateChange;
     AuPlayer.OnSongFinishes := @PlayerStop;
 
-    AuPeaks := TAuPeakMeter.Create;
-    AuPeaks.Active := true;
-    AuPlayer.AddAnalyzer(AuPeaks);
+    AuPeaks := TAuFFTVisualisation.Create(512);
+    AuPeaks.Analyzer.Active := true;
+    AuPlayer.AddAnalyzer(AuPeaks.Analyzer);
   end;
 
   peakmeter_bg := TBitmap.Create;
@@ -254,7 +252,7 @@ end;
 
 procedure TfrmMain.PaintBox1Resize(Sender: TObject);
 begin
-  ResizePeakMeter;
+  AuPeaks.Resize(PaintBox1.ClientWidth, PaintBox1.ClientHeight);
 end;
 
 const
@@ -267,30 +265,8 @@ var
   w: integer;
   peaks: TAuPeaks;
 begin
-  with peakmeter.Canvas do
-  begin
-    Brush.Color := clBlack;
-    FillRect(0, 0, peakmeter.Width, peakmeter.Height);
-
-    if (peakmeter.Width > 0) and AuPeaks.GetPeaks(peaks) then
-    begin
-      h := (peakmeter.Height - 2) div Length(peaks.ChannelPeaks);
-      for i := 0 to High(peaks.ChannelPeaks) do
-      begin
-        w := Round((AuToDezibel(peaks.ChannelPeaks[i]) + 30) * 0.0333 * (peakmeter.Width - 2));
-        if w < 0 then
-          w := 0;
-        BitBlt(
-          peakmeter.Canvas.Handle,
-          1, i * h + 1, w, h - 1,
-          peakmeter_bg.Canvas.Handle,
-          0, 0,
-          SRCCOPY);
-      end;
-    end;
-
-    PaintBox1.Canvas.Draw(0, 0, peakmeter);
-  end;
+  if AuPeaks.Update then
+    AuPeaks.Draw(PaintBox1.Canvas);
 
   if (AuPlayer <> nil) then
   begin
@@ -366,58 +342,6 @@ begin
       lstPlaylist.Items[plyback].ImageIndex := 2
     else if (AuPlayer.State = aupsOpened) then
       lstPlaylist.Items[plyback].ImageIndex := 0;
-  end;
-end;
-
-function RGB(r, g, b: Byte): TColor;
-begin
-  result := R or (G shl 8) or (B shl 16);
-end;
-
-function GetRValue(AColor: TColor): byte;
-begin
-  result := AColor;
-end;
-
-function GetGValue(AColor: TColor): byte;
-begin
-  result := AColor shr 8;
-end;
-
-function GetBValue(AColor: TColor): byte;
-begin
-  result := AColor shr 16;
-end;
-
-function ColorBetween(c1, c2: TColor; v: Single): TColor;
-begin
-  result :=
-    RGB(
-      round(GetRValue(c1) * v + GetRValue(c2) * (1 - v)),
-      round(GetGValue(c1) * v + GetGValue(c2) * (1 - v)),
-      round(GetBValue(c1) * v + GetBValue(c2) * (1 - v)));
-end;
-
-procedure TfrmMain.ResizePeakMeter;
-var
-  i: integer;
-begin
-  peakmeter_bg.Width := PaintBox1.ClientWidth;
-  peakmeter_bg.Height := PaintBox1.ClientHeight;
-  peakmeter.Width := PaintBox1.ClientWidth;
-  peakmeter.Height := PaintBox1.ClientHeight;
-
-  if peakmeter_bg.Width <= 0 then
-    exit;
-
-  for i := 0 to peakmeter_bg.Width do
-  begin
-    with peakmeter_bg.Canvas do
-    begin
-      Pen.Color := ColorBetween($0045FF, $FFFFFF, i / peakmeter_bg.Width);
-      MoveTo(i, 0);
-      LineTo(i, peakmeter_bg.Height);
-    end;
   end;
 end;
 

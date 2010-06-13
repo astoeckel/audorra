@@ -37,7 +37,6 @@ program consolebased;
 
 {$IFDEF WIN32}
   {$APPTYPE CONSOLE}
-  
 {$ENDIF}
 
 {$IFDEF FPC}
@@ -51,15 +50,19 @@ program consolebased;
 {$ENDIF}
 
 uses
+  {$IFDEF LINUX}
+  cthreads,
+  {$ENDIF}
+  Interfaces,
   SysUtils,
-  Windows,
-  AuTypes,
   AuAudio,
-  AuWASAPI,
-  AuDirectSound,
+  AuTypes,
   AuAnalyzers,
-  AuCDAudio,
-  AuAcinerella;
+//  AuWAV,
+  AuAcinerella,
+  AuOpenAL,
+//  AuNULL,
+  AcNotify;
 
 var
   AuAudio: TAuAudio;
@@ -72,9 +75,14 @@ var
 
 const
   Day = 24 * 60 * 60 * 1000;
-  PeakSize = 15;
+  PeakSize = 30;
+
+{$IFDEF WINDOWS}{$R consolebased.rc}{$ENDIF}
 
 begin
+  //Use the manual notify mode
+  AcNotifyManualInit();
+
   Writeln('Audorra Digital Audio Library - Console based application');
   Writeln('---------------------------------------------------------');
   Writeln;
@@ -105,7 +113,7 @@ begin
     //Create an peak meter analyzer
     AuPeaks := TAuPeakMeter.Create;
     AuPeaks.Active := true;
-    AuPlayer.AddAnalzyer(AuPeaks);
+    AuPlayer.AddAnalyzer(AuPeaks);
 
     //Load...
     AuPlayer.LoadFromFile(ParamStr(1));
@@ -134,13 +142,13 @@ begin
         begin
           if (time mod 100 = 0) and (tops[i] > 0) then
             tops[i] := tops[i] - 1;
-            
+
           Write(' |');
           for j := 0 to PeakSize do
           begin
             if (peaks.ChannelPeaks[i] >= (j / PeakSize)) or (tops[i] = j) then
             begin
-              Write(#196);
+              Write('-');
               if j > tops[i] then
                 tops[i] := j;
             end else
@@ -150,16 +158,19 @@ begin
         Write(#13);
         Sleep(10);
         time := time + 10;
+
+        AcNotifyManualProcessQueue;
       end;
 
     end else
       Writeln('The specified file could not be opened!');
 
-    AuPlayer.Free;
     AuPeaks.Free;
+    AuPlayer.Free;
   end else
     Writeln('Audorra could not be initialized!');
   AuAudio.Free;
 
-  Readln;
+  Writeln;
 end.
+
