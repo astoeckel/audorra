@@ -178,7 +178,7 @@ function AuCompSyncData(AData1, AData2: TAuSyncData): boolean;
 function AuOrientation(AAt, AUp: TAuVector3): TAuOrientation;
 
 function AuBitdepth(ABitdepth: Byte): TAuBitdepth;overload;
-function AuBitdetph(ABits, AAlign: Byte; ASampleType: TAuSampletype): TAuBitdepth;overload;
+function AuBitdepth(ABits, AAlign: Byte; ASampleType: TAuSampletype): TAuBitdepth;overload;
 function AuCheckBitdepth(const ABitdepth: TAuBitdepth): Boolean;
 function AuDriverParameters(AFrequency, AChannels, ABitdepth: Cardinal): TAuDriverParameters;overload;
 function AuDriverParameters(AParametersEx: TAuAudioParametersEx): TAuDriverParameters;overload;
@@ -268,7 +268,7 @@ begin
   end;
 end;
 
-function AuBitdetph(ABits, AAlign: Byte; ASampleType: TAuSampletype): TAuBitdepth;overload;
+function AuBitdepth(ABits, AAlign: Byte; ASampleType: TAuSampletype): TAuBitdepth;overload;
 begin
   with result do
   begin

@@ -44,7 +44,7 @@ uses
   SysUtils, Classes,
   AcPersistent, AcStrUtils, AcRegUtils, AcNotify, AcSyncObjs,
   AuProtocolClasses, AuDecoderClasses, AuAnalyzerClasses, AuDriverClasses, 
-  AuTypes, AuFilterGraph,
+  AuTypes, AuFiltergraph,
   AuMessages;
 
 
@@ -1148,6 +1148,7 @@ begin
     FCurrentFrameInfo := ASyncData;
     if (FCurrentFrameInfo.PlaybackState = auisFinished) then
       AcNotifyQueue(self, StopHandler);
+
   finally
     FNotifyThreadMutex.Release;
   end;
@@ -1157,6 +1158,10 @@ procedure TAuPlayer.StopHandler(ASender: TObject; AUserData: Pointer);
 begin
   if FState > aupsOpened then
   begin
+    //Remove the all notifications for the player from the notify queue as there
+    //may come other calls from the notification queue
+    AcNotifyRemoveObject(self);
+
     Stop;
 
     if Assigned(FSongFinishesEvent) then
@@ -1293,9 +1298,9 @@ begin
 end;
 
 { TAuPlayerNotificationThread }
-
+
 constructor TAuPlayerNotificationThread.Create(AOutputFilter: TAuOutputFilter;
-  ADecoderFilter: TAuCustomDecoderFilter;
+  ADecoderFilter: TAuCustomDecoderFilter;
   ACallback: TAuSyncDataChangedCallback);
 begin
   inherited Create(false);
@@ -1306,7 +1311,7 @@ begin
 end;
 
 procedure TAuPlayerNotificationThread.Execute;
-var
+var
   oldtime, time: Int64;
   olddata, data: TAuFrameInfo;
 begin
@@ -1331,7 +1336,6 @@ begin
           //If the frame info has changed, call the callback
           if not CompareMem(@data, @olddata, SizeOf(data)) then
             FCallback(data);
-
           olddata := data;
         end;
       end else

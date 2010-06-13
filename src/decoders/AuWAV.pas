@@ -54,7 +54,7 @@ type
       procedure FreeBuf;
     protected
       function GetInfo: TAuAudioParametersEx;override;
-      function DoOpenDecoder(AProbeResult: Pointer): boolean;override;
+      function DoOpenDecoder(AProbeResult: Pointer = nil): boolean;override;
       procedure DoCloseDecoder;override;
     public
       constructor Create;
@@ -81,7 +81,10 @@ end;
 
 destructor TAuWAVDecoder.Destroy;
 begin
+  CloseDecoder;
+
   FWAVFile.Free;
+  FWAVFile := nil;
   FreeBuf;
   inherited;
 end;
@@ -94,7 +97,7 @@ begin
   begin
     //Reserve space for 512 samples
     FBufSize := 512 * AuBytesPerSample(FWAVFile.Parameters);
-    FBuf := GetMemory(FBufSize);
+    GetMem(FBuf, FBufSize);
 
     FPacket.Buffer := FBuf;
     
@@ -124,7 +127,7 @@ end;
 procedure TAuWAVDecoder.FreeBuf;
 begin
   if FBuf <> nil then
-    FreeMem(FBuf, FBufSize);
+    FreeMem(FBuf);
 
   FBuf := nil;
 end;

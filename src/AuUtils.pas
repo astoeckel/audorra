@@ -45,7 +45,7 @@ interface
 uses
   SysUtils, Classes,
   Math,
-  AcSysUtils, AcSyncObjs,
+  AcSysUtils, AcTypes,
   AuTypes;
 
 type
@@ -102,65 +102,227 @@ procedure AuReadSamples(const AParams: TAuAudioParametersEx; ASrc, ATar: PByte; 
  @param(ASampleCount defines the count of samples that should be copied.)}
 procedure AuWriteSamples(const AParams: TAuAudioParametersEx; ASrc, ATar: PByte; ASampleCount: Cardinal);
 
-
 implementation
+
+function AuSampleMemSize(const ABitDepth: TAuBitdepth; ASize: Cardinal): Cardinal;
+begin
+  result := ASize + (4 - ABitDepth.align div 8);
+end;
+
+
+procedure _AuReadSamples8(s, t: PByte; it: Cardinal; mul: Single);
+var
+  i: integer;
+begin
+  for i := 0 to it do
+  begin
+    PSingle(t)^ := PAcInt8(s)^ * mul;
+    Inc(s, 1); Inc(t, 4);
+  end;
+end;
+
+procedure _AuReadSamples8U(s, t: PByte; it: Cardinal; mul: Single);
+var
+  i: integer;
+begin
+  for i := 0 to it do
+  begin
+    PSingle(t)^ := PAcUInt8(s)^ * mul - 1;
+    Inc(s, 1); Inc(t, 4);
+  end;
+end;
+
+procedure _AuReadSamples16(s, t: PByte; it: Cardinal; mul: Single);
+var
+  i: integer;
+begin
+  for i := 0 to it do
+  begin
+    PSingle(t)^ := PAcInt16(s)^ * mul;
+    Inc(s, 2); Inc(t, 4);
+  end;
+end;
+
+procedure _AuReadSamples16U(s, t: PByte; it: Cardinal; mul: Single);
+var
+  i: integer;
+begin
+  for i := 0 to it do
+  begin
+    PSingle(t)^ := PAcUInt16(s)^ * mul - 1;
+    Inc(s, 2); Inc(t, 4);
+  end;
+end;
+
+procedure _AuReadSamples32(s, t: PByte; it: Cardinal; mul: Single);
+var
+  i: integer;
+begin
+  for i := 0 to it do
+  begin
+    PSingle(t)^ := PAcInt32(s)^ * mul;
+    Inc(s, 4); Inc(t, 4);
+  end;
+end;
+
+procedure _AuReadSamples32U(s, t: PByte; it: Cardinal; mul: Single);
+var
+  i: integer;
+begin
+  for i := 0 to it do
+  begin
+    PSingle(t)^ := PAcUInt32(s)^ * mul - 1;
+    Inc(s, 4); Inc(t, 4);
+  end;
+end;
+
 
 procedure AuReadSamples(const AParams: TAuAudioParametersEx; ASrc, ATar: PByte;
   ASampleCount: Cardinal);
 var
-  i: Integer;
-  sv: Integer;
+  iterations: integer;
   mul: Single;
+  sv: Integer;
 begin
   if AParams.BitDepth.sample_type < austFloat then
   begin
-    sv := (32 - AParams.BitDepth.bits);
+    iterations := AParams.Channels * ASampleCount - 1;
 
-    //Calculate the maximum value that can be achieved by shifting ABitdepth.bits
-    //to a 32-Bit value
-    mul := 1 / Cardinal(($FFFFFFFF shl sv) xor $80000000);
+    mul := 1 / AcUInt32(1 shl (AParams.BitDepth.bits - 1));
 
-    for i := 0 to AParams.Channels * ASampleCount - 1 do
-    begin
-      case AParams.BitDepth.sample_type of
-        austInt:
-          PSingle(ATar)^ := (PInteger(ASrc)^ shl sv) * mul;
-        austUInt:
-          PSingle(ATar)^ := (PCardinal(ASrc)^ shl sv) * mul - 1;
-      end;
-      Inc(ASrc, AParams.BitDepth.align div 8);
-      Inc(ATar, 4);
+    case AParams.BitDepth.align of
+      8:
+        if AParams.BitDepth.sample_type = austInt then
+          _AuReadSamples8(ASrc, ATar, iterations, mul)
+        else
+          _AuReadSamples8U(ASrc, ATar, iterations, mul);
+
+      16:
+        if AParams.BitDepth.sample_type = austInt then
+          _AuReadSamples16(ASrc, ATar, iterations, mul)
+        else
+          _AuReadSamples16U(ASrc, ATar, iterations, mul);
+
+(*      24:
+        if AParams.BitDepth.sample_type = austInt then
+          _AuReadSamples24(ASrc, ATar, iterations, mul)
+        else
+          _AuReadSamples24U(ASrc, ATar, iterations, mul); *)
+
+      32:
+        if AParams.BitDepth.sample_type = austInt then
+          _AuReadSamples32(ASrc, ATar, iterations, mul)
+        else
+          _AuReadSamples32U(ASrc, ATar, iterations, mul);
     end;
   end else
     AcMove(ASrc^, ATar^,
       AParams.Channels * ASampleCount * AParams.BitDepth.align div 8);
 end;
 
+procedure _AuWriteSamples8(s, t: PByte; it: Cardinal; mul: Single);
+var
+  i: integer;
+begin
+  for i := 0 to it do
+  begin
+    PAcInt8(t)^ := trunc(PSingle(s)^ * mul);
+    Inc(t, 1); Inc(s, 4);
+  end;
+end;
+
+procedure _AuWriteSamples8U(s, t: PByte; it: Cardinal; mul: Single);
+var
+  i: integer;
+begin
+  for i := 0 to it do
+  begin
+    PAcUInt8(t)^ := trunc((PSingle(s)^ + 1) * mul);
+    Inc(t, 1); Inc(s, 4);
+  end;
+end;
+
+procedure _AuWriteSamples16(s, t: PByte; it: Cardinal; mul: Single);
+var
+  i: integer;
+begin
+  for i := 0 to it do
+  begin
+    PAcInt16(t)^ := trunc(PSingle(s)^ * mul);
+    Inc(t, 2); Inc(s, 4);
+  end;
+end;
+
+procedure _AuWriteSamples16U(s, t: PByte; it: Cardinal; mul: Single);
+var
+  i: integer;
+begin
+  for i := 0 to it do
+  begin
+    PAcUInt16(t)^ := trunc((PSingle(s)^ + 1) * mul);
+    Inc(t, 2); Inc(s, 4);
+  end;
+end;
+
+procedure _AuWriteSamples32(s, t: PByte; it: Cardinal; mul: Single);
+var
+  i: integer;
+begin
+  for i := 0 to it do
+  begin
+    PAcInt32(t)^ := trunc(PSingle(s)^ * mul);
+    Inc(t, 4); Inc(s, 4);
+  end;
+end;
+
+procedure _AuWriteSamples32U(s, t: PByte; it: Cardinal; mul: Single);
+var
+  i: integer;
+begin
+  for i := 0 to it do
+  begin
+    PAcUInt32(t)^ := trunc((PSingle(s)^ + 1) * mul);
+    Inc(t, 4); Inc(s, 4);
+  end;
+end;
+
 procedure AuWriteSamples(const AParams: TAuAudioParametersEx; ASrc, ATar: PByte;
   ASampleCount: Cardinal);
 var
-  i: Integer;
+  iterations: integer;
+  mul: Single;
   sv: Integer;
-  mul: Cardinal;
 begin
   if AParams.BitDepth.sample_type < austFloat then
   begin
-    sv := (32 - AParams.BitDepth.bits);
+    iterations := AParams.Channels * ASampleCount - 1;
 
-    //Calculate the maximum value that can be achieved by shifting ABitdepth.bits
-    //to a 32-Bit value
-    mul := ($FFFFFFFF shl sv) xor $80000000;
+    mul := AcUInt32(1 shl (AParams.BitDepth.bits - 1));
 
-    for i := 0 to AParams.Channels * ASampleCount - 1 do
-    begin
-      case AParams.BitDepth.sample_type of
-        austInt:
-          PInteger(ATar)^ := trunc(AuLimit(PSingle(ASrc)^) * mul) shr sv;
-        austUInt:
-          PCardinal(ATar)^ := trunc((AuLimit(PSingle(ASrc)^) + 1.0) * mul) shr sv;
-      end;
-      Inc(ASrc, 4);
-      Inc(ATar, AParams.BitDepth.align div 8);
+    case AParams.BitDepth.align of
+      8:
+        if AParams.BitDepth.sample_type = austInt then
+          _AuWriteSamples8(ASrc, ATar, iterations, mul)
+        else
+          _AuWriteSamples8U(ASrc, ATar, iterations, mul);
+
+      16:
+        if AParams.BitDepth.sample_type = austInt then
+          _AuWriteSamples16(ASrc, ATar, iterations, mul)
+        else
+          _AuWriteSamples16U(ASrc, ATar, iterations, mul);
+
+(*      24:
+        if AParams.BitDepth.sample_type = austInt then
+          _AuWriteSamples24(ASrc, ATar, iterations, mul)
+        else
+          _AuWriteSamples24U(ASrc, ATar, iterations, mul); *)
+
+      32:
+        if AParams.BitDepth.sample_type = austInt then
+          _AuWriteSamples32(ASrc, ATar, iterations, mul)
+        else
+          _AuWriteSamples32U(ASrc, ATar, iterations, mul);
     end;
   end else
     AcMove(ASrc^, ATar^,
@@ -260,8 +422,6 @@ begin
 end;
 
 procedure TAuStreamDriverIdleThread.Execute;
-var
-  actv: boolean;
 begin
   try
     while not Terminated do

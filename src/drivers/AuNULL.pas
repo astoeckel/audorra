@@ -34,6 +34,10 @@ Author: Andreas Stöckel
 {Contains a NULL driver for Audorra.}
 unit AuNULL;
 
+{$IFDEF FPC}
+  {$MODE DELPHI}
+{$ENDIF}
+
 interface
 
 uses
@@ -116,9 +120,9 @@ begin
   FSmpls := AuNullBufferTime * FFmt.Frequency div 1000;
   FSize := FFmt.BitDepth * FFmt.Channels * FSmpls div 8;
 
-  FMem := GetMemory(FSize);
-
   AWriteFormat := AuBitdepth(ADriverParams.BitDepth);
+
+  GetMem(FMem, FSize);
 
   FActive := false;
 

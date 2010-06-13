@@ -42,10 +42,13 @@ interface
 
 uses
   acinerella,
-  AcPersistent,
+  AcPersistent, AcSyncObjs,
   AuUtils, AuTypes, AuProtocolClasses, AuDecoderClasses;
 
 type
+
+  { TAuAcinerellaDecoder }
+
   TAuAcinerellaDecoder = class(TAuDecoder)
     private
       pInstance: PAc_instance;
@@ -57,11 +60,15 @@ type
       seek_pos: int64;
       seek_stream: integer;
       seek_dir: integer;
+
+      FSeekCritSect: TAcCriticalSection;
     protected
       function DoOpenDecoder(AProberesult: Pointer = nil): boolean;override;
       procedure DoCloseDecoder;override;
       function GetInfo: TAuAudioParametersEx;override;
     public
+      constructor Create;
+      destructor Destroy;override;
 
       function Decode: TAuDecoderState;override;
 
@@ -93,6 +100,21 @@ begin
 end;
 
 { TAuAcinerellaDecoder }
+
+constructor TAuAcinerellaDecoder.Create;
+begin
+  inherited;
+
+  FSeekCritSect := TAcCriticalSection.Create;
+end;
+
+destructor TAuAcinerellaDecoder.Destroy;
+begin
+  FSeekCritSect.Free;
+  FSeekCritSect := nil;
+
+  inherited Destroy;
+end;
 
 function TAuAcinerellaDecoder.DoOpenDecoder(AProberesult: Pointer): boolean;
 var
@@ -142,16 +164,21 @@ function TAuAcinerellaDecoder.SeekTo(ACur, ATar: integer): boolean;
 begin
   result := false;
 
-  if (not seek_req) and (pInstance <> nil) and (pDecoder <> nil) and (ATar >= 0) then
-  begin
-    seek_pos := ATar;
-    if ATar < ACur then
-      seek_dir := -1
-    else
-      seek_dir := 0;
-    seek_stream := pDecoder^.stream_index;
-    seek_req := true;
-    result := true;
+  FSeekCritSect.Enter;
+  try
+    if (not seek_req) and (pInstance <> nil) and (pDecoder <> nil) and (ATar >= 0) then
+    begin
+      seek_pos := ATar;
+      if ATar < ACur then
+        seek_dir := -1
+      else
+        seek_dir := 0;
+      seek_stream := pDecoder^.stream_index;
+      seek_req := true;
+      result := true;
+    end;
+  finally
+    FSeekCritSect.Leave;
   end;
 end;
 
@@ -172,10 +199,15 @@ begin
   if (pInstance <> nil) and (pInstance^.opened) then
   begin
     //Seek if required
-    if seek_req then
-    begin
-      ac_seek(pDecoder, seek_dir, seek_pos);
-      seek_req := false;
+    FSeekCritSect.Enter;
+    try
+      if seek_req then
+      begin
+        ac_seek(pDecoder, seek_dir, seek_pos);
+        seek_req := false;
+      end;
+    finally
+      FSeekCritSect.Leave;
     end;
 
     //Read a package from data stream.

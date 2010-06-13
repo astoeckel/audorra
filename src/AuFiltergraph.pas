@@ -677,7 +677,6 @@ begin
   inherited Create;
 
   FDriver := ADriver;
-//  FDelay := FDriver.Delay;
   FBitDepth := ABitDepth;
   FSampleOffset := ASampleOffset;
   FPlaybackSample := 0;
@@ -694,7 +693,7 @@ end;
 procedure TAuDriverOutput.FreeBuf;
 begin
   if FBuf <> nil then
-    FreeMem(FBuf, FBufSize);
+    FreeMem(FBuf);
 
   FBuf := nil;
   FBufSize := 0;
@@ -749,8 +748,13 @@ end;
 
 procedure TAuDriverOutput.Stop;
 begin
-  FPlaybackSample := 0;
-  FSampleOffset := 0;
+  FTimecodeCT.Enter;
+  try
+    FPlaybackSample := 0;
+    FSampleOffset := 0;
+  finally
+    FTimecodeCT.Leave;
+  end;
   FDriver.FlushBuffer;
 end;
 
@@ -781,7 +785,6 @@ begin
       result := TAuSourceFilter(FSources[0]).ReadCallback(FBuf, FBufSize);
       result := AuConvertByteCount(result, AuAudioParametersEx(FParameters, auFloat32Bit),
         FDriverParams);
-
       AuWriteSamples(FDriverParams, PByte(FBuf), ABuf, AuBytesToSamples(result, FDriverParams));
     end;
   finally
@@ -823,6 +826,7 @@ var
   pckt: TAuPacket;
   mem: PByte;
   smpls, bfsize: Integer;
+  filled: Integer;
 begin
   mem := nil;
 
@@ -830,7 +834,14 @@ begin
     while not Terminated do
     begin
       //Check whether the target buffer is filled
-      if (FBuffer.Filled < FBufSize) then
+      FMutex.Acquire;
+      try
+        filled := FBuffer.filled;
+      finally
+        FMutex.Release;;
+      end;
+
+      if (filled < FBufSize) then
       begin
         //Tell the decoder to go on decoding
         case FDecoder.Decode of
@@ -1363,10 +1374,12 @@ begin
       s := 0;
       wait := true;
 
-      tc := FOutput.Timecode - FOffs;
+      tc := FOutput.Timecode;
 
       FCritSect.Enter;
+
       try
+        tc := tc - FOffs;;
         //If readsample minus the timecode is greater than sample count, we have enough data to read again
         if ((tc - FReadSample) >= FSampleCount) then
         begin

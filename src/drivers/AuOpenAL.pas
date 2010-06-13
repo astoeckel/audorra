@@ -511,7 +511,7 @@ begin
     end;
 
     if FMem <> nil then
-      FreeMem(FMem, FMemSize);
+      FreeMem(FMem);
     FMem := nil;
     FMemSize := 0;
 
