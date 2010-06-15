@@ -583,9 +583,9 @@ end;
 
 procedure TAuOpenALStreamDriver.SetActive(AActive: Boolean);
 begin
-  OALMutex.Acquire;
+  FMutex.Acquire;
   try
-    FMutex.Acquire;
+    OALMutex.Acquire;
     try
       ActivateContext(FContext);
       if AActive then
@@ -595,32 +595,32 @@ begin
 
       FActive := AActive;
     finally
-      FMutex.Release;
+      OALMutex.Release;
     end;
   finally
-    OALMutex.Release;
+    FMutex.Release;
   end;
 end;
 
 procedure TAuOpenALStreamDriver.FlushBuffer;
 begin
-  OALMutex.Acquire;
+  FMutex.Acquire;
   try
-      FMutex.Acquire;
-      try
-        ActivateContext(FContext);
-        alSourceUnqueueBuffers(FSource, AuOpenALBufferCount, @FBuffers[0]);
-        alSourceStop(FSource);
+    OALMutex.Acquire;
+    try
+      ActivateContext(FContext);
+      alSourceUnqueueBuffers(FSource, AuOpenALBufferCount, @FBuffers[0]);
+      alSourceStop(FSource);
 
-        FCurrentBlock := 0;
-        FFreeBlocks := Length(FBuffers);
-        FTimecode := 0;
-        FActive := false;
-      finally
-        FMutex.Release;
-      end;
+      FCurrentBlock := 0;
+      FFreeBlocks := Length(FBuffers);
+      FTimecode := 0;
+      FActive := false;
+    finally
+      OALMutex.Release;
+    end;
   finally
-    OALMutex.Release;
+    FMutex.Release;
   end;
 end;
 

@@ -128,7 +128,7 @@ begin
   if Protocol.Seekable then
     ac_open(pInstance, self, nil, @read_proc, @seek_proc, nil, AProberesult)
   else
-    ac_open(pInstance, self, nil, @read_proc, nil, nil, nil);
+    ac_open(pInstance, self, nil, @read_proc, nil, nil, AProberesult);
 
   //Search audio decoder
   for i := 0 to pInstance^.stream_count - 1 do

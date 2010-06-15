@@ -51,7 +51,6 @@ type
   { TAuLibaoDriver }
 
   TAuLibaoDriver = class(TAuDriver)
-    private
     public
       constructor Create;
       destructor Destroy;override;
@@ -61,8 +60,6 @@ type
       function CreateStreamDriver(ADeviceID: integer;
         AParameters: TAuAudioParametersEx): TAuStreamDriver;override;
   end;
-
-  { TAuLibaoStreamDriver }
 
   { TAuLibaoStreamingThread }
 
@@ -83,6 +80,8 @@ type
       procedure Pause;
   end;
 
+  { TAuLibaoStreamDriver }
+
   TAuLibaoStreamDriver = class(TAuStreamDriver)
     private
       FDeviceID: integer;
@@ -93,22 +92,20 @@ type
       FBuf: PByte;
       FBufSize: integer;
     public
-      constructor Create(ADeviceID: integer; AFmt: TAuAudioParametersEx);
+      constructor Create(ADeviceID: integer);
       destructor Destroy;override;
 
-      procedure Play;override;
-      procedure Pause;override;
-      procedure Stop;override;
-      function Open: boolean;override;
-      procedure Close;override;
+      procedure SetActive(AActive: Boolean);override;
+      procedure FlushBuffer;override;
 
-      function Idle(ACallback: TAuReadCallback): boolean;override;
+      function Open(ADriverParams: TAuDriverParameters;
+        ACallback: TAuStreamDriverProc; out AWriteFormat: TAuBitdepth): boolean;override;
+      procedure Close;override;
   end;
 
 const
   LIBAO_BUFSIZE = 10; //10ms * 10 --> 100ms Latency
   LIBAO_BUFCOUNT = 10;
-
 
 implementation
 
@@ -128,8 +125,6 @@ end;
 constructor TAuLibaoDriver.Create;
 begin
   inherited Create;
-
-
 end;
 
 destructor TAuLibaoDriver.Destroy;
@@ -269,25 +264,6 @@ begin
     //Close the device
     ao_close(FDevice);
     FDevice := nil;
-  end;
-end;
-
-function TAuLibaoStreamDriver.Idle(ACallback: TAuReadCallback): boolean;
-var
-  read: integer;
-begin
-  result := false;
-  if FBuffer.Filled < FBufSize * LIBAO_BUFCOUNT then
-  begin
-    result := true;
-
-    read := ACallback(FBuf, FBufSize, FSyncData);
-    FCritSect.Enter;
-    try
-      FBuffer.Write(FBuf, read);
-    finally
-      FCritSect.Leave;
-    end;
   end;
 end;
 

@@ -396,7 +396,12 @@ begin
 
       result := true;
     end else
+    begin
+      //Initialization of this filter failed. Revert initialization
+      Finalize;
+
       result := false;
+    end;
   end;
 end;
 

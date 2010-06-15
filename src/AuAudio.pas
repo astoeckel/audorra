@@ -939,8 +939,8 @@ procedure TAuPlayer.Close;
 begin
   Lock.Enter;
   try
-    //SetState(aupsClosed);
     FreeComponents(true);
+    SetState(aupsClosed);
   finally
     Lock.Leave;
   end;
@@ -1049,13 +1049,15 @@ begin
       FCompressor.Target := FTarget;
 
       //Initialize the target filter
-      TAuOutputFilter(FTarget).Init(params);
+      if TAuOutputFilter(FTarget).Init(params) then
+      begin
+        //Create the notify thread
+        FNotifyThread := TAuPlayerNotificationThread.Create(TAuOutputFilter(FTarget),
+          FSource, SyncDataChanged);
 
-      //Create the notify thread
-      FNotifyThread := TAuPlayerNotificationThread.Create(TAuOutputFilter(FTarget),
-        FSource, SyncDataChanged);  
-
-      result := true;
+        result := true;
+      end else
+        FreeComponents(true);
     end;
   finally
     Lock.Leave;
