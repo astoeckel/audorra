@@ -42,7 +42,7 @@ interface
 
 uses
   SysUtils, Classes,
-  AcSyncObjs, AcBuffer, AcPersistent,
+  AcSyncObjs, AcPersistent,
   AuTypes, AuDriverClasses,
   libao;
 
@@ -57,8 +57,7 @@ type
 
       procedure EnumDevices(ACallback: TAuEnumDeviceProc);override;
 
-      function CreateStreamDriver(ADeviceID: integer;
-        AParameters: TAuAudioParametersEx): TAuStreamDriver;override;
+      function CreateStreamDriver(ADeviceID: integer): TAuStreamDriver;override;
   end;
 
   { TAuLibaoStreamingThread }
@@ -66,18 +65,22 @@ type
   TAuLibaoStreamingThread = class(TThread)
     private
       FPaused: boolean;
-      FBuffer: TAcBuffer;
       FCritSect: TAcCriticalSection;
       FFormat: Tao_sample_format;
-      FDevice: Pao_device;
+      FCallback: TAuStreamDriverProc;
+      FDeviceID: Integer;
+      FPosition: Int64;
+      FInitialized: Integer;
     protected
       procedure Execute;override;
     public
-      constructor Create(ADevice: Pao_device; ABuffer: TAcBuffer;
-        AFormat: Tao_sample_format; ACritSect: TAcCriticalSection);
+      constructor Create(ADeviceID: integer; ACallback: TAuStreamDriverProc;
+        AFormat: Tao_sample_format);
+      destructor Destroy;override;
 
-      procedure Play;
-      procedure Pause;
+      procedure SetActive(AActive: Boolean);
+      procedure Reset;
+      function Initialized: Integer;
   end;
 
   { TAuLibaoStreamDriver }
@@ -85,12 +88,7 @@ type
   TAuLibaoStreamDriver = class(TAuStreamDriver)
     private
       FDeviceID: integer;
-      FDevice: Pao_device;
-      FBuffer: TAcBuffer;
-      FCritSect: TAcCriticalSection;
       FThread: TAuLibaoStreamingThread;
-      FBuf: PByte;
-      FBufSize: integer;
     public
       constructor Create(ADeviceID: integer);
       destructor Destroy;override;
@@ -104,15 +102,14 @@ type
   end;
 
 const
-  LIBAO_BUFSIZE = 10; //10ms * 10 --> 100ms Latency
-  LIBAO_BUFCOUNT = 10;
+  LIBAO_BUFSIZE = 10;
 
 implementation
 
 function GetBufByteCount(format: Tao_sample_format): integer;
 begin
-  result := format.channels * (format.bits div 8) * round((LIBAO_BUFSIZE / 1000) *
-    format.rate);
+  result := format.channels * (format.bits div 8) * (LIBAO_BUFSIZE * format.rate div 1000);
+  Writeln('Bytecount: ', result);
 end;
 
 function CreateLibaoDriver: TAuDriver;
@@ -162,166 +159,171 @@ begin
   end;
 end;
 
-function TAuLibaoDriver.CreateStreamDriver(ADeviceID: integer;
-  AParameters: TAuAudioParametersEx): TAuStreamDriver;
+function TAuLibaoDriver.CreateStreamDriver(ADeviceID: integer): TAuStreamDriver;
 begin
   //Create a stream driver
-  result := TAuLibaoStreamDriver.Create(ADeviceID, AParameters);
+  result := TAuLibaoStreamDriver.Create(ADeviceID);
 end;
 
 { TAuLibaoStreamDriver }
 
-constructor TAuLibaoStreamDriver.Create(ADeviceID: integer;
-  AFmt: TAuAudioParametersEx);
+constructor TAuLibaoStreamDriver.Create(ADeviceID: integer);
 begin
   inherited Create;
 
   FDeviceID := ADeviceID;
-  FParameters := AFmt;
-  FDelay := LIBAO_BUFSIZE * LIBAO_BUFCOUNT;
-
-  FBuffer := TAcBuffer.Create;
-  FCritSect := TAcCriticalSection.Create;
 end;
 
 destructor TAuLibaoStreamDriver.Destroy;
 begin
-  Close;
-
-  FCritSect.Free;
-  FBuffer.Free;
   inherited Destroy;
 end;
 
-procedure TAuLibaoStreamDriver.Play;
+procedure TAuLibaoStreamDriver.SetActive(AActive: Boolean);
 begin
   if FThread <> nil then
-    FThread.Play;
+    FThread.SetActive(AActive);
 end;
 
-procedure TAuLibaoStreamDriver.Pause;
+procedure TAuLibaoStreamDriver.FlushBuffer;
 begin
   if FThread <> nil then
-    FThread.Pause;
+    FThread.Reset;
 end;
 
-procedure TAuLibaoStreamDriver.Stop;
-begin
-  if FThread <> nil then
-  begin
-    Pause;
-    FCritSect.Enter;
-    try
-      FBuffer.Clear;
-    finally
-      FCritSect.Leave;
-    end;
-  end;
-end;
-
-function TAuLibaoStreamDriver.Open: boolean;
+function TAuLibaoStreamDriver.Open(ADriverParams: TAuDriverParameters;
+  ACallback: TAuStreamDriverProc; out AWriteFormat: TAuBitdepth): boolean;
 var
   fmt: Tao_sample_format;
 begin
   result := false;
-  if FDevice = nil then
+  if FThread = nil then
   begin
     //Convert the sample format
-    fmt := ao_sample_format(FParameters.BitDepth, FParameters.Frequency,
-      FParameters.Channels);
+    fmt := ao_sample_format(ADriverParams.BitDepth, ADriverParams.Frequency,
+      ADriverParams.Channels);
+    AWriteFormat := AuBitdepth(ADriverParams.BitDepth);
 
-    //Try to open the driver
-    FDevice := ao_open_live(FDeviceID, @fmt, nil);
-    if FDevice <> nil then
-    begin
-      result := true;
+    //Create the streaming thread, which will open the device driver
+    FThread := TAuLibaoStreamingThread.Create(FDeviceID, ACallback, fmt);
+    while FThread.Initialized = -1 do
+      Sleep(1);
 
-      //Create the streaming thread
-      FThread := TAuLibaoStreamingThread.Create(FDevice, FBuffer, fmt,
-        FCritSect);
-
-      FBufSize := GetBufByteCount(fmt);
-      GetMem(FBuf, FBufSize);
-    end;
+    result := FThread.Initialized > 0;
+    if (not result) then
+      FreeAndNil(FThread);
   end;
 end;
 
 procedure TAuLibaoStreamDriver.Close;
 begin
-  if FDevice <> nil then
+  if FThread <> nil then
   begin
+    Writeln('1');
     //Stop the output and clear the buffer
-    Stop;
+    FlushBuffer;
 
+    Writeln('2');
     //Terminate the streaming thread
     FThread.Terminate;
     FThread.WaitFor;
     FreeAndNil(FThread);
-
-    FreeMem(FBuf, FBufSize);
-    FBuf := nil;
-
-    //Close the device
-    ao_close(FDevice);
-    FDevice := nil;
+    Writeln('3');
   end;
 end;
 
 { TAuLibaoStreamingThread }
 
-constructor TAuLibaoStreamingThread.Create(ADevice: Pao_device;
-  ABuffer: TAcBuffer; AFormat: Tao_sample_format;
-  ACritSect: TAcCriticalSection);
+constructor TAuLibaoStreamingThread.Create(ADeviceID: Integer;
+  ACallback: TAuStreamDriverProc; AFormat: Tao_sample_format);
 begin
   inherited Create(false);
 
-  FBuffer := ABuffer;
+  FDeviceID := ADeviceID;
   FFormat := AFormat;
-  FCritSect := ACritSect;
-  FDevice := ADevice;
+  FCallback := ACallback;
   FPaused := true;
-end;      
+  FPosition := 0;
+  FDeviceID := ADeviceID;
+  FInitialized := -1;
+
+  //Create the critical section object used to protect access on the thread object
+  FCritSect := TAcCriticalSection.Create;
+end;
+
+destructor TAuLibaoStreamingThread.Destroy;
+begin
+  FreeAndNil(FCritSect);
+  inherited Destroy;
+end;
 
 procedure TAuLibaoStreamingThread.Execute;
 var
   buf: PByte;
-  buf_size: Integer;
+  buf_size, read_size: Integer;
+  device: Pao_device;
 begin
-  buf_size := GetBufByteCount(FFormat);
-  GetMem(buf, buf_size);
-  try
-    while not Terminated do
-    begin
-      //Output silence
-      FillChar(buf^, buf_size, 0);
+  //Create and open the libao device
+  device := ao_open_live(FDeviceID, @FFormat, nil);
+  if (device <> nil) then
+  begin
+    FInitialized := 1;
 
-      //Fetch the audio data if not paused
-      if not FPaused then
+    //Reserve enough memory for the buffer
+    buf_size := GetBufByteCount(FFormat);
+    GetMem(buf, buf_size);
+    try
+      while not Terminated do
       begin
-        FCritSect.Enter;
-        try
-          FBuffer.Read(buf, buf_size);
-        finally
-          FCritSect.Leave;
-        end;
-      end;
+        //Fetch the audio data if not paused
+        if not FPaused then
+        begin
+          //Increment the position by the number of samples which has been played
+          read_size := FCallback(buf, buf_size, FPosition);
+          FPosition := FPosition + (buf_size * 8) div (FFormat.channels * FFormat.bits);
 
-      //...and play it
-      ao_play(FDevice, buf, buf_size);
+          //...and play it
+          ao_play(device, buf, read_size);
+        end else
+          Sleep(1);
+      end;
+    finally
+      ao_close(device);
+      FreeMem(buf, buf_size);
     end;
+  end else
+    FInitialized := 0;
+end;
+
+procedure TAuLibaoStreamingThread.SetActive(AActive: Boolean);
+begin
+  FCritSect.Enter;
+  try
+    FPaused := not AActive;
   finally
-    FreeMem(buf, buf_size);
+    FCritSect.Leave;
   end;
 end;
 
-procedure TAuLibaoStreamingThread.Play;
+procedure TAuLibaoStreamingThread.Reset;
 begin
-  FPaused := false;
+  FCritSect.Enter;
+  try
+    FPosition := 0;
+    FPaused := true;
+  finally
+    FCritSect.Leave;
+  end;
 end;
 
-procedure TAuLibaoStreamingThread.Pause;
+function TAuLibaoStreamingThread.Initialized: Integer;
 begin
-  FPaused := true;
+  FCritSect.Enter;
+  try
+    result := FInitialized;
+  finally
+    FCritSect.Leave;
+  end;
 end;
 
 initialization
