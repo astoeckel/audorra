@@ -43,7 +43,7 @@ uses
   AcSysUtils;
   
 const
-  default_libname = 'libao.so.2';  
+  default_libname = 'libao.so.4';
 
 const
   AO_TYPE_LIVE = 1;
@@ -97,6 +97,7 @@ type
 
   Tao_sample_format = record
     bits, rate, channels, byte_format: integer;
+    matrix: PAnsiChar;
   end;
   Pao_sample_format = ^Tao_sample_format;
 
@@ -155,6 +156,7 @@ begin
   result.rate := rate;
   result.channels := channels;
   result.byte_format := AO_FMT_NATIVE;
+  result.matrix := nil;
 end;
 
 var
