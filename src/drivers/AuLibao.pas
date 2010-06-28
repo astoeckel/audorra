@@ -102,7 +102,7 @@ type
   end;
 
 const
-  LIBAO_BUFSIZE = 10;
+  LIBAO_BUFSIZE = 100;
 
 implementation
 
@@ -153,6 +153,8 @@ begin
     dev.ID := i + 1;
     dev.Priority := lst^^.priority;
     ACallback(dev);
+
+    Writeln(i, '=', dev.Name);
 
     //Fetch the next list element
     inc(lst);
@@ -219,16 +221,13 @@ procedure TAuLibaoStreamDriver.Close;
 begin
   if FThread <> nil then
   begin
-    Writeln('1');
     //Stop the output and clear the buffer
     FlushBuffer;
 
-    Writeln('2');
     //Terminate the streaming thread
     FThread.Terminate;
     FThread.WaitFor;
     FreeAndNil(FThread);
-    Writeln('3');
   end;
 end;
 
@@ -262,13 +261,19 @@ var
   buf: PByte;
   buf_size, read_size: Integer;
   device: Pao_device;
+  read_sample: Int64;
 begin
   //Create and open the libao device
   device := ao_open_live(FDeviceID, @FFormat, nil);
+  read_sample := 0;
   if (device <> nil) then
   begin
-    FInitialized := 1;
-
+    FCritSect.Enter;
+    try
+      FInitialized := 1;
+    finally
+      FCritSect.Leave;
+    end;
     //Reserve enough memory for the buffer
     buf_size := GetBufByteCount(FFormat);
     GetMem(buf, buf_size);
@@ -280,10 +285,10 @@ begin
         begin
           //Increment the position by the number of samples which has been played
           read_size := FCallback(buf, buf_size, FPosition);
-          FPosition := FPosition + (buf_size * 8) div (FFormat.channels * FFormat.bits);
 
           //...and play it
           ao_play(device, buf, read_size);
+          FPosition := FPosition + (read_size * 8) div (FFormat.bits * FFormat.channels);
         end else
           Sleep(1);
       end;
@@ -292,7 +297,14 @@ begin
       FreeMem(buf, buf_size);
     end;
   end else
-    FInitialized := 0;
+  begin
+    FCritSect.Enter;
+    try
+      FInitialized := 0;
+    finally
+      FCritSect.Leave;
+    end;
+  end;
 end;
 
 procedure TAuLibaoStreamingThread.SetActive(AActive: Boolean);

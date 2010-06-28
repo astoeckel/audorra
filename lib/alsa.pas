@@ -37,7 +37,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  *}
-unit alsa_header;
+unit alsa;
 
 {$MODE objfpc}
 {$PACKRECORDS c}
@@ -232,9 +232,10 @@ function snd_pcm_close(pcm: Psnd_pcm_t): Integer; cdecl; external libasound;
 function snd_pcm_writei(pcm: Psnd_pcm_t; buffer: Pointer;
   size: snd_pcm_uframes_t): snd_pcm_sframes_t; cdecl; external libasound;
 function snd_pcm_prepare(pcm: Psnd_pcm_t): Integer; cdecl; external libasound;
-function snd_pcm_reset(pcm: Psnd_pcm_t): Integer; cdecl; external libasound;
+function snd_pcm_resume(pcm: Psnd_pcm_t): Integer; cdecl; external libasound;
 function snd_pcm_start(pcm: Psnd_pcm_t): Integer; cdecl; external libasound;
 function snd_pcm_pause(pcm: Psnd_pcm_t; enable: Integer): Integer; cdecl; external libasound;
+function snd_pcm_drop(pcm: Psnd_pcm_t): Integer; cdecl; external libasound;
 function snd_pcm_wait(pcm: Psnd_pcm_t; timeout: Integer): Integer; cdecl; external libasound;
 function snd_pcm_set_params(pcm: Psnd_pcm_t; format: snd_pcm_format_t;
   access: snd_pcm_access_t; channels, rate: Cardinal; soft_resample: Integer;
