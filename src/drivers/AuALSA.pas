@@ -38,9 +38,6 @@ unit AuALSA;
   {$MODE DELPHI}
 {$ENDIF}
 
-//TODO: Error checking in the thread part (buffer underun recovery)
-//TODO: Device enumeration
-
 interface
 
 uses
@@ -50,8 +47,19 @@ uses
   alsa;
 
 type
+  TAuALSADevice = record
+    name: string;
+    uid: string;
+  end;
+  PAuALSADevice = ^TAuALSADevice;
+
   { TAuALSADriver }
   TAuALSADriver = class(TAuDriver)
+    private
+      FDeviceList: TList;
+      procedure AddDevice(AName: string; AUid: string);
+      procedure ALSAEnumDevices(ACard: Integer);
+      procedure ALSAEnumCards;
     public
       constructor Create;
       destructor Destroy;override;
@@ -109,29 +117,120 @@ implementation
 
 constructor TAuALSADriver.Create;
 begin
+  inherited Create;
 
+  FDeviceList := TList.Create;
+
+  //Enumerate over all soundcards and write their devices to the device list
+  AddDevice('Defaul Device', 'default');
+  ALSAEnumCards;
 end;
 
 destructor TAuALSADriver.Destroy;
+var
+  i: integer;
 begin
+  //Free all allocated device specifiers
+  for i := FDeviceList.Count - 1 downto 0 do
+    Dispose(PAuALSADevice(FDeviceList[i]));
+
+  FreeAndNil(FDeviceList);
   inherited Destroy;
+end;
+
+procedure TAuALSADriver.AddDevice(AName: string; AUid: string);
+var
+  dev: PAuALSADevice;
+begin
+  //Instanciate a new copy of the device record
+  New(dev);
+
+  //Copy "human" devie name and uid into the record and add the record to the list
+  dev^.name := AName;
+  dev^.uid := AUid;
+  FDeviceList.Add(dev);
+end;
+
+procedure TAuALSADriver.ALSAEnumDevices(ACard: Integer);
+var
+  ctl: Psnd_ctl_t;
+  pcm_info: Psnd_pcm_info_t;
+  pcm_device: integer;
+  dev: string;
+  err: integer;
+begin
+  dev := 'hw:' + IntToStr(ACard);
+
+  err := snd_ctl_open(@ctl, PChar(dev), 0);
+  if (err < 0) then
+    exit;
+
+  snd_pcm_info_malloc(@pcm_info);
+
+  while true do
+  begin
+    err := snd_ctl_pcm_next_device(ctl, @pcm_device);
+    if (err < 0) or (pcm_device < 0) then
+      break;
+
+    snd_pcm_info_set_device(pcm_info, pcm_device);
+    snd_pcm_info_set_subdevice(pcm_info, 0);
+    snd_pcm_info_set_stream(pcm_info, SND_PCM_STREAM_PLAYBACK);
+
+    err := snd_ctl_pcm_info(ctl, pcm_info);
+    if err >= 0 then
+    begin
+      dev := dev + ':' + IntToStr(pcm_device);
+      AddDevice(snd_pcm_info_get_name(pcm_info), dev);
+    end;
+  end;
+
+  snd_ctl_close(ctl);
+end;
+
+procedure TAuALSADriver.ALSAEnumCards;
+var
+  card_index: integer = -1;
+  card_name: PChar;
+  err: integer;
+begin
+  //Enumerate through each device
+  err := snd_card_next(@card_index);
+  while (err = 0) and (card_index > -1) do
+  begin
+    //Get the name of the sound device
+    snd_card_get_name(card_index, @card_name);
+    ALSAEnumDevices(card_index);
+    err := snd_card_next(@card_index);
+  end;
 end;
 
 procedure TAuALSADriver.EnumDevices(ACallback: TAuEnumDeviceProc);
 var
   dev: TAuDevice;
+  i: integer;
 begin
-  //Add the standard device driver to the list
-  dev.Name := 'alsa default device';
-  dev.ID := 0;
-  dev.Priority := 100;
-  dev.UserData := nil;
-  ACallback(dev);
+  //Go through the devices list and report all listed devices via callback
+  for i := 0 to FDeviceList.Count - 1 do
+  begin
+    dev.Name := PAuALSADevice(FDeviceList[i])^.name;
+    dev.ID := i;
+
+    if (i = 0) then
+      dev.Priority := 100
+    else
+      dev.Priority := 50;
+
+    dev.UserData := nil;
+
+    ACallback(dev);
+  end;
 end;
 
 function TAuALSADriver.CreateStreamDriver(ADeviceID: integer): TAuStreamDriver;
 begin
-  result := TAuALSAStreamDriver.Create('default');
+  if (ADeviceID >= 0) and (ADeviceID < FDeviceList.Count) then
+    result := TAuALSAStreamDriver.Create(PChar(PAuALSADevice(FDeviceList[ADeviceID])^.uid));
 end;
 
 { TAuALSAStreamDriverThread }
@@ -289,7 +388,8 @@ begin
             //Write the data to the sound device
             snd_pcm_writei(hndl, buf, (read_count * 8) div Integer(FFormat.BitDepth)
               div Integer(FFormat.Channels));
-          end;
+          end else
+            snd_pcm_prepare(hndl);
         end else
           Sleep(1);
       end;
