@@ -111,6 +111,9 @@ type
       procedure FlushBuffer;override;
     end;
 
+const
+  ALSA_BUFFER = 10; //10ms
+
 implementation
 
 { TAuALSADriver }
@@ -122,7 +125,7 @@ begin
   FDeviceList := TList.Create;
 
   //Enumerate over all soundcards and write their devices to the device list
-  AddDevice('Defaul Device', 'default');
+  AddDevice('Default Device', 'default');
   ALSAEnumCards;
 end;
 
@@ -290,7 +293,7 @@ begin
     result :=
       (snd_pcm_open(@hndl, FDeviceName, SND_PCM_STREAM_PLAYBACK, 0) >= 0) and
       (snd_pcm_set_params(hndl, GetFormat, SND_PCM_ACCESS_RW_INTERLEAVED,
-        FFormat.Channels, FFormat.Frequency, 1, 10000) >= 0);
+        FFormat.Channels, FFormat.Frequency, 1, ALSA_BUFFER * 1000) >= 0);
   except
     result := false;
   end;
@@ -390,8 +393,9 @@ begin
               div Integer(FFormat.Channels));
           end else
             snd_pcm_prepare(hndl);
-        end else
-          Sleep(1);
+        end;
+
+        Sleep(1);
       end;
     end else
     begin
