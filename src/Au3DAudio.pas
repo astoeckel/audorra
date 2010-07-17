@@ -169,12 +169,43 @@ type
   in memory. Therefore it can be instantly played without any delay and loop without
   any gaps in playback. It is well suited for effects like gun-shots, looping background noises etc.
   It should not be used for things like background music etc. as the memory footprint for that
-  would be fairly large. For this applications you should use TAuStreamedSound.
+  would be fairly large. For these applications you should use TAuStreamedSound.
   TAuStaticSound can only be used in connection with a 3D environment provided by TAu3DAudio.
   If you want to manage multiple sounds and load/save them as a collection from a file,
   you can use the TAuSoundList class.
-  As TAuStaticSound is derrived from TAuCustomAudioObject, you're able to use the
-  functions also known from TAuPlayer to use this object.
+  
+  To load/open the sound you can use the "LoadFrom*" and "Open" functions provided
+  by TAuCustomAudioObject.
+  
+  To playback the sound you first have to create an TAu3DStaticEmitter emitter object
+  and append that to the TAu3DStaticSound object provided by the sound property.
+  
+  Example usage:
+  @longCode(#
+var
+  sound: TAuStaticSound;
+  emitter: TAu3DStaticEmitter;
+begin
+  //Create the sound object, load and open it
+  sound := TAuStaticSound.Create(_3daudio);
+  sound.LoadFromFile('sound.wav');
+  if sound.Open() then
+  begin
+    //Now attach a new emitter to the sound object. There can be as many
+    //emitters attached to a sound object as you like.
+    _3daudio.Lock();
+    try    
+      emitter := TAu3DStaticEmitter.Create(sound.Sound);
+      
+      //To start playback, simply set the active property of the emitter
+      //to true
+      emitter.Active := true;      
+    finally
+      _3daudio.Unlock;
+    end;    
+  end;
+end;
+#)
   @seealso(TAuSoundList)
   @seealso(TAuStreamedSound)
   @seealso(TAu3DAudio)}
@@ -261,11 +292,42 @@ type
    data is streamed from the resource containing it. Therefore there is a certain
    delay until playback starts and looping (which has to be done using the OnSongFinishes event)
    will create a short gap in audio playback in most cases.
+   
+   As with TAuStaticSound you'll also have to connect a emitter (of the class TAu3DStreamedEmitter) to
+   the TAu3DStreamedSound object provided by the "Sound" property of this class.
+   
+   Example usage:
+@longCode(#
+var
+  stream: TAuStreamedSound;
+  emitter: TAu3DStaticEmitter;
+begin
+  //Create the sound object, load and open it
+  stream := TAuStreamedSound.Create(_3daudio);
+  stream.LoadFromFile('music.oga');
+  if stream.Open() then
+  begin
+    //Now attach a new emitter to the sound object. There can be as many
+    //emitters attached to a sound object as you like.
+    _3daudio.Lock();
+    try    
+      emitter := TAu3DStreamedEmitter.Create(stream.Sound);
+    finally
+      _3daudio.Unlock;
+    end;
+
+    //To start playback, simply use the "Play", "Pause", "Stop" functions
+    //provided by TAuStreamedSound. All emitters will perform the same action
+    //synchronously.
+    stream.Play();    
+  end;
+end;
+#)
    @seealso(TAuPlayer)
    @seealso(TAuPlayer.OnSongFinishes)
    @seealso(TAu3DSoundFilterAdapter)
    @seealso(Adapter)
-   @seealso(TAuStaticSound))}
+   @seealso(TAuStaticSound)}
   TAuStreamedSound = class(TAuPlayer)
     private
       FFilterAdapter: TAu3DSoundFilterAdapter;
