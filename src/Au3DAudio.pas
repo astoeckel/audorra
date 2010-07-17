@@ -164,7 +164,20 @@ type
   end;
 
   TAuSoundList = class;
-
+  
+  {TAuStaticSound is a class which represents a short sound which completely resists
+  in memory. Therefore it can be instantly played without any delay and loop without
+  any gaps in playback. It is well suited for effects like gun-shots, looping background noises etc.
+  It should not be used for things like background music etc. as the memory footprint for that
+  would be fairly large. For this applications you should use TAuStreamedSound.
+  TAuStaticSound can only be used in connection with a 3D environment provided by TAu3DAudio.
+  If you want to manage multiple sounds and load/save them as a collection from a file,
+  you can use the TAuSoundList class.
+  As TAuStaticSound is derrived from TAuCustomAudioObject, you're able to use the
+  functions also known from TAuPlayer to use this object.
+  @seealso(TAuSoundList)
+  @seealso(TAuStreamedSound)
+  @seealso(TAu3DAudio)}
   TAuStaticSound = class(TAuCustomAudioObject)
     private
       FSound: TAu3DStaticSound;
@@ -179,25 +192,80 @@ type
       procedure SetLoop(AValue: boolean);
       function CreateSoundObj: boolean;
     protected
+      {Function from TAuCustomAudioObject overwritten to provide the length of the
+       sound.}
       function GetLength: integer; override;
     public
+      {Creates a new instance of the TAuStaticSound class.
+       @param(A3DAudio is a reference to the 3D audio environment which should be
+       used as a parent.)}
       constructor Create(A3DAudio: TAu3DAudio);
+      {Destroys this instance of TAuStaticSound.}
       destructor Destroy;override;
 
+      {Implements the Open function from TAuCustomAudioObject. Call this function
+       after you have been loading a sound from a file/store. The open function will
+       create a 3d sound object and add this one to the sound source list of the 3d audio
+       software renderer. As the software renderer is a performance critical part,
+       you should only open sound effects if you really need them. Once a TAuStaticSound
+       is opened, you're able to access the Sound property containing the actual
+       3D software renderer sound object.
+       @seealso(Close)
+       @seealso(Sound)}
       function Open: boolean;override;
+      {Implements the TAuCustomAudioObject close function and removes this object
+       from the software renderer list.
+       @seealso(Open)}
       procedure Close;override;
 
+      {Stores the sound in a Andorra Commons data store. The sound will be stored
+       as uncompressed PCM data.
+       @param(AStore is the TAcStoreNode object a new "sound" node should be appended to)
+       @returns(The "sound" store node object which has been created and contains the actual
+       data.)
+       @seealso(LoadItemFromStore)}
       function SaveItemToStore(AStore: TAcStoreNode): TAcStoreNode;
+      {Loads the sound from a "sound" store node item. Then performs a "open" operation:
+       The sound will be added to the 3D audio software renderer source list.
+       @param(AStore is the "sound" TAcStoreNode object the data should be loaded from.)}
       procedure LoadItemFromStore(AStore: TAcStoreNode);
-
+      
+      {Defines whether the sound should be looping or not.}
       property Loop: boolean read FLoop write SetLoop;
+      {An optional name which can be used to identify a sound in a sound list.
+       @seealso(TAuSoundList)
+       @seealso(TAuSoundList.Find)
+       @seealso(TAuSoundList.IndexOf)}
       property Name: AnsiString read FName write FName;
+      {Property set by the sound list, if you're creating a new TAuStaticSound using
+       the "AddNew" function.}
       property Owner: Pointer read FOwner write FOwner;
+      {The audio format the currently loaded sound is stored in. If no sound is opened,
+       all components of the record will be resetted to zero.
+       @seealso(DecodedData)}
       property Format: TAuAudioParametersEx read FFormat;
+      {A memorystream containing the decoded PCM sound data. The format the data is
+       stored in is described in the format property.
+       @seealso(Format)}
       property DecodedData: TMemoryStream read FMs;
-      property Sound: TAu3DStaticSound read FSound write FSound;
+      {The low level sound object which is connected to the software renderer.
+       @nil if the sound isn't opened yet.}
+      property Sound: TAu3DStaticSound read FSound;
   end;
-
+  
+  {TAuStreamed class represents a streamed sound which can be used inside a 3D audio
+   environment. As it is derrived from TAuPlayer it basically provides the same
+   functionality. TAuStreamedSound internally creates an TAu3DSoundFilterAdapter which
+   is set as the output filter for the underlying TAuPlayer. This component is well
+   suited for playing e.g. background music in a 3D audio environment as the audio
+   data is streamed from the resource containing it. Therefore there is a certain
+   delay until playback starts and looping (which has to be done using the OnSongFinishes event)
+   will create a short gap in audio playback in most cases.
+   @seealso(TAuPlayer)
+   @seealso(TAuPlayer.OnSongFinishes)
+   @seealso(TAu3DSoundFilterAdapter)
+   @seealso(Adapter)
+   @seealso(TAuStaticSound))}
   TAuStreamedSound = class(TAuPlayer)
     private
       FFilterAdapter: TAu3DSoundFilterAdapter;
@@ -205,38 +273,83 @@ type
       FName: AnsiString;
       function GetSound: TAu3DStreamedSound;
     public
+      {Creates a new TAuStreamedSound instance.
+       @param(A3DAudio is a reference to the 3d audio environment the sound should
+        be created in.)}
       constructor Create(A3DAudio: TAu3DAudio);
+      {Destroys this instance of TAuStreamedSound.}
       destructor Destroy;override;
-
+      
+      {A name property which might be used when you want to manage multiple instances
+       of TAuStreamedSound inside a list.}
       property Name: AnsiString read FName write FName;
+      {Reference to the internally used TAu3DSoundFilterAdapter which is used as an
+       output filter for the underlying TAuPlayer.}
       property Adapter: TAu3DSoundFilterAdapter read FFilterAdapter;
+      {Reference to the low level sound object which is connected to the 3d audio renderer.
+       @nil if the local filtergraph environment isn't initialized yet, which is the case
+       when no audio file is opened.}
       property Sound: TAu3DStreamedSound read GetSound;
   end;
-
+  
+  {TAuSoundList is a class which can be used to manage multiple TAuStaticSound objects
+   in one list. The sound objects can be loaded and stored inside files or an TAcStoreNode
+   of the Andorra Commons Data Store system.}
   TAuSoundList = class(TList)
     private
       F3DAudio: TAu3DAudio;
       function GetItem(AIndex: integer): TAuStaticSound;
       procedure SetItem(AIndex: integer; AItem: TAuStaticSound);
     protected
+      {Function overwritten from TList in order to free sound objects which belong
+       to this list once they are freed.}
       procedure Notify(ptr: Pointer; action: TListNotification);override;
     public
+      {Creates this instance of TAuSoundList.
+       @param(A3DAudio is the 3d audio environment which should be used for elements
+        being loaded from a store or created using the AddNew function.
+        @seealso(AddNew))}
       constructor Create(A3DAudio: TAu3DAudio);
+      {Destroys this instance of TAuSoundList and frees all sounds inside it with their
+       Owner property set to this list.
+       @seealso(TAuStaticSound.Owner)}
       destructor Destroy;override;
 
+      {Returns the index of the sound object with the given name. If such an object
+       cannot be found, -1 is returned.}
       function IndexOf(AName: AnsiString): integer;overload;
+      {Returns the index of the given sound object. If this object is not found,
+       -1 is returned.}
       function IndexOf(AObj: TAuStaticSound): integer;overload;
+      {Tries to find a sound object with the given name inside the list. If it cannot
+       be found, @nil is returned.}
       function Find(AName: AnsiString): TAuStaticSound;
+      {Adds a new TAuStaticSound object to the list and gives it the name specified
+       by AName. The owner propety of the sound object will be set to this list
+       instance so that it gets automatically freed when this list is destroyed.
+       @seealso(TAuStaticSound.Owner)}
       function AddNew(AName: AnsiString): TAuStaticSound;
-
+      
+      {Saves the complete sound list to the given stream.}
       procedure SaveToStream(AStream: TStream);
+      {Loads the complete sound list from the given stream.}
       procedure LoadFromStream(AStream: TStream);
+      {Saves the sound list to the file specified by the AFile parameter.}
       procedure SaveToFile(AFile: string);
+      {Loads the complete sound list from the file specified by the AFile parameter.
+       The sound list will not be cleared before the new sound objects are added.}
       procedure LoadFromFile(AFile: string);
+      {Saves the complete sound list to the given Andorra Commons Data Store store
+       node.}
       function SaveToStore(AStore: TAcStoreNode): TAcStoreNode;
+      {Loads the complete sound list from the given Andorra Commons Data Store store
+       node. The content of this list will not be cleared before the new elements
+       are added to the list.}
       procedure LoadFromStore(AStore: TAcStoreNode);
-
+      
+      {The parent TAu3DAudio object which was specified in the constructor.}
       property Parent: TAu3DAudio read F3DAudio;
+      {Property which can be used to access each TAuStaticSound item by index.}
       property Items[AIndex: integer]: TAuStaticSound read GetItem write SetItem; default;
   end;
 
@@ -418,6 +531,9 @@ begin
 
     //Free all objects which were delivered by the parent class
     FreeObjects;
+    
+    //Clear the format object
+    FillChar(FFormat, SizeOf(FFormat), 0);
   finally
     Lock.Leave;
   end;
@@ -508,6 +624,7 @@ begin
   result := true;
   FSound := TAu3DStaticSound.Create(PByte(FMs.Memory),
     FMs.Size div AuBytesPerSample(FFormat.Parameters), FFormat.Parameters);
+  FSound.Loop := FLoop;
     
   F3DAudio.Lock;
   try
