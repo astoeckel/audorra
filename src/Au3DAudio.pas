@@ -92,11 +92,11 @@ type
          aware, that the frequency directly specifies the computational power
          needed for calculating the audio output. As higher this value is, as higher
          will be the CPU load. You should also remember to specify a value here,
-         which matches the frequency of most audio samples used as this will
-         save the audio render cpu power needed for interpolating.)
+         which matches the frequency of most audio samples used, as this will
+         save cpu power needed for interpolating.)
        @param(ABitdepth specifies the bitdepth of the audio output. The highest
          value supported by the audio system should be used here. 32-Bit output
-         might the fastest from the audorra point of view, if the audio card
+         might the fastest from the Audorra point of view, if the audio card
          has floating point support.)
        @param(ADeviceID specifies the id of the device that should be used to output
          the audio. A value of -1 (default) will take the default device. You can
@@ -181,8 +181,7 @@ type
   and append that to the TAu3DStaticSound object provided by the sound property.
   
   Example usage:
-  @longCode(#
-var
+  @longCode(#var
   sound: TAuStaticSound;
   emitter: TAu3DStaticEmitter;
 begin
@@ -201,7 +200,7 @@ begin
       //to true
       emitter.Active := true;      
     finally
-      _3daudio.Unlock;
+      _3daudio.Unlock();
     end;    
   end;
 end;
@@ -297,8 +296,7 @@ end;
    the TAu3DStreamedSound object provided by the "Sound" property of this class.
    
    Example usage:
-@longCode(#
-var
+@longCode(#var
   stream: TAuStreamedSound;
   emitter: TAu3DStaticEmitter;
 begin
@@ -313,7 +311,7 @@ begin
     try    
       emitter := TAu3DStreamedEmitter.Create(stream.Sound);
     finally
-      _3daudio.Unlock;
+      _3daudio.Unlock();
     end;
 
     //To start playback, simply use the "Play", "Pause", "Stop" functions

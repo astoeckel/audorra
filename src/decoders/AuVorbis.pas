@@ -36,7 +36,10 @@ unit AuVorbis;
 
 interface
 
+{$MODE DELPHI}
+
 uses
+  {$IFDEF FPC}ctypes,{$ENDIF}
   SysUtils, Classes,
   ogg, vorbis,
   AcPersistent, AcSyncObjs,
