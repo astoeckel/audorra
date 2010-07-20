@@ -979,6 +979,7 @@ function TAuPlayer.BuildFilterGraph: boolean;
 var
   i: integer;
   params: TAuAudioParameters;
+  bitdepth: integer;
 begin
   Lock.Enter;
   try
@@ -999,7 +1000,10 @@ begin
         if (FDriver = nil) then exit;
           //! RAISE EXCEPTION
 
-        FTarget := TAuDriverOutput.Create(FDriver, FDecoder.Info.BitDepth.bits);
+        bitdepth := FDecoder.Info.BitDepth.bits;
+        if bitdepth > 16 then
+           bitdepth := 16;
+        FTarget := TAuDriverOutput.Create(FDriver, bitdepth);
         FOutput := TAuOutputFilter(FTarget);
         FOwnTarget := true;
       end else exit;

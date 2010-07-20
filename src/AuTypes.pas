@@ -263,8 +263,10 @@ begin
     //Set sample type according to the given bitdepth
     if ABitdepth <= 8 then    
       sample_type := austUInt
+    else if ABitdepth < 32 then
+      sample_type := austInt
     else
-      sample_type := austInt;
+      sample_type := austFloat;
   end;
 end;
 
