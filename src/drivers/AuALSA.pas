@@ -338,7 +338,6 @@ begin
                 case state of
                   STATE_START, STATE_STOPPED:
                   begin
-                    Writeln(FFormat.BitDepth);
                     snd_pcm_prepare(hndl);
                     snd_pcm_start(hndl);
                   end;

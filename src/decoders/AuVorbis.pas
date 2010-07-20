@@ -77,14 +77,12 @@ implementation
 
 function ogg_read_func(ptr: pointer; size, nmemb: csize_t; datasource: pointer): csize_t; cdecl;
 begin
-  Writeln('ogg_read_func(ptr, ' + IntToStr(size) + ', ' + IntToStr(nmemb) + ', datasource)');
   with TAuProtocol(datasource) do
     result := Read(ptr, size * nmemb);
 end;
 
 function ogg_seek_func(datasource: pointer; offset: ogg_int64_t; whence: cint): cint; cdecl;
 begin
-  Writeln('ogg_seek_func(pointer ' + IntToStr(offset) + ', ' + IntToStr(whence) + ')');
   with TAuProtocol(datasource) do
   begin
     result := -1;
@@ -148,7 +146,6 @@ end;
 
 function TAuVorbisDecoder.DoOpenDecoder(AProberesult: Pointer): boolean;
 begin
-  Writeln('DoOpendecoder() begin');
   result := false;
   if ov_open_callbacks(Protocol, FVorbisFile, nil, 0, FCallbacks) >= 0 then
   begin
@@ -159,7 +156,6 @@ begin
     FOpened := true;
     result := true;
   end;
-  Writeln('DoOpendecoder() end', result);
 end;
 
 procedure TAuVorbisDecoder.DoCloseDecoder;
