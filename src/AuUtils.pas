@@ -104,12 +104,6 @@ procedure AuWriteSamples(const AParams: TAuAudioParametersEx; ASrc, ATar: PByte;
 
 implementation
 
-function AuSampleMemSize(const ABitDepth: TAuBitdepth; ASize: Cardinal): Cardinal;
-begin
-  result := ASize + (4 - ABitDepth.align div 8);
-end;
-
-
 procedure _AuReadSamples8(s, t: PByte; it: Cardinal; mul: Single);
 var
   i: integer;
@@ -182,7 +176,6 @@ procedure AuReadSamples(const AParams: TAuAudioParametersEx; ASrc, ATar: PByte;
 var
   iterations: integer;
   mul: Single;
-  sv: Integer;
 begin
   if AParams.BitDepth.sample_type < austFloat then
   begin
@@ -226,7 +219,7 @@ var
 begin
   for i := 0 to it do
   begin
-    PAcInt8(t)^ := trunc(PSingle(s)^ * mul);
+    PAcInt8(t)^ := trunc(AuLimit(PSingle(s)^) * mul);
     Inc(t, 1); Inc(s, 4);
   end;
 end;
@@ -237,7 +230,7 @@ var
 begin
   for i := 0 to it do
   begin
-    PAcUInt8(t)^ := trunc((PSingle(s)^ + 1) * mul);
+    PAcUInt8(t)^ := trunc((AuLimit(PSingle(s)^ + 1)) * mul);
     Inc(t, 1); Inc(s, 4);
   end;
 end;
@@ -248,7 +241,7 @@ var
 begin
   for i := 0 to it do
   begin
-    PAcInt16(t)^ := trunc(PSingle(s)^ * mul);
+    PAcInt16(t)^ := trunc(AuLimit(PSingle(s)^) * mul);
     Inc(t, 2); Inc(s, 4);
   end;
 end;
@@ -259,7 +252,7 @@ var
 begin
   for i := 0 to it do
   begin
-    PAcUInt16(t)^ := trunc((PSingle(s)^ + 1) * mul);
+    PAcUInt16(t)^ := trunc((AuLimit(PSingle(s)^) + 1) * mul);
     Inc(t, 2); Inc(s, 4);
   end;
 end;
@@ -270,7 +263,7 @@ var
 begin
   for i := 0 to it do
   begin
-    PAcInt32(t)^ := trunc(PSingle(s)^ * mul);
+    PAcInt32(t)^ := trunc(AuLimit(PSingle(s)^) * mul);
     Inc(t, 4); Inc(s, 4);
   end;
 end;
@@ -281,7 +274,7 @@ var
 begin
   for i := 0 to it do
   begin
-    PAcUInt32(t)^ := trunc((PSingle(s)^ + 1) * mul);
+    PAcUInt32(t)^ := trunc((AuLimit(PSingle(s)^) + 1) * mul);
     Inc(t, 4); Inc(s, 4);
   end;
 end;
@@ -291,13 +284,12 @@ procedure AuWriteSamples(const AParams: TAuAudioParametersEx; ASrc, ATar: PByte;
 var
   iterations: integer;
   mul: Single;
-  sv: Integer;
 begin
   if AParams.BitDepth.sample_type < austFloat then
   begin
     iterations := AParams.Channels * ASampleCount - 1;
 
-    mul := AcUInt32(1 shl (AParams.BitDepth.bits - 1));
+    mul := AcUInt32(1 shl (AParams.BitDepth.bits - 1)) - 1;
 
     case AParams.BitDepth.align of
       8:
@@ -357,7 +349,7 @@ begin
   result := Power(10, ADez / 10);
 end;
 
-function AuLimit(AVal: Single): Single;
+function AuLimit(AVal: Single): Single;{$IFDEF SUPPORTS_INLINE}inline;{$ENDIF}
 begin
   //Clamp the value to a range from 1 to -1
   if AVal > 1 then

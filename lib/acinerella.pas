@@ -34,16 +34,16 @@ interface
 
 const
   {$IFDEF WIN32}
-  ac_dll = 'acinerella.dll';
+    ac_dll = 'libacinerella.dll';
   {$ELSE}
     {$IFDEF UNIX}
-  ac_dll = 'libacinerella.so';
+      ac_dll = 'libacinerella.so';
     {$ELSE}
       {$MESSAGE Error 'Plattform not supported by Acinerella.'}
     {$ENDIF}
   {$ENDIF}
 
-type
+type 
   {Defines the type of an Acinerella media stream. Currently only video and
    audio streams are supported, subtitle and data streams will be marked as
    "unknown".}
@@ -55,40 +55,40 @@ type
     AC_STREAM_TYPE_VIDEO = 0,
     {This media stream is an audio stream.}
     AC_STREAM_TYPE_AUDIO = 1
-    );
-
+  );
+  
   {Defines the type of an Acinerella media decoder.}
   TAc_decoder_type = (
     {This decoder is used to decode a video stream.}
     AC_DECODER_TYPE_VIDEO = 0,
     {This decoder is used to decode an audio stram.}
     AC_DECODER_TYPE_AUDIO = 1
-    );
-
+  );
+  
   {Defines the format video/image data is outputted in}
   TAc_output_format = (
     AC_OUTPUT_RGB24 = 0,
     AC_OUTPUT_BGR24 = 1,
     AC_OUTPUT_RGBA32 = 2,
     AC_OUTPUT_BGRA32 = 3
-    );
-
-  TAc_infostr  = array[0..511] of AnsiChar;
+  );
+  
+  TAc_infostr = array[0..511] of AnsiChar;
   TAc_infostr2 = array[0..31] of AnsiChar;
 
   {Contains information about the whole file/stream that has been opened. Default
    values are "" for strings and -1 for integer values.}
   TAc_file_info = record
-    title:     TAc_infostr;
-    author:    TAc_infostr;
+    title: TAc_infostr;
+    author: TAc_infostr;
     copyright: TAc_infostr;
-    comment:   TAc_infostr;
-    album:     TAc_infostr;
-    year:      integer;
-    track:     integer;
-    genre:     TAc_infostr2;
-    duration:  int64;
-    bitrate:   integer;
+    comment: TAc_infostr;
+    album: TAc_infostr;
+    year: integer;
+    track: integer;
+    genre: TAc_infostr2;
+    duration: int64;
+    bitrate: integer;
   end;
 
   {TAc_instance represents an Acinerella instance. Each instance can open and
@@ -103,25 +103,25 @@ type
     {Set this value to change the image output format}
     output_format: TAc_output_format;
     {Contains information about the opened stream/file}
-    info:   TAc_file_info;
-  end;
+    info: TAc_file_info;
+  end;         
   {Pointer on the Acinerella instance record.}
   PAc_instance = ^TAc_instance;
-
+  
   {Contains information about an Acinerella audio stream.}
   TAc_audio_stream_info = record
     {Samples per second. Default values are 44100 or 48000.}
     samples_per_second: integer;
     {Bits per sample. Can be 8 or 16 Bit.}
-    bit_depth:     integer;
+    bit_depth: integer;
     {Count of channels in the audio stream.}
     channel_count: integer;
   end;
-
+  
   {Contains information about an Acinerella video stream.}
   TAc_video_stream_info = record
     {The width of one frame.}
-    frame_width:  integer;
+    frame_width: integer;
     {The height of one frame.}
     frame_height: integer;
     {The width of one pixel. 1.07 for 4:3 format, 1,42 for the 16:9 format}
@@ -141,7 +141,7 @@ type
   {Contains information about an Acinerella stream.}
   TAc_stream_info = record
     {Contains the type of the stream.}
-    stream_type:     TAc_stream_type;
+    stream_type: TAc_stream_type;
     {Additional info about the stream}
     additional_info: TAd_additional_info;
   end;
@@ -153,18 +153,18 @@ type
     {Pointer on the Acinerella instance}
     pAcInstance: pAc_instance;
     {Contains the type of the decoder.}
-    dec_type:    TAc_decoder_type;
+    dec_type: TAc_decoder_type;
 
     {The timecode of the currently decoded picture in seconds.}
     timecode: double;
 
     {Contains information about the stream the decoder is attached to.}
-    stream_info:  TAc_stream_info;
+    stream_info: TAc_stream_info;
     {The index of the stream the decoder is attached to.}
     stream_index: integer;
 
     {Pointer to the buffer which contains the data.}
-    buffer:      PByte;
+    buffer: PByte;
     {Size of the data in the buffer.}
     buffer_size: integer;
   end;
@@ -183,17 +183,15 @@ type
 
   {Callback function used to ask the application to read data. Should return
    the number of bytes read or an value smaller than zero if an error occured.}
-  TAc_read_callback = function(Sender: Pointer; buf: PByte;
-    size: integer): integer; cdecl;
+  TAc_read_callback = function(sender: Pointer; buf: PByte; size: integer): integer; cdecl;
 
   {Callback function used to ask the application to seek. return 0 if succeed , -1 on failure.}
-  TAc_seek_callback = function(Sender: Pointer; pos: int64;
-    whence: integer): int64; cdecl;
+  TAc_seek_callback = function(sender: Pointer; pos: int64; whence: integer): int64; cdecl;
 
   {Callback function that is used to notify the application when the data stream
    is opened or closed. For example the file pointer should be resetted to zero
    when the "open" function is called.}
-  TAc_openclose_callback = function(Sender: Pointer): integer; cdecl;
+  TAc_openclose_callback = function(sender: Pointer): integer; cdecl;
 
 {Initializes an Acinerella instance.}
 function ac_init(): PAc_instance; cdecl; external ac_dll;
@@ -208,17 +206,21 @@ procedure ac_free(inst: PAc_instance); cdecl; external ac_dll;
   media file is opened. May be NULL.)
  @param(close_proc specifies the callback function that is called when the media
   file is closed. May be NULL.)}
-function ac_open(inst: PAc_instance; Sender: Pointer;
-  open_proc: TAc_openclose_callback; read_proc: TAc_read_callback;
-  seek_proc: TAc_seek_callback; close_proc: TAc_openclose_callback;
+function ac_open(
+  inst: PAc_instance;
+  sender: Pointer;
+  open_proc: TAc_openclose_callback;
+  read_proc: TAc_read_callback;
+  seek_proc: TAc_seek_callback;
+  close_proc: TAc_openclose_callback;
   proberesult: PAc_proberesult): integer; cdecl; external ac_dll;
 
 {Closes an opened media file.}
-procedure ac_close(inst: PAc_instance); cdecl; external ac_dll;
+procedure ac_close(inst: PAc_instance);cdecl; external ac_dll;
 
 {Stores information in "pInfo" about stream number "nb".}
-procedure ac_get_stream_info(inst: PAc_instance; nb: integer; pinfo: PAc_stream_info);
-  cdecl; external ac_dll;
+procedure ac_get_stream_info(
+  inst: PAc_instance; nb: integer; pinfo: PAc_stream_info); cdecl; external ac_dll;
 
 {Reads a package from an opened media file.}
 function ac_read_package(inst: PAc_instance): PAc_package; cdecl; external ac_dll;
@@ -227,51 +229,24 @@ procedure ac_free_package(package: PAc_package); cdecl; external ac_dll;
 
 {Creates an decoder for the specified stream number. Returns NIL if no decoder
  could be found.}
-function ac_create_decoder(pacInstance: PAc_instance; nb: integer): PAc_decoder;
-  cdecl; external ac_dll;
+function ac_create_decoder(pacInstance: PAc_instance; nb: integer): PAc_decoder; cdecl; external ac_dll;
 {Frees an created decoder.}
 procedure ac_free_decoder(pDecoder: PAc_decoder); cdecl; external ac_dll;
 {Decodes a package using the specified decoder. The decodec data is stored in the
  "buffer" property of the decoder.}
-function ac_decode_package(pPackage: PAc_package; pDecoder: PAc_decoder): integer;
-  cdecl; external ac_dll;
+function ac_decode_package(pPackage: PAc_package; pDecoder: PAc_decoder): integer; cdecl; external ac_dll;
 
 {Seeks to the given target position in the file. The seek funtion is not able to seek a single audio/video stream
 but seeks the whole file forward. The deocder parameter is only used as an timecode reference.
 The parameter "dir" specifies the seek direction: 0 for forward, -1 for backward.
 The target_pos paremeter is in milliseconds. Returns 1 if the functions succeded.}
-function ac_seek(pDecoder: PAc_decoder; dir: integer; target_pos: int64): integer;
-  cdecl; external ac_dll;
+function ac_seek(pDecoder: PAc_decoder; dir: integer; target_pos: int64): integer; cdecl; external ac_dll;
 
-function ac_probe_input_buffer(buf: PChar; bufsize: integer; filename: PChar;
-  var score_max: integer): PAc_proberesult; cdecl; external ac_dll;
+function ac_probe_input_buffer(buf: PChar; bufsize: Integer; filename: PChar;
+  var score_max: Integer): PAc_proberesult; cdecl; external ac_dll;
 
-implementation
-
-{Connect the library memory management to the host application. This happens
- automatically when the application gets initialized and nobody has to care
- about it.}
-
-(*function ac_mem_mgr(ptr_malloc: Pointer; ptr_realloc: Pointer;
-  ptr_free: Pointer): PAc_instance; cdecl; external ac_dll;
-
-function malloc(size: integer): Pointer; cdecl;
-begin
-  Result := GetMemory(size);
-end;
-
-function realloc(ptr: Pointer; size: integer): pointer; cdecl;
-begin
-  Result := ReallocMemory(ptr, size);
-end;
-
-procedure Free(ptr: Pointer); cdecl;
-begin
-  FreeMemory(ptr);
-end;                *)
-
-initialization
-  //ac_mem_mgr(@malloc, @realloc, @free);
+implementation     
 
 end.
+
 

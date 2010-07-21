@@ -10,7 +10,7 @@ uses
 
   AcTypes, AcSysUtils,
 
-  AuOpenAL, AuAcinerella,
+  AuDirectSound, AuAcinerella,
   AuCDAudio, AuUtils, AuAudio, Au3DAudio, Au3DAudioRenderer, ActnList,
   ActnMan, ActnCtrls, ActnMenus, Buttons;
 

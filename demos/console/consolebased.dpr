@@ -53,7 +53,9 @@ uses
   {$IFDEF LINUX}
   cthreads,
   {$ENDIF}
+  {$IFDEF FPC}
   Interfaces,
+  {$ENDIF}
   SysUtils,
   AuAudio,
   AuTypes,
