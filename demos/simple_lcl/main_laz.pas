@@ -9,11 +9,11 @@ uses
   ComCtrls, Menus, ActnList, ExtCtrls, StdCtrls, Buttons,
   LCLIntf, LCLType,
 
-  AuAudio, AuTypes, AuUtils, AuAcinerella, AuVisualisations,
+  AuAudio, AuTypes, AuUtils, AuWAV, AuAcinerella, AuVisualisations,
   {$IFDEF WIN32}
   AuDirectSound;
   {$ELSE}
-  AuOpenAL;
+  AuALSA;
   {$ENDIF}
 
 type

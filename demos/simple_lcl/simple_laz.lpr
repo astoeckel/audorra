@@ -11,7 +11,7 @@ uses
   cthreads,
   Interfaces, // this includes the LCL widgetset
   Forms, LResources
-  { you can add units after this }, main_laz;
+  { you can add units after this }, main_laz, AuALSA;
 
 {$IFDEF WINDOWS}{$R simple_laz.rc}{$ENDIF}
 

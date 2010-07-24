@@ -46,12 +46,34 @@ uses
   AuTypes, AuUtils, Au3DAudioRenderer, AuFilterGraph;
 
 type
-  {TAu3DSoundFilterAdapter is a class which simulates a driver output. Instead of
-   outputing the audio data to an audio driver, TAu3DSoundFilterAdapter connects
-   the audio source to a 3D Audio Renderer. TAu3DSoundFilterAdapter adds an own
-   TAu3DSound object to the audio renderer. TAu3DSoundFilterAdapter can e.g. be
-   used to attach a TAuPlayer to TAu3DSoundRenderer. To playback the sound delivered
-   by the sound renderer, use the TAu3DOutputFilterAdapter.}
+  {TAu3DSoundFilterAdapter is a class which simulates a driver output. This allows
+   you to stream an audio stream created by a filtergraph into the 3D audio renderer.
+
+   Instead of outputing the audio data to an audio driver, TAu3DSoundFilterAdapter
+   connects the audio source to a 3D Audio Renderer. TAu3DSoundFilterAdapter adds
+   an own TAu3DSound object to the audio renderer. TAu3DSoundFilterAdapter can e.g.
+   be used to attach a TAuPlayer to TAu3DSoundRenderer. To playback the sound delivered
+   by the sound renderer, use the TAu3DOutputFilterAdapter.
+   
+   TAu3DSoundFilterAdapter provides an "Sound" property to which you have to attach
+   at least one TAu3DStreamedEmitter emitter object.
+   
+   The following example shows how TAu3DSoundFilterAdapter might be used in connection
+   with TAuPlayer. Note that this behaviour is already encapsulated by TAuStreamedSound.
+@longCode(#var
+  adapter: TAu3DSoundFilterAdapter;
+  player: TAuPlayer;
+  renderer: TAu3DSoundRenderer;
+
+[...]
+
+  adapter := TAu3DSoundFilterAdapter.Create(renderer);
+  player := TAuPlayer.Create(auaudio, adapter);
+#)
+  @seealso(TAu3DStreamedSound)
+  @seealso(TAu3DStreamedEmitter)
+  @seealso(TAuStreamedSound)
+  @seealso(TAu3DAudio)}
   TAu3DSoundFilterAdapter = class(TAuOutputFilter)
     private
       FRenderer: TAu3DSoundRenderer;
@@ -62,21 +84,29 @@ type
       function ReadCallback(ABuf: PByte; ASize: Cardinal;
         APlaybackSample: Int64):Cardinal;
     protected
+      {}
       function GetTimecode: Int64;override;
       function DoInit(const AParameters: TAuAudioParameters): Boolean;override;
       procedure DoFinalize;override;
       procedure DoFlush;override;
     public
-      {Creates a new instance of TAu3DSoundFilterAdapter. ARenderer specifies the
-       3D Audio renderer the filter should connect with. The sound object won't be
+      {Creates a new instance of TAu3DSoundFilterAdapter. The sound object won't be
        specified after creating the filter adapter! Before it can be used, "Init"
-       has to be called.}
+       has to be called.       
+       @param(ARenderer specifies the 3D Audio renderer the filter should
+        interconnect to.)}
       constructor Create(ARenderer: TAu3DSoundRenderer);
       {Destroys the instance of TAu3DSoundFilterAdapter including the sound object.}
       destructor Destroy;override;
 
+      {Activates the managed TAu3DStreamedSound object.
+      @seealso(TAuOutputFilter.Play)}
       procedure Play;override;
+      {Deactivates the managed TAu3DStreamedSound object.
+      @seealso(TAuOutputFilter.Pause)}
       procedure Pause;override;
+      {Deactivates the managed TAu3DStreamedSound object and flushes its buffer.
+      @seealso(TAuOutputFilter.Stop)}
       procedure Stop;override;
 
       {Pointer on the 3d audio renderer.}
@@ -88,7 +118,14 @@ type
   {TAu3DOutputFilterAdapter allows you to connect the output of an 3D audio renderer
    to a filter graph environment. Use TAu3DOutputFilterAdapter to connect the
    3D audio renderer to a driver output filter. TAu3DOutputFilterAdapter is the
-   counterpart to TAu3DSoundFilterAdapter.}
+   counterpart to TAu3DSoundFilterAdapter.
+   
+   TAu3DOutputFilterAdapter contains an 3D audio renderer listener object which
+   controls the 3D renderer listener parameters. You can attach as many of these
+   filter adapters to the 3d renderer as you like.
+   
+   TAu3DOutputFilterAdapter is used by TAu3DAudio which provides an 3D audio renderer
+   with an attached filtergraph.}
   TAu3DOutputFilterAdapter = class(TAuSourceFilter)
     private
       FRenderer: TAu3DSoundRenderer;

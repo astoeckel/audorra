@@ -62,7 +62,7 @@ uses
   AuAnalyzers,
 //  AuWAV,
   AuAcinerella,
-  AuOpenAL,
+  AuALSA,
 //  AuNULL,
   AcNotify;
 
