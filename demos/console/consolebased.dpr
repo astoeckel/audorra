@@ -53,17 +53,12 @@ uses
   {$IFDEF LINUX}
   cthreads,
   {$ENDIF}
-  {$IFDEF FPC}
-  Interfaces,
-  {$ENDIF}
   SysUtils,
   AuAudio,
   AuTypes,
   AuAnalyzers,
-//  AuWAV,
   AuAcinerella,
   AuALSA,
-//  AuNULL,
   AcNotify;
 
 var
@@ -81,6 +76,8 @@ const
 
 {$IFDEF WINDOWS}{$R consolebased.rc}{$ENDIF}
 
+{$R *.res}
+
 begin
   //Use the manual notify mode
   AcNotifyManualInit();
@@ -88,14 +85,6 @@ begin
   Writeln('Audorra Digital Audio Library - Console based application');
   Writeln('---------------------------------------------------------');
   Writeln;
-
-  {$IFNDEF DO_NOT_USE_VCL}
-    Writeln('WARNING: You did not compile this application using the');
-    Writeln('         DO_NOT_USE_VCL compiler switch found in the ');
-    Writeln('         audorra_conf.inc configuration file. Some things');
-    Writeln('         might not work properly!');
-    Writeln;
-  {$ENDIF}
 
   //Make sure that a file is specified and this file exists
   if (ParamCount < 1) or (not FileExists(ParamStr(1))) then

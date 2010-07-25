@@ -853,6 +853,7 @@ begin
           audsHasFrame:
           begin
             //Get the packet from the decoder
+            FillChar(pckt, SizeOf(pckt), 0);
             FDecoder.GetPacket(pckt);
 
             //Recode the buffer to float values

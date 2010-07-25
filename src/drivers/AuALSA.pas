@@ -44,7 +44,7 @@ uses
   SysUtils, Classes,
   AcSyncObjs, AcPersistent,
   AuTypes, AuDriverClasses,
-  alsa;
+  ctypes, alsa;
 
 type
   TAuALSADevice = record
@@ -112,7 +112,7 @@ type
     end;
 
 const
-  ALSA_BUFFER = 10; //10ms
+  ALSA_BUFFER = 100; //100ms
 
 implementation
 
@@ -158,9 +158,9 @@ procedure TAuALSADriver.ALSAEnumDevices(ACard: Integer);
 var
   ctl: Psnd_ctl_t;
   pcm_info: Psnd_pcm_info_t;
-  pcm_device: integer;
+  pcm_device: cint;
   dev: string;
-  err: integer;
+  err: cint;
 begin
   dev := 'hw:' + IntToStr(ACard);
 
@@ -193,9 +193,9 @@ end;
 
 procedure TAuALSADriver.ALSAEnumCards;
 var
-  card_index: integer = -1;
+  card_index: cint = -1;
   card_name: PChar;
-  err: integer;
+  err: cint;
 begin
   //Enumerate through each device
   err := snd_card_next(@card_index);
@@ -304,14 +304,14 @@ var
   buf: PByte;
   frms, lst_size, buf_size, read_count: integer;
   hndl: Psnd_pcm_t;
-  pos: Int64;
+  pos, pos2: Int64;
   state: Integer;
 begin
   hndl := nil;
   buf := nil;
   buf_size := 0;
   lst_size := 0;
-  pos := 0;
+  pos := -(ALSA_BUFFER * FFormat.Frequency div 1000);
   state := STATE_START;
 
   try
@@ -357,7 +357,7 @@ begin
               begin
                 snd_pcm_drop(hndl);
                 state := STATE_STOPPED;
-                pos := 0;
+                pos := -(ALSA_BUFFER * FFormat.Frequency div 1000);
               end;
             end;
           end;
@@ -374,7 +374,7 @@ begin
 
           //Get the count of samples which has to be read
           frms := snd_pcm_avail_update(hndl);
-          if frms > 0 then
+          if frms >= 0 then
           begin
             //Reserve memory for the write process
             buf_size := frms * Integer(FFormat.BitDepth * FFormat.Channels div 8);
@@ -384,15 +384,23 @@ begin
               lst_size := buf_size;
             end;
 
+            //Get the current buffer position, clamp negative values away
+            pos2 := pos;
+            if pos2 < 0 then
+              pos2 := 0;
+
             //Call the read callback and increment the buffer position
-            read_count := FCallback(buf, buf_size, pos);
+            read_count := FCallback(buf, buf_size, pos2);
             pos := pos + frms;
 
             //Write the data to the sound device
             snd_pcm_writei(hndl, buf, (read_count * 8) div Integer(FFormat.BitDepth)
               div Integer(FFormat.Channels));
           end else
+          begin
+            writeln('ALSA Error: (', frms, ') "', snd_strerror(frms), '"');
             snd_pcm_prepare(hndl);
+          end;
         end;
 
         Sleep(1);

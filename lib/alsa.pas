@@ -45,6 +45,9 @@ unit alsa;
 
 interface
 
+uses
+  ctypes;
+
 const
   libasound = 'asound';
 
@@ -88,27 +91,27 @@ type
   { CTL type }
   PPsnd_ctl_type_t = ^Psnd_ctl_type_t;
   Psnd_ctl_type_t = ^snd_ctl_type_t;
-  snd_ctl_type_t = Integer;
+  snd_ctl_type_t = cint;
 
   { PCM sample format }
   Psnd_pcm_format_t = ^snd_pcm_format_t;
-  snd_pcm_format_t = Integer;
+  snd_pcm_format_t = cint;
 
   { PCM stream (direction) }
   Psnd_pcm_stream_t = ^snd_pcm_stream_t;
-  snd_pcm_stream_t = Integer;
+  snd_pcm_stream_t = cint;
 
   { PCM access type }
   Psnd_pcm_access_t = ^snd_pcm_access_t;
-  snd_pcm_access_t = Integer;
+  snd_pcm_access_t = cint;
 
   { Unsigned frames quantity }
   Psnd_pcm_uframes_t = ^snd_pcm_uframes_t;
-  snd_pcm_uframes_t = Cardinal;
+  snd_pcm_uframes_t = cuint;
 
   { Signed frames quantity }
   Psnd_pcm_sframes_t = ^snd_pcm_sframes_t;
-  snd_pcm_sframes_t = Integer;
+  snd_pcm_sframes_t = cint;
 
 const
 	{ Unknown }
@@ -227,57 +230,57 @@ const
 
 {Functions neccessary to perform audio output}
 function snd_pcm_open(pcm: PPsnd_pcm_t; name: PChar;
-	stream: snd_pcm_stream_t; mode: Integer): Integer; cdecl; external libasound;
-function snd_pcm_close(pcm: Psnd_pcm_t): Integer; cdecl; external libasound;
+	stream: snd_pcm_stream_t; mode: cint): cint; cdecl; external libasound;
+function snd_pcm_close(pcm: Psnd_pcm_t): cint; cdecl; external libasound;
 function snd_pcm_writei(pcm: Psnd_pcm_t; buffer: Pointer;
   size: snd_pcm_uframes_t): snd_pcm_sframes_t; cdecl; external libasound;
-function snd_pcm_prepare(pcm: Psnd_pcm_t): Integer; cdecl; external libasound;
-function snd_pcm_resume(pcm: Psnd_pcm_t): Integer; cdecl; external libasound;
-function snd_pcm_start(pcm: Psnd_pcm_t): Integer; cdecl; external libasound;
-function snd_pcm_pause(pcm: Psnd_pcm_t; enable: Integer): Integer; cdecl; external libasound;
-function snd_pcm_drop(pcm: Psnd_pcm_t): Integer; cdecl; external libasound;
-function snd_pcm_wait(pcm: Psnd_pcm_t; timeout: Integer): Integer; cdecl; external libasound;
+function snd_pcm_prepare(pcm: Psnd_pcm_t): cint; cdecl; external libasound;
+function snd_pcm_resume(pcm: Psnd_pcm_t): cint; cdecl; external libasound;
+function snd_pcm_start(pcm: Psnd_pcm_t): cint; cdecl; external libasound;
+function snd_pcm_pause(pcm: Psnd_pcm_t; enable: cint): cint; cdecl; external libasound;
+function snd_pcm_drop(pcm: Psnd_pcm_t): cint; cdecl; external libasound;
+function snd_pcm_wait(pcm: Psnd_pcm_t; timeout: cint): cint; cdecl; external libasound;
 function snd_pcm_set_params(pcm: Psnd_pcm_t; format: snd_pcm_format_t;
-  access: snd_pcm_access_t; channels, rate: Cardinal; soft_resample: Integer;
-  latency: Cardinal): Integer; cdecl; external libasound;
+  access: snd_pcm_access_t; channels, rate: cuint; soft_resample: cint;
+  latency: cuint): cint; cdecl; external libasound;
 function snd_pcm_avail(pcm: Psnd_pcm_t): snd_pcm_sframes_t; cdecl; external libasound;
 function snd_pcm_avail_update(pcm: Psnd_pcm_t): snd_pcm_sframes_t; cdecl; external libasound;
 function snd_pcm_avail_delay(pcm: Psnd_pcm_t; availp: Psnd_pcm_sframes_t;
-  delayp: Psnd_pcm_sframes_t): Integer; cdecl; external libasound;
+  delayp: Psnd_pcm_sframes_t): cint; cdecl; external libasound;
 
 {ALSA snd_pcm_info functions}
-function snd_pcm_info_malloc(ptr: PPsnd_pcm_info_t): Integer; cdecl; external libasound;
+function snd_pcm_info_malloc(ptr: PPsnd_pcm_info_t): cint; cdecl; external libasound;
 procedure snd_pcm_info_free(obj: Psnd_pcm_info_t); cdecl; external libasound;
 procedure snd_pcm_info_copy(dst: Psnd_pcm_info_t; src: Psnd_pcm_info_t); cdecl; external libasound;
-function snd_pcm_info_get_device(obj: Psnd_pcm_info_t): Cardinal; cdecl; external libasound;
-function snd_pcm_info_get_subdevice(obj: Psnd_pcm_info_t): Cardinal; cdecl; external libasound;
+function snd_pcm_info_get_device(obj: Psnd_pcm_info_t): cuint; cdecl; external libasound;
+function snd_pcm_info_get_subdevice(obj: Psnd_pcm_info_t): cuint; cdecl; external libasound;
 function snd_pcm_info_get_stream(obj: Psnd_pcm_info_t): snd_pcm_stream_t; cdecl; external libasound;
-function snd_pcm_info_get_card(obj: Psnd_pcm_info_t): Integer; cdecl; external libasound;
+function snd_pcm_info_get_card(obj: Psnd_pcm_info_t): cint; cdecl; external libasound;
 function snd_pcm_info_get_id(obj: Psnd_pcm_info_t): PChar; cdecl; external libasound;
 function snd_pcm_info_get_name(obj: Psnd_pcm_info_t): PChar; cdecl; external libasound;
 function snd_pcm_info_get_subdevice_name(obj: Psnd_pcm_info_t): PChar; cdecl; external libasound;
 //function snd_pcm_info_get_class(obj: Psnd_pcm_info_t): snd_pcm_class_t; cdecl; external libasound;
 //function snd_pcm_info_get_subclass(obj: Psnd_pcm_info_t): snd_pcm_subclass_t; cdecl; external libasound;
-function snd_pcm_info_get_subdevices_count(obj: Psnd_pcm_info_t): Cardinal; cdecl; external libasound;
-function snd_pcm_info_get_subdevices_avail(obj: Psnd_pcm_info_t): Cardinal; cdecl; external libasound;
+function snd_pcm_info_get_subdevices_count(obj: Psnd_pcm_info_t): cuint; cdecl; external libasound;
+function snd_pcm_info_get_subdevices_avail(obj: Psnd_pcm_info_t): cuint; cdecl; external libasound;
 //function snd_pcm_info_get_sync(obj: Psnd_pcm_info_t): snd_pcm_sync_id_t; cdecl; external libasound;
-procedure snd_pcm_info_set_device(obj: Psnd_pcm_info_t; val: Cardinal); cdecl; external libasound;
-procedure snd_pcm_info_set_subdevice(obj: Psnd_pcm_info_t; val: Cardinal); cdecl; external libasound;
+procedure snd_pcm_info_set_device(obj: Psnd_pcm_info_t; val: cuint); cdecl; external libasound;
+procedure snd_pcm_info_set_subdevice(obj: Psnd_pcm_info_t; val: cuint); cdecl; external libasound;
 procedure snd_pcm_info_set_stream(obj: Psnd_pcm_info_t; val: snd_pcm_stream_t); cdecl; external libasound;
 
 {Control functions}
-function snd_card_next(card: PInteger): Integer; cdecl; external libasound;
-function snd_card_get_index(name: PChar): Integer; cdecl; external libasound;
-function snd_card_get_name(card: Integer; name: PPChar): Integer; cdecl; external libasound;
-function snd_card_get_longname(card: Integer; name: PPChar): Integer; cdecl; external libasound;
+function snd_card_next(card: Pcint): cint; cdecl; external libasound;
+function snd_card_get_index(name: PChar): cint; cdecl; external libasound;
+function snd_card_get_name(card: cint; name: PPChar): cint; cdecl; external libasound;
+function snd_card_get_longname(card: cint; name: PPChar): cint; cdecl; external libasound;
 
-function snd_ctl_open(ctl: PPsnd_ctl_t; name: PChar; mode: Integer): Integer; cdecl; external libasound;
-function snd_ctl_close(ctl: Psnd_ctl_t): Integer; cdecl; external libasound;
-function snd_ctl_pcm_next_device(ctl: Psnd_ctl_t; device: PInteger): Integer; cdecl; external libasound;
-function snd_ctl_pcm_info(ctl: Psnd_ctl_t; info: Psnd_pcm_info_t): Integer; cdecl; external libasound;
+function snd_ctl_open(ctl: PPsnd_ctl_t; name: PChar; mode: cint): cint; cdecl; external libasound;
+function snd_ctl_close(ctl: Psnd_ctl_t): cint; cdecl; external libasound;
+function snd_ctl_pcm_next_device(ctl: Psnd_ctl_t; device: Pcint): cint; cdecl; external libasound;
+function snd_ctl_pcm_info(ctl: Psnd_ctl_t; info: Psnd_pcm_info_t): cint; cdecl; external libasound;
 
 {Error handling}
-function snd_strerror(errnum: Integer): PChar; cdecl; external libasound;
+function snd_strerror(errnum: cint): PChar; cdecl; external libasound;
 
 
 implementation
