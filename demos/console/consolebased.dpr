@@ -69,14 +69,13 @@ var
   peaks: TAuPeaks;
   time: int64;
   tops: array of Integer;
+  pos: Double;
 
 const
   Day = 24 * 60 * 60 * 1000;
   PeakSize = 30;
 
 {$IFDEF WINDOWS}{$R consolebased.rc}{$ENDIF}
-
-{$R *.res}
 
 begin
   //Use the manual notify mode
@@ -127,7 +126,17 @@ begin
 
       while not (AuPlayer.State = aupsOpened) do
       begin
-        Write('Pos: ', FormatDateTime('hh:mm:ss:zzz', AuPlayer.Position / Day ), #9);
+        Write('|');
+        for i := 0 to 20 do
+        begin
+          pos := AuPlayer.Position / AuPlayer.Len;
+          if (i = trunc(pos * 20)) then
+            Write('x')
+          else
+            Write('-');
+        end;
+        Write('|   ');
+        Write('Pos: ', FormatDateTime('hh:mm:ss:zzz', AuPlayer.Position / Day ),'/', FormatDateTime('hh:mm:ss:zzz', AuPlayer.Len / Day ), #9);
         AuPeaks.GetPeaks(peaks);
         for i := 0 to AuPeaks.Parameters.Channels - 1 do
         begin

@@ -1,11 +1,11 @@
 object frmMain: TfrmMain
-  Left = 719
+  Left = 721
   Height = 298
-  Top = 162
+  Top = 216
   Width = 520
   ActiveControl = Panel1
   Caption = 'Audorra Simple Player Demo'
-  ClientHeight = 274
+  ClientHeight = 273
   ClientWidth = 520
   Menu = MainMenu1
   OnActivate = FormActivate
@@ -14,7 +14,7 @@ object frmMain: TfrmMain
   LCLVersion = '0.9.28.2'
   object lstPlaylist: TListView
     Left = 0
-    Height = 188
+    Height = 186
     Top = 66
     Width = 520
     Align = alClient
@@ -22,7 +22,7 @@ object frmMain: TfrmMain
       item
         Caption = 'Filename'
         MinWidth = 500
-        Width = 500
+        Width = 502
       end>
     HideSelection = False
     MultiSelect = True
@@ -35,8 +35,8 @@ object frmMain: TfrmMain
   end
   object StatusBar1: TStatusBar
     Left = 0
-    Height = 20
-    Top = 254
+    Height = 21
+    Top = 252
     Width = 520
     Panels = <>
   end
@@ -188,7 +188,7 @@ object frmMain: TfrmMain
     end
     object trbPosition: TTrackBar
       Left = 88
-      Height = 39
+      Height = 46
       Top = 0
       Width = 432
       Max = 0

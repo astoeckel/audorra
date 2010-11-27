@@ -225,8 +225,9 @@ begin
   BitBlt(FComp.Canvas.Handle, 0, 0, Width, Height,
     FFG.Canvas.Handle, 0, 0, SRCAND);
   {$ELSE}
-  BitBlt(FComp.Canvas.Handle, 0, 0, Width, Height,
-    FFG.Canvas.Handle, 0, 0, SRCCOPY);
+  FComp.Canvas.CopyMode := cmSrcCopy;
+  FComp.Canvas.CopyRect(Rect(0, 0, Width, Height),
+    FFG.Canvas, Rect(0, 0, Width, Height));
   {$ENDIF}
 
   //3. Draw the comp bitmap to the target

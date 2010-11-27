@@ -331,7 +331,7 @@ procedure TfrmMain.PlayerStateChange(Sender: TObject);
 var
   i: integer;
 begin
-  for i := 0 to lstPlaylist.Items.Count - 1 do
+ for i := 0 to lstPlaylist.Items.Count - 1 do
     lstPlaylist.Items[i].ImageIndex := -1;
 
   if (plyback >= 0) and (plyback < lstPlaylist.Items.Count) then
