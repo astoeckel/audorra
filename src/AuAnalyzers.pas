@@ -88,6 +88,7 @@ type
       FSampleCount: integer;
       FLog2Count: integer;
       FFFTData: array of TAuComplexArray;
+      FFFT: TAuFFTransformer;
     protected
       procedure DoAnalyze(ASamples: PSingle; ACount: Cardinal);override;
       procedure DoSetParameters;override;
@@ -299,6 +300,9 @@ begin
   if FCurrentData <> nil then
     FreeMem(FCurrentData, FDataSize);
 
+  if FFFT <> nil then
+    FreeAndNil(FFFT);
+
   inherited;
 end;
 
@@ -308,6 +312,7 @@ var
   psrc: PByte;
   ps: PSingle;
   val: Single;
+  filter, ff: Single;
   i, j: integer;
 begin
   //Calculate the data size
@@ -327,12 +332,15 @@ begin
 
   //Copy the channel data into the channel arrays
   ps := PSingle(FCurrentData);
+  ff := 2 / FSampleCount;
   for i := 0 to FSampleCount - 1 do
   begin
+//    filter := 0.5*(1+cos(2*pi*((i / FSampleCount)+0.5))); //Hanning (slow)
+    filter := sqr(i * ff - 1) + 1; //own window function (probably has a name...)
     for j := 0 to Parameters.Channels - 1 do
     begin
       //Apply an hanning filter to the sample data
-      val := ps^ * 0.5* (1+cos(2*pi*((i / FSampleCount)+0.5)));
+      val := ps^ * filter;
       FFFTData[j][i] := Complex(val, 0);
       inc(ps);
     end;
@@ -340,7 +348,7 @@ begin
 
   //Analyze the data
   for i := 0 to Parameters.Channels - 1 do
-    ForwardFFT(FFFTData[i], FFFTData[i], Length(FFFTData[i]));
+    FFFT.DoFFT(@(FFFTData[i][0]));
 end;
 
 procedure TAuFFT.DoSetParameters;
@@ -361,6 +369,11 @@ begin
   SetLength(FFFTData, Parameters.Channels, FSampleCount);
   for i := 0 to Parameters.Channels - 1 do
     FillChar(FFFTData[i][0], FFFTDataSize, 0);
+
+  if FFFT <> nil then
+    FreeAndNil(FFFT);
+
+  FFFT := TAuFFTransformer.Create(FSampleCount);
 end;
 
 procedure TAuFFT.GetChannelData(AChannel: integer; var AData: TAuComplexArray);

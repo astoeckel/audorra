@@ -1,87 +1,36 @@
-{ Unit FFTs
+{*******************************************************}
+{                                                       }
+{       Audorra Digital Audio Library                   }
+{       Copyright (c) Andreas Stöckel, 2011             }
+{       Audorra is an "Andorra Suite" Project           }
+{                                                       }
+{*******************************************************}
 
-  This unit provides a forward and inverse FFT pascal implementation
-  for complex number series.
+{The contents of this file are subject to the Mozilla Public License Version 1.1
+(the "License"); you may not use this file except in compliance with the
+License. You may obtain a copy of the License at http://www.mozilla.org/MPL/
 
-  The formal definition of the complex DFT is:
-    y[k] = sum(x[m]*exp(-i*2*pi*k*m/n), m = 0..n-1), k = 0..n-1
+Software distributed under the License is distributed on an "AS IS" basis,
+WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License for
+the specific language governing rights and limitations under the License.
 
-  Copyright: Nils Haeck M.Sc. (email: n.haeck@simdesign.nl)
-  For more information visit http://www.simdesign.nl
-  Original date of publication: 10 Mar 2003
+The Initial Developer of the Original Code is
+Andreas Stöckel. All Rights Reserved.
 
-  This unit requires these other units:
-  - Complexs: Complex number unit
-  - Types:    Additional mathematical variable types
-  - SysUtils: Delphi system utilities
+Alternatively, the contents of this file may be used under the terms of the
+GNU General Public License license (the “GPL License”), in which case the provisions of
+GPL License are applicable instead of those above. If you wish to allow use
+of your version of this file only under the terms of the GPL License and not
+to allow others to use your version of this file under the MPL, indicate your
+decision by deleting the provisions above and replace them with the notice and
+other provisions required by the GPL License. If you do not delete the
+provisions above, a recipient may use your version of this file under either the
+MPL or the GPL License.
 
-  ****************************************************************
-
-  The contents of this file are subject to the Mozilla Public
-  License Version 1.1 (the "License"); you may not use this file
-  except in compliance with the License. You may obtain a copy of
-  the License at:
-  http://www.mozilla.org/MPL/
-
-  Software distributed under the License is distributed on an
-  "AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
-  implied. See the License for the specific language governing
-  rights and limitations under the License.
+File: AuFFT.pas
+Author: Andreas Stöckel
 }
 
-(*
-Readme.txt
-..........
-
-Fast Fourier Transform for arbitrary length complex arrays
-==========================================================
-
-The code in this library contains an implementation for Fast
-Fourier Transforms on arbitrary length complex data. It is based
-on old FORTRAN code, found in a signal processing archive. I
-dissected the FORTRAN code, since it worked with normal arrays
-and I wanted everything to work with my own complex number 
-arrays. Also, I substituted a lot of old written out code with
-much more readable procedures.
-
-It behaves like FFT for any series that can be factored in
-factors 2, 3, 4, 5, 8, 10. When there are other prime factors in
-the series, it will calculate the subseries with DFT.
-
-So the extreme case would be a series composed of one prime
-factor, for example a series length of 1021. In this case, the
-algorithm works just like DFT (slow), and it would be advisary
-to add zeroes to the series to make it a length of e.g. 1024.
-
-Files:
-FFTs.pas:     
-  Forward FFT transform and inverse FFT transform on complex
-  data series
-Complexs.pas: 
-  Complex number arithmic
-Types.pas:    
-  Definition of the floating point type (either single or
-  double)
-
-Copyright: Nils Haeck M.Sc. (email: n.haeck@simdesign.nl)
-For more information visit http://www.simdesign.nl
-Original date of publication: 10 Mar 2003
-
-****************************************************************
-
-The contents of these files are subject to the Mozilla Public
-License Version 1.1 (the "License"); you may not use this file
-except in compliance with the License. You may obtain a copy of
-the License at:
-http://www.mozilla.org/MPL/
-
-Software distributed under the License is distributed on an
-"AS IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
-implied. See the License for the specific language governing
-rights and limitations under the License.
-*)
-
-{Unit for forward and inverse FFT.}
 unit AuFFT;
 
 {$IFDEF FPC}
@@ -92,515 +41,256 @@ interface
 
 uses
   SysUtils,
-  AcSysUtils,
+
   AuComplex;
 
-const
+type
+  //Used for tabulating all coeffizients which occur inside the radix-2-FFT algorithm
+  TAuFFTTable = record
+    lin: Integer; //< Where to read the left input sample from
+    rin: Integer; //< Where to read the right input sample from
+    lout: Integer; //< Where to write the left output sample to
+    rout: Integer; //< Where to write the right output sample to
+    phi: TAuComplex; //< Constant part in the FFT equation: e^(-i PI (m / n))
+  end;
 
-  cMaxPrimeFactor     = 1021;
-  cMaxPrimeFactorDiv2 = (cMaxPrimeFactor + 1) div 2;
-  cMaxFactorCount     = 20;
+  {EAuFFTNonPow2 is raised whenever }
+  EAuFFTNonPow2 = class(Exception);
 
-resourcestring
+  { TAuFFTransformer }
 
-  sErrPrimeTooLarge = 'Prime factor for FFT length too large. Change value for cMaxPrimeFactor in FFTs unit';
+  {TAuFFTransformer performs a radix-2 1D fast fourier transform.}
+  TAuFFTransformer = class
+    private
+      FTable: array of TAuFFTTable;
+      FTmpBuf: PAuComplex;
+      FTmpBufSize: Integer;
+      FSize: Integer;
+      FSteps: Integer;
+      FDepth: Integer;
+      procedure ConstructTable;
+    public
+      {Creates an instance of TAuFFTransformer. Upon calling this function a table
+       will be created which contains all information, which has to be used each
+       processing step.
 
-{ ForwardFFT:
-  Perform a complex FFT on the data in Source, put result in Dest. This routine
-  works best for Count as a power of 2, but also works usually faster than DFT
-  by factoring the series. Only in cases where Count is a prime number will this
-  method be identical to regular complex DFT.
+       @param(AFFTSize must be a power of two integer. Recommended are sizes from
+         2-16384 samples. On a Intel Core2Duo 2,66GHz the algorithm can process up
+         to 7 Mio complex samples per second (on one core).)}
+      constructor Create(AFFTSize: Integer);
+      {Destroys TAuFFTransformer.}
+      destructor Destroy;override;
 
-  The largest prime factor in Count should be less or equal to cMaxPrimeFactor.
+      {Actually performs the fast fourier transformation. The data will be read and
+       written to AMem. If you don't want to overwrite your source data, you can
+       use the second overloaded version of DoFFT, which has a ASrc and ADst parameter.
 
-  The remaining factors are handled by optimised partial FFT code, that can be
-  found in the FFT_X procedures
+       DoFFT will read/write FFTSize * SizeOf(TAuComplex) bytes. Make sure that
+       you have reserved and initialized at least that amount of memory.
 
-  Inputs:
-    Source: this can be any zero-based array type of TComplex
-    Count: The number of elements in the array.
+       If you want to use one and the same FFT object from multiple threads, make
+       sure, that you only use the two parameter version of DoFFT as the first
+       version uses an class-internal buffer which may only be accessed by one
+       thread at a time.}
+      procedure DoFFT(AMem: PAuComplex);overload;
+      procedure DoFFT(ASrc, ADst: PAuComplex);overload;
 
-  Outputs:
-    Dest: this can be any zero-based array type of TComplex, and will contain
-      the FFT transformed data (frequency spectrum). Source may be equal to
-      Dest. In this case, the original series will be overwritten with the new
-      fourier-transformed series.
-}
-procedure ForwardFFT(const Source: array of TAuComplex; var Dest: array of TAuComplex; Count: integer);
-
-{ Perform the inverse FFT on the Source data, and put result in Dest. This is based
-  on the forward FFT with some additional customisation. The result of a forward
-  FFT followed by an inverse FFT should yield the same data, except for rounding
-  errors.
-}
-procedure InverseFFT(const Source: array of TAuComplex; var Dest: array of TAuComplex; Count: integer);
+      property FFTSize: Integer read FSize;
+  end;
 
 implementation
 
-const
-  // Some helper constants for the FFT optimisations
-  c31: single = -1.5000000000000E+00; //  cos(2*pi / 3) - 1;
-  c32: single =  8.6602540378444E-01; //  sin(2*pi / 3);
-
-  u5:  single =  1.2566370614359E+00; //  2*pi / 5;
-  c51: single = -1.2500000000000E+00; // (cos(u5) + cos(2*u5))/2 - 1;
-  c52: single =  5.5901699437495E-01; // (cos(u5) - cos(2*u5))/2;
-  c53: single = -9.5105651629515E-01; //- sin(u5);
-  c54: single = -1.5388417685876E+00; //-(sin(u5) + sin(2*u5));
-  c55: single =  3.6327126400268E-01; // (sin(u5) - sin(2*u5));
-  c8:  single =  7.0710678118655E-01; //  1 / sqrt(2);
-
-type
-  // Base 1 and Base 0 arrays
-  TIdx0FactorArray = array[0..cMaxFactorCount] of integer;
-  TIdx1FactorArray = array[1..cMaxFactorCount] of integer;
-
-// Factorise the series with length Count into FactorCount factors, stored in Fact
-procedure Factorize(Count: integer; var FactorCount: integer; var Fact: TIdx1FactorArray);
-var
-  i: integer;
-  Factors: TIdx1FactorArray;
-const
-  // Define specific FFT lengths (radices) that we can process with optimised routines
-  cRadixCount = 6;
-  cRadices: array[1..6] of integer =
-    (2, 3, 4, 5, 8, 10);
+//Returns whether the given number is power of two
+function IsPow2(n: integer): boolean; inline;
 begin
-
-  if Count = 1 then begin
-    FactorCount := 1;
-    Factors[1]  := 1;
-  end else begin
-    FactorCount := 0;
-  end;
-
-  // Factorise the original series length Count into known factors and rest value
-  i := cRadixCount;
-  while (Count > 1) AND (i > 0) do begin
-    if Count mod cRadices[i] = 0 then begin
-      Count := Count div cRadices[i];
-      inc(FactorCount);
-      Factors[FactorCount] := cRadices[i];
-    end else
-      dec(i);
-  end;
-
-  // substitute factors 2*8 with more optimal 4*4
-  if Factors[FactorCount] = 2 then begin
-    i := FactorCount - 1;
-    while (i > 0) AND (Factors[i] <> 8) do
-      dec(i);
-    if i > 0 then begin
-      Factors[FactorCount] := 4;
-      Factors[i] := 4;
-    end;
-  end;
-
-  // Analyse the rest value and see if it can be factored in primes
-  if Count > 1 then begin
-    for i := 2 to trunc(sqrt(Count)) do begin
-      while Count mod i = 0 do begin
-        Count := Count div i;
-        inc(FactorCount);
-        Factors[FactorCount] := i;
-      end;
-    end;
-
-    if (Count > 1) then begin
-      inc(FactorCount);
-      Factors[FactorCount] := Count;
-    end;
-  end;
-
-  // Reverse factors so that primes are first
-  for i := 1 to FactorCount do
-    Fact[i] := Factors[FactorCount - i + 1];
-
+  Result := (n - 1) and n = 0;
 end;
 
-{ Reorder the series in X to a permuted sequence in Y so that the later step can
-  be done in place, and the final FFT result is in correct order.
-  The series X and Y must be different series!
-}
-procedure ReorderSeries(Count: integer; var Factors: TIdx1FactorArray; var Remain: TIdx0FactorArray;
-  const X: array of TAuComplex; var Y: array of TAuComplex);
+//Returns the binary logarithm of n
+function IntLog2(n: integer): integer;
 var
-  i, j, k: integer;
-  Counts: TIdx1FactorArray;
+  i, b: integer;
 begin
-  FillChar(Counts, SizeOf(Counts), 0);
-
-  k := 0;
-  for i := 0 to Count - 2 do begin
-    Y[i] := X[k];
-    j := 1;
-    k := k + Remain[j];
-    Counts[1] := Counts[1] + 1;
-    while Counts[j] >= Factors[j] do begin
-      Counts[j] := 0;
-      k := k - Remain[j - 1] + Remain[j + 1];
-      inc(j);
-      inc(Counts[j]);
-    end;
-  end;
-
-  Y[Count - 1] := X[Count - 1];
-end;
-
-procedure FFT_2(var Z: array of TAuComplex);
-var
-  T1: TAuComplex;
-begin
-  T1   := ComplexAdd(Z[0], Z[1]);
-  Z[1] := ComplexSub(Z[0], Z[1]);
-  Z[0] := T1;
-end;
-
-procedure FFT_3(var Z: array of TAuComplex);
-var
-  T1, M1, M2, S1: TAuComplex;
-begin
-  T1   := ComplexAdd(Z[1], Z[2]);
-  Z[0] := ComplexAdd(Z[0], T1);
-  M1   := ComplexScl(c31, T1);
-  M2.Re := c32 * (Z[1].Im - Z[2].Im);
-  M2.Im := c32 * (Z[2].Re - Z[1].Re);
-  S1   := ComplexAdd(Z[0], M1);
-  Z[1] := ComplexAdd(S1, M2);
-  Z[2] := ComplexSub(S1, M2);
-end;
-
-procedure FFT_4(var Z: array of TAuComplex);
-var
-  T1, T2, M2, M3: TAuComplex;
-begin
-  T1 := ComplexAdd(Z[0], Z[2]);
-  T2 := ComplexAdd(Z[1], Z[3]);
-
-  M2 := ComplexSub(Z[0], Z[2]);
-  M3.Re := Z[1].Im - Z[3].Im;
-  M3.Im := Z[3].Re - Z[1].Re;
-
-  Z[0] := ComplexAdd(T1, T2);
-  Z[2] := ComplexSub(T1, T2);
-  Z[1] := ComplexAdd(M2, M3);
-  Z[3] := ComplexSub(M2, M3);
-end;
-
-procedure FFT_5(var Z: array of TAuComplex);
-var
-  T1, T2, T3, T4, T5: TAuComplex;
-  M1, M2, M3, M4, M5: TAuComplex;
-  S1, S2, S3, S4, S5: TAuComplex;
-begin
-  T1 := ComplexAdd(Z[1], Z[4]);
-  T2 := ComplexAdd(Z[2], Z[3]);
-  T3 := ComplexSub(Z[1], Z[4]);
-  T4 := ComplexSub(Z[3], Z[2]);
-
-  T5   := ComplexAdd(T1, T2);
-  Z[0] := ComplexAdd(Z[0], T5);
-  M1   := ComplexScl(c51, T5);
-  M2   := ComplexScl(c52, ComplexSub(T1, T2));
-
-  M3.Re := -c53 * (T3.Im + T4.Im);
-  M3.Im :=  c53 * (T3.Re + T4.Re);
-  M4.Re := -c54 * T4.Im;
-  M4.Im :=  c54 * T4.Re;
-  M5.Re := -c55 * T3.Im;
-  M5.Im :=  c55 * T3.Re;
-
-  S3 := ComplexSub(M3, M4);
-  S5 := ComplexAdd(M3, M5);;
-  S1 := ComplexAdd(Z[0], M1);
-  S2 := ComplexAdd(S1, M2);
-  S4 := ComplexSub(S1, M2);
-
-  Z[1] := ComplexAdd(S2, S3);
-  Z[2] := ComplexAdd(S4, S5);
-  Z[3] := ComplexSub(S4, S5);
-  Z[4] := ComplexSub(S2, S3);
-end;
-
-procedure FFT_8(var Z: array of TAuComplex);
-var
-  A, B: array[0..3] of TAuComplex;
-  Gem: single;
-begin
-
-  A[0] := Z[0]; B[0] := Z[1];
-  A[1] := Z[2]; B[1] := Z[3];
-  A[2] := Z[4]; B[2] := Z[5];
-  A[3] := Z[6]; B[3] := Z[7];
-
-  FFT_4(A);
-  FFT_4(B);
-
-  Gem     := c8 * (B[1].Re + B[1].Im);
-  B[1].Im := c8 * (B[1].Im - B[1].Re);
-  B[1].Re := Gem;
-  Gem     := B[2].Im;
-  B[2].Im :=-B[2].Re;
-  B[2].Re := Gem;
-  Gem     := c8 * (B[3].Im - B[3].Re);
-  B[3].Im :=-c8 * (B[3].Re + B[3].Im);
-  B[3].Re := Gem;
-
-  Z[0] := ComplexAdd(A[0], B[0]); Z[4] := ComplexSub(A[0], B[0]);
-  Z[1] := ComplexAdd(A[1], B[1]); Z[5] := ComplexSub(A[1], B[1]);
-  Z[2] := ComplexAdd(A[2], B[2]); Z[6] := ComplexSub(A[2], B[2]);
-  Z[3] := ComplexAdd(A[3], B[3]); Z[7] := ComplexSub(A[3], B[3]);
-end;
-
-procedure FFT_10(var Z: array of TAuComplex);
-var
-  A, B: array[0..4] of TAuComplex;
-begin
-   A[0] := Z[0];  B[0] := Z[5];
-   A[1] := Z[2];  B[1] := Z[7];
-   A[2] := Z[4];  B[2] := Z[9];
-   A[3] := Z[6];  B[3] := Z[1];
-   A[4] := Z[8];  B[4] := Z[3];
-
-   FFT_5(A);
-   FFT_5(B);
-
-   Z[0] := ComplexAdd(A[0], B[0]); Z[5] := ComplexSub(A[0], B[0]);
-   Z[6] := ComplexAdd(A[1], B[1]); Z[1] := ComplexSub(A[1], B[1]);
-   Z[2] := ComplexAdd(A[2], B[2]); Z[7] := ComplexSub(A[2], B[2]);
-   Z[8] := ComplexAdd(A[3], B[3]); Z[3] := ComplexSub(A[3], B[3]);
-   Z[4] := ComplexAdd(A[4], B[4]); Z[9] := ComplexSub(A[4], B[4]);
-end;
-
-{
-  Synthesize the FFT by taking the even factors and the odd factors multiplied by
-  complex sinusoid
-}
-procedure SynthesizeFFT(Sofar, Radix, Remain: integer; var Y: array of TAuComplex);
-var
-  GroupOffset, DataOffset, Position: integer;
-  GroupNo, DataNo, BlockNo, SynthNo: integer;
-  Omega: double;
-  S, CosSin: TAuComplex;
-  Synth, Trig, Z: array[0..cMaxPrimeFactor - 1] of TAuComplex;
-
-  // Local function
-  procedure InitializeTrigonomials(Radix: integer);
-  // Initialize trigonomial coefficients
-  var
-    i: integer;
-    W: double;
-    X: TAuComplex;
+  result := 0;
+  for i := 4 downto 0 do
   begin
-    W := 2 * pi / Radix;
-    Trig[0] := Complex(1.0, 0.0);
-    X := Complex(cos(W), -sin(W));
-    Trig[1] := X;
-    for i := 2 to Radix - 1 do
-      Trig[i] := ComplexMul(X, Trig[i - 1]);
-  end;
-
-  // Local Function
-  procedure FFT_Prime(Radix: integer);
-  // This is the general DFT, which can't be made any faster by factoring because
-  // Radix is a prime number
-  var
-    i, j, k, N, AMax: integer;
-    Re, Im: TAuComplex;
-    V, W: array[0..cMaxPrimeFactorDiv2 - 1] of TAuComplex;
-  begin
-    N := Radix;
-    AMax := (N + 1) div 2;
-    for j := 1 to AMax - 1 do begin
-      V[j].Re := Z[j].Re + Z[n-j].Re;
-      V[j].Im := Z[j].Im - Z[n-j].Im;
-      W[j].Re := Z[j].Re - Z[n-j].Re;
-      W[j].Im := Z[j].Im + Z[n-j].Im;
-    end;
-
-    for j := 1 to AMax - 1 do begin
-      Z[j]   := Z[0];
-      Z[N-j] := Z[0];
-      k := j;
-      for i := 1 to AMax - 1 do begin
-        Re.Re := Trig[k].Re * V[i].Re;
-        Im.Im := Trig[k].Im * V[i].Im;
-        Re.im := Trig[k].Re * W[i].Im;
-        Im.Re := Trig[k].Im * W[i].Re;
-
-        Z[N-j].Re := Z[N-j].Re + Re.Re + Im.Im;
-        Z[N-j].Im := Z[N-j].Im + Re.Im - Im.Re;
-        Z[j].Re   := Z[j].Re   + Re.Re - Im.Im;
-        Z[j].Im   := Z[j].Im   + Re.Im + Im.Re;
-
-        k := k + j;
-        if k >= N then
-          k := k - N;
-      end;
-    end;
-
-    for j := 1 to AMax - 1 do begin
-      Z[0].Re := Z[0].Re + V[j].Re;
-      Z[0].Im := Z[0].Im + W[j].Im;
+    b := 1 shl i;
+    if n >= 1 shl b then
+    begin
+      n := n shr b;
+      result := result + b;
     end;
   end;
+end;
 
-// main
+{ TAuFFTransformer }
+
+constructor TAuFFTransformer.Create(AFFTSize: Integer);
 begin
-  // Initialize trigonomial coefficients
-  InitializeTrigonomials(Radix);
+  inherited Create;
 
-  Omega       := 2 * pi / (Sofar * Radix);
-  CosSin      := Complex(cos(Omega), -sin(Omega));
-  S           := Complex(1.0, 0.0);
-  DataOffset  := 0;
-  GroupOffset := 0;
-  Position    := 0;
+  //Check whether the passed parameter is a power of two value
+  if (not IsPow2(AFFTSize) and (AFFTSize > 0)) then
+    raise EAuFFTNonPow2.Create('The given FFT size is non power of two!');
 
-  for DataNo := 0 to Sofar - 1 do begin
+  //Copy the size parameter, calculate the recursion depth and the size of the
+  //table
+  FSize := AFFTSize;
+  FDepth := IntLog2(FSize);
+  FSteps := FDepth * (1 shl (FDepth - 1));
 
-    if Sofar > 1 then begin
+  //Calculate the size of the temporary output buffer (the buffery itself will
+  //be created when it is needed.)
+  FTmpBufSize := SizeOf(TAuComplex) * AFFTSize;
 
-      Synth[0] := Complex(1.0, 0.0);
-      Synth[1] := S;
-      for SynthNo := 2 to Radix - 1 do
-        Synth[SynthNo] := ComplexMul(S, Synth[SynthNo - 1]);
-      S := ComplexMul(CosSin, S);
+  ConstructTable;
+end;
 
+destructor TAuFFTransformer.Destroy;
+begin
+  //Free the memory reserved for the temporary buffer
+  FreeMem(FTmpBuf);
+
+  FTmpBuf := nil;
+  FTmpBufSize := 0;
+
+  inherited Destroy;
+end;
+
+procedure TAuFFTransformer.ConstructTable;
+
+  //For the first "recursion"-step the indices have to be reordered:
+  //    0 1 2 3 4 5 6 7
+  //--> 0 4 2 6 1 5 3 7
+  //The reorder_idx function takes the initial index and the "recursion" depth
+  function reorder_idx(idx, depth: integer): integer;
+  var
+    i:     integer;
+    digit: boolean;
+  begin
+    Result := 0;
+    i := 0;
+    while idx > 0 do
+    begin
+      if idx mod 2 = 1 then
+        Result := Result or (1 shl (depth - i - 1));
+      idx := idx div 2;
+      i := i + 1;
     end;
+  end;
 
-    for GroupNo := 0 to Remain - 1 do begin
+var
+  lbase, rbase: Integer;
+  rec_depth, rec_section, rec_elem: Integer;
+  theta: Single;
+  inv_d: single;
+  i: Integer;
+begin
+  SetLength(FTable, FSteps);
+  i := 0;
 
-      if (Sofar > 1) AND (DataNo > 0) then begin
+  //The outer loop represents the recursion setps done in the recursive variant
+  //of the FFT algorithm. We start at the lowest level, where every "section"
+  //of entrys only contains of a pair of complex numbers.
+  for rec_depth := 0 to FDepth - 1 do
+  begin
 
-        Z[0]    := Y[Position];
-        BlockNo := 1;
-        repeat
-          inc(Position, Sofar);
-          Z[BlockNo] := ComplexMul(Synth[BlockNo], Y[Position]);
-          inc(BlockNo);
-        until BlockNo >= Radix;
+    rbase := (1 shl rec_depth);
+    inv_d := - PI / rbase;
 
-      end else begin
+    //The middle loop represents the "sections" the input vector is divided into.
+    //We start with sections with two elements and stop when the section contains
+    //the whole input vector.
+    for rec_section := 0 to (1 shl (FDepth - rec_depth - 1)) - 1 do
+    begin
+      lbase := 2 * rbase * rec_section;
 
-        for BlockNo := 0 to Radix - 1 do begin
-          Z[BlockNo] := Y[Position];
-          inc(Position, Sofar);
+      //The inner loop goes over the elements of each section. In order to construct
+      //the table, the read and write indices, as well as the constant theta complex
+      //number are calculated.
+      for rec_elem := 0 to (1 shl rec_depth) - 1 do
+      begin
+        with FTable[i] do
+        begin
+          lout := lbase + rec_elem;
+          rout := rbase + lout;
+
+          //The first recursion step is used to reorder the input elements. This
+          //represents taking the odd or even elements in the recursive algorithm.
+          if (rec_depth = 0) then
+          begin
+            lin := reorder_idx(lout, FDepth);
+            rin := reorder_idx(rout, FDepth);
+          end
+          else
+          begin
+            lin := lout;
+            rin := rout;
+          end;
+
+          theta := rec_elem * inv_d;
+          phi.re := Cos(theta);
+          phi.im := Sin(theta);
         end;
-
+        inc(i);
       end;
-
-      case Radix of
-      2:  FFT_2(Z);
-      3:  FFT_3(Z);
-      4:  FFT_4(Z);
-      5:  FFT_5(Z);
-      8:  FFT_8(Z);
-      10: FFT_10(Z);
-      else
-        // Any larger prime number than 5 (so 7, 11, 13, etc, up to cMaxPrimeFactor)
-        FFT_Prime(Radix);
-      end; //case
-
-      Position := GroupOffset;
-      for BlockNo := 0 to Radix - 1 do begin
-        Y[Position] := Z[blockNo];
-        Inc(Position, Sofar);
-      end;
-      GroupOffset := GroupOffset + Sofar * Radix;
-      Position    := GroupOffset;
     end;
-    inc(DataOffset);
-    GroupOffset := DataOffset;
-    Position    := DataOffset;
   end;
 end;
 
-procedure ForwardFFT(const Source: array of TAuComplex; var Dest: array of TAuComplex; Count: integer);
-// Perform a FFT on the data in Source, put result in Dest. This routine works best
-// for Count as a power of 2, but also works usually faster than DFT by factoring
-// the series. Only in cases where Count is a prime number will this method be
-// identical to regular DFT.
-type
-  PComplexArray = ^TComplexArray;
-  TComplexArray = array[0..0] of TAuComplex;
-var
-  i: integer;
-  FactorCount: integer;
-  SofarRadix:  TIdx1FactorArray;
-  ActualRadix: TIdx1FactorArray;
-  RemainRadix: TIdx0FactorArray;
-  TmpDest: PComplexArray;
+procedure TAuFFTransformer.DoFFT(AMem: PAuComplex);
 begin
-  if Count = 0 then exit;
+  //Initialize the temporary buffer if this hasn't been done yet.
+  if (FTmpBuf = nil) then
+    FTmpBuf := GetMem(FTmpBufSize);
 
-  // Decompose the series with length Count into FactorCount factors in ActualRadix
-  Factorize(Count, FactorCount, ActualRadix);
+  //Perform the actual FFT
+  DoFFT(AMem, FTmpBuf);
 
-  // Check if our biggest prime factor is not too large
-  if (ActualRadix[1] > cMaxPrimeFactor) then
-    raise EMathError.Create(sErrPrimeTooLarge);
-
-  // Setup Sofar and Remain tables
-  RemainRadix[0] := Count;
-  SofarRadix[1]  := 1;
-  RemainRadix[1] := Count div ActualRadix[1];
-  for i := 2 to FactorCount do begin
-    SofarRadix[i]  := SofarRadix[i-1] * ActualRadix[i-1];
-    RemainRadix[i] := RemainRadix[i-1] div ActualRadix[i];
-  end;
-
-  // Make temp copy if dest = source (otherwise the permute procedure will completely
-  // ruin the structure
-  if @Dest = @Source then begin
-    GetMem(TmpDest, SizeOf(TAuComplex) * Count);;
-    AcMove(Dest, TmpDest^, SizeOf(TAuComplex) * Count);
-  end else begin
-    TmpDest := @Dest;
-  end;
-
-  // Reorder the series so that the elements are already in the right place for
-  // synthesis
-  ReorderSeries(Count{, FactorCount}, ActualRadix, RemainRadix, Source, TmpDest^);
-
-  // Free the temporary copy (if any)
-  if @Dest = @Source then begin
-    AcMove(TmpDest^, Dest, SizeOf(TAuComplex) * Count);
-    FreeMem(TmpDest);
-  end;
-
-  // Synthesize each of the FFT factored series
-  for i := 1 to FactorCount do
-    SynthesizeFFT(SofarRadix[i], ActualRadix[i], RemainRadix[i], Dest);
-
+  //Overwrite the input buffer
+  Move(FTmpBuf^, AMem^, FTmpBufSize);
 end;
 
-procedure InverseFFT(const Source: array of TAuComplex; var Dest: array of TAuComplex; Count: integer);
-// Perform the inverse FFT on the Source data, and put result in Dest. It performs
-// the forward FFT and then divides elements by N
+procedure TAuFFTransformer.DoFFT(ASrc, ADst: PAuComplex);
 var
   i: integer;
-  S: single;
-  TmpSource: array of TAuComplex;
+  pin, pout: PAuComplexField;
+  zl, zr, zz: TAuComplex;
+  t1, t2: Double;
 begin
-  if Count = 0 then exit;
+  pin := PAuComplexField(ASrc);
+  pout := PAuComplexField(ADst);
+  for i := 0 to FSteps - 1 do
+  begin
+    //Switch input to output buffer after first reordering pass
+    if (i = FSize div 2) then
+      pin := pout;
 
-  // Since TmpSource is local, we do not have to free it again,
-  // it will be freed automatically when out of scope
-  SetLength(TmpSource, Count);
+    //Fetch the coefficients from the current table entry
+    with FTable[i] do
+    begin
+      //Read the "left" and the "right" sample from the input buffer
+      zl := pin^[lin];
+      zr := pin^[rin];
 
-  // Create a copy with inverted imaginary part.
-  for i := 0 to Count - 1 do
-    with Source[i] do
-      TmpSource[i] := Complex(Re, -Im);
-  ForwardFFT(TmpSource, Dest, Count);
+      //Calculate zz = zl * phi
+      zz.re := (zl.re * phi.re) - (zl.im * phi.im);
+      zz.im := (zl.re * phi.im) + (zl.im * phi.re);
 
-  // Scale by 1/Count, and inverse the imaginary part
-  S := 1.0 / Count;
-  for i := 0 to Count - 1 do begin
-    Dest[i].Re :=   S * Dest[i].Re;
-    Dest[i].Im := - S * Dest[i].Im;
+      //Calculate zl = zr + zz
+      zl.re := zr.re + zz.re;
+      zl.im := zr.im + zz.im;
+
+      //Calculate zr = rr - zz
+      zr.re := zr.re - zz.re;
+      zr.im := zr.im - zz.im;
+
+      //Write the left and the right sample to the output buffer
+      pout^[lout] := zl;
+      pout^[rout] := zr;
+    end;
   end;
 end;
 
 end.
+

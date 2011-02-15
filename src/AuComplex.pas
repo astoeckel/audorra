@@ -36,7 +36,12 @@ type
     Im: Double; // Imaginary part
   end;
 
+  PAuComplex = ^TAuComplex;
+
   TAuComplexArray = array of TAuComplex;
+
+  TAuComplexField = array[0..0] of TAuComplex;
+  PAuComplexField = ^TAuComplexField;
 
 const
 
