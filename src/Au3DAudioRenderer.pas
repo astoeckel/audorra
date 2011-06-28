@@ -365,7 +365,7 @@ type
       procedure SeekToSample(ASample: integer);
       procedure SeekToSecond(ASec: Single);
 
-      property OnStop: TAuNotifyEvent read FStopProc write FStopProc;    
+      property OnStop: TAuNotifyEvent read FStopProc write FStopProc;
   end;
 
 
@@ -621,6 +621,8 @@ var
   i, j: integer;
   pobj: PAu3DEmitterProps;
   tp: Extended;
+  sound: TAu3DCustomSound;
+  emitter: TAu3DCustomEmitter;
 begin
   FWroteData := false;
 
@@ -638,26 +640,28 @@ begin
 
     for i := 0 to FSounds.Count - 1 do
     begin
-      if FSounds[i].Active then
+      sound := FSounds[i];
+      if sound.Active then
       begin
-        FSounds[i].Move(tp);
+        sound.Move(tp);
 
-        for j := 0 to FSounds[i].Emitters.Count - 1 do
+        for j := 0 to sound.Emitters.Count - 1 do
         begin
-          if FSounds[i].Emitters[j].Active then
+          emitter := sound.Emitters[j];
+          if emitter.Active then
           begin
             //Get the listener information attached to the sound
-            AListener.Sources.GetSourceObj(FSounds[i].Emitters[j], pobj);
+            AListener.Sources.GetSourceObj(emitter, pobj);
 
-            FSounds[i].Emitters[j].Move(tp);
+            emitter.Move(tp);
 
             //Do the actual rendering
-            if not FSounds[i].Emitters[j].GlobalEmitter then
+            if not emitter.GlobalEmitter then
               CalculatePositionalSoundData(AListener, ASampleCount, ABuf,
-                FSounds[i].Emitters[j], not FWroteData, pobj)
+                emitter, not FWroteData, pobj)
             else
               CalculateStaticSoundData(AListener, ASampleCount, ABuf,
-                FSounds[i].Emitters[j], not FWroteData, pobj);
+                emitter, not FWroteData, pobj);
           end;
         end;
       end;
