@@ -1243,13 +1243,14 @@ begin
   begin
     pobj := FList[i];
 
-    //Reset the manual position change value
-    TAu3DCustomEmitter(pobj^.Source).FManualPositionChange := false;
-
     if not pobj^.Used then
     begin
       Dispose(pobj);
       FList.Delete(i);
+    end else
+    begin
+      //Reset the manual position change value
+      TAu3DCustomEmitter(pobj^.Source).FManualPositionChange := false;
     end;
   end;
 end;
