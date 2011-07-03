@@ -107,7 +107,7 @@ type
   TAuURLProtocol = class(TAuProtocol)
     public
       function SupportsProtocol(const AName: string):boolean;virtual;abstract;
-      function Open(AUrl: string): boolean;virtual;
+      function Open(AUrl: string): boolean;virtual;abstract;
       procedure Close;virtual;abstract;
       function Opened: boolean;virtual;abstract;
   end;
@@ -193,13 +193,6 @@ begin
     (TMethod(current_seek_proc).Code <> TMethod(base_seek_proc).Code) or
     (TMethod(current_seek_proc_64).Code <> TMethod(base_seek_proc_64).Code);
 end;     
-
-{ TAuURLProtocol }
-
-function TAuURLProtocol.Open(AUrl: string): boolean;
-begin
-  result := false;
-end;
 
 { TAuMemoryProtocol }
 

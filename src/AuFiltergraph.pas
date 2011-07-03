@@ -1291,7 +1291,7 @@ function TAuAnalyzeFilter.DoInit(const AParameters: TAuAudioParameters): Boolean
 begin
   result := GlobalTargetFilter is TAuOutputFilter;
   if result then  
-    FThread := TAuAnalyzeThread.Create(128, AParameters, AnalyzeData,
+    FThread := TAuAnalyzeThread.Create(880, AParameters, AnalyzeData,
       TAuOutputFilter(GlobalTargetFilter));
 end;
 

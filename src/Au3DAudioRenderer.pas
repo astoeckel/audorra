@@ -46,7 +46,8 @@ interface
 uses
   SysUtils, Classes, Math,
   AcMath, AcTypes, AcSyncObjs, AcNotify,
-  AuTypes, AuUtils, AuAudioSpline, Au3DRingBuffer;
+  AuTypes, AuUtils, AuAudioSpline, // Do not remove AuAudioSpline! Some parts if it are implicitly inline.
+  Au3DRingBuffer;
 
 const
   AU3DPROP_PHASE = $01;
@@ -143,12 +144,12 @@ type
   TAu3DChannelMatrix = array of array of Single;
 
   TAu3DSpeaker = (
-    au3dspCenter = 0,
-    au3dspFrontLeft = -1,
-    au3dspFrontRight = 1,
-    au3dspSideLeft = -2,
-    au3dspSideRight = 2,
     au3dspRearLeft = -3,
+    au3dspSideLeft = -2,
+    au3dspFrontLeft = -1,
+    au3dspCenter = 0,
+    au3dspFrontRight = 1,
+    au3dspSideRight = 2,
     au3dspRearRight = 3,
     au3dspSubwoofer = 100
   );
@@ -311,7 +312,7 @@ type
       constructor Create(ASound: TAu3DCustomSound);
       destructor Destroy;override;
 
-      procedure Move(ATimeGap: Extended);virtual;
+      procedure Move(ATimeGap: Extended; ALock: TAcSynchroObject);virtual;
       function TimePosition64: TAuSampleStamp;virtual;abstract;
 
       function TellSecond: Single;
@@ -359,7 +360,7 @@ type
       constructor Create(ASound: TAu3DStaticSound);
       destructor Destroy;override;
 
-      procedure Move(ATimeGap: Extended);override;
+      procedure Move(ATimeGap: Extended; ALock: TAcSynchroObject);override;
       function TimePosition64: TAuSamplestamp;override;
 
       procedure SeekToSample(ASample: integer);
@@ -653,7 +654,7 @@ begin
             //Get the listener information attached to the sound
             AListener.Sources.GetSourceObj(emitter, pobj);
 
-            emitter.Move(tp);
+            emitter.Move(tp, FMutex);
 
             //Do the actual rendering
             if not emitter.GlobalEmitter then
@@ -1642,7 +1643,7 @@ begin
   result := FGlobalEmitter or (FSound.Parameters.Channels > 1);
 end;
 
-procedure TAu3DCustomEmitter.Move(ATimeGap: Extended);
+procedure TAu3DCustomEmitter.Move(ATimeGap: Extended; ALock: TAcSynchroObject);
 begin
   if Assigned(FMoveProc) then
     FMoveProc(self, ATimeGap);  
@@ -1726,7 +1727,7 @@ begin
   inherited;
 end;
 
-procedure TAu3DStaticEmitter.Move(ATimeGap: Extended);
+procedure TAu3DStaticEmitter.Move(ATimeGap: Extended; ALock: TAcSynchroObject);
 begin
   inherited;
   
@@ -1739,7 +1740,7 @@ begin
   if ((FTimePosition64 - FTimeOffset) div (1 shl 16)) >= Sound.BufferSamples then
   begin
     if Assigned(FStopProc) then
-      AcNotifyQueue(self, StopProc);
+      AcNotifyQueue(self, StopProc, nil, ALock);
 
     if TAu3DStaticSound(FSound).Loop then
       while ((FTimePosition64 - FTimeOffset) div (1 shl 16) >= Sound.BufferSamples) do

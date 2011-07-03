@@ -42,8 +42,8 @@ interface
 
 uses
   SysUtils, Classes,
-  AcDataStore, AcPersistent, AcRegUtils, AcNotify,
-  AuDriverClasses, AuDecoderClasses, AuProtocolClasses,
+  AcDataStore, AcPersistent, AcNotify,
+  AuDriverClasses, AuDecoderClasses,
   AuTypes, AuUtils, AuAudio, AuFilterGraph, AuMessages,
   Au3DAudioRenderer, Au3DAudioFilters;
 

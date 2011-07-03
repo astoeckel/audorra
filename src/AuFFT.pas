@@ -149,7 +149,8 @@ end;
 destructor TAuFFTransformer.Destroy;
 begin
   //Free the memory reserved for the temporary buffer
-  FreeMem(FTmpBuf);
+  if FTmpBuf <> nil then
+    FreeMem(FTmpBuf);
 
   FTmpBuf := nil;
   FTmpBufSize := 0;
