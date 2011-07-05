@@ -697,14 +697,14 @@ function TAuCustomAudioObject.LoadFromProtocol(AProtocol: TAuProtocol;
 begin
   FLock.Enter;
   try
-    FOwnProtocol := FOwnProtocol or AOwnProtocol;
-    
     //Close if not in the "loading" state
     if FState <> aupsLoading then
     begin
       FURL := '';
       Close;
     end;
+
+    FOwnProtocol := FOwnProtocol or AOwnProtocol;
 
     //If we've reached this line, the loading progress has been finished
     SetState(aupsLoaded);
@@ -720,8 +720,6 @@ function TAuCustomAudioObject.LoadFromStream(AStream: TStream; AOwnStream: boole
 begin
   FLock.Enter;
   try
-    FOwnStream := FOwnStream or AOwnStream;
-    
     //Close and reset FURL if not in the "loading" state
     if FState <> aupsLoading then
     begin
@@ -730,6 +728,11 @@ begin
     end;
 
     SetState(aupsLoading);
+
+    //Copy the given stream if "AOwnStream" is true (fix provided by DGL user littleDave)
+    FOwnStream := FOwnStream or AOwnStream;
+    if AOwnStream then
+      FStream := AStream;
 
     //Create a stream protocol and connect it to the stream
     FProtocol := TAuStreamProtocol.Create(AStream);
