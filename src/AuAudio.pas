@@ -1059,7 +1059,7 @@ begin
       if TAuOutputFilter(FTarget).Init(params) then
       begin
         //Create the notify thread
-        FNotifyThread := TAuPlayerNotificationThread.Create(TAuOutputFilter(FTarget),
+        FNotifyThread := TAuPlayerNotificationThread.Create(FOutput,
           FSource, SyncDataChanged);
 
         result := true;
