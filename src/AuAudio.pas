@@ -1056,7 +1056,7 @@ begin
       FCompressor.Target := FTarget;
 
       //Initialize the target filter
-      if TAuOutputFilter(FTarget).Init(params) then
+      if FTarget.Init(params) then
       begin
         //Create the notify thread
         FNotifyThread := TAuPlayerNotificationThread.Create(FOutput,
@@ -1247,7 +1247,7 @@ begin
     if (FDecoder <> nil) and (State >= aupsOpened) then
     begin
       //Reset playback
-      TAuOutputFilter(FTarget).Stop; //Actually not needed because the decoder timeslices are very small
+      FOutput.Stop; //Actually not needed because the decoder timeslices are very small
 
       FillChar(FCurrentFrameInfo, SizeOf(FCurrentFrameInfo), 0);
 
