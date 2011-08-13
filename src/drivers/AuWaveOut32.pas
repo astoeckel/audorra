@@ -289,7 +289,7 @@ begin
       else
         waveOutPause(FHWO);
 
-      FActive := true;
+      FActive := AActive;
     finally
       FMutex.Release;
     end;
